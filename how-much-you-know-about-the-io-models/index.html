@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="同步异步I&#x2F;O，阻塞非阻塞I&#x2F;O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I&#x2F;O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IO模型知多少">
+<meta property="og:url" content="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="同步异步I&#x2F;O，阻塞非阻塞I&#x2F;O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I&#x2F;O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png">
+<meta property="article:published_time" content="2020-04-14T12:37:14.000Z">
+<meta property="article:modified_time" content="2020-05-02T08:20:28.813Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content="I&#x2F;O">
+<meta property="article:tag" content="EPOLL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>IO模型知多少 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          IO模型知多少
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-04-14 20:37:14" itemprop="dateCreated datePublished" datetime="2020-04-14T20:37:14+08:00">2020-04-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-05-02 16:20:28" itemprop="dateModified" datetime="2020-05-02T16:20:28+08:00">2020-05-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/how-much-you-know-about-the-io-models/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/how-much-you-know-about-the-io-models/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <div class="post-description">同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="../images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</p>
+<p>简而言之，对于I/O的认知，不能仅仅停留在字面上认识，了解内部玄机，才能深刻理解I/O，才能看清I/O相关问题的本质。</p>
+<h1 id="2-I-O-的定义"><a href="#2-I-O-的定义" class="headerlink" title="2. I/O 的定义"></a>2. I/O 的定义</h1><p>I/O 的全称是Input/Output。虽常谈及I/O，但想必你也一时不能给出一个完整的定义。搜索了谷歌，发现也尽是些冗长的论述。要想厘清I/O这个概念，我们需要从不同的视角去理解它。</p>
+<h2 id="2-1-计算机视角"><a href="#2-1-计算机视角" class="headerlink" title="2.1. 计算机视角"></a>2.1. 计算机视角</h2><p> 冯•诺伊曼计算机的基本思想中有提到计算机硬件组成应为五大部分：控制器，运算器，存储器，输入和输出。其中输入是指将数据输入到计算机的设备，比如键盘鼠标；输出是指从计算机中获取数据的设备，比如显示器；以及既是输入又是输出设备，硬盘，网卡等。</p>
+<p>用户通过操作系统才能完成对计算机的操作。计算机启动时，第一个启动的程序是操作系统的内核，它将负责计算机的资源管理和进程的调度。换句话说：操作系统负责从输入设备读取数据并将数据写入到输出设备。</p>
+<p>所以I/O之于计算机，有两层意思：</p>
+<ol>
+<li>I/O设备</li>
+<li>对I/O设备的数据读写</li>
+</ol>
+<p><em>对于一次I/O操作，必然涉及2个参与方，一个输入端，一个输出端，而又根据参与双方的设备类型，我们又可以分为磁盘I/O，网络I/O（一次网络的请求响应，网卡）等。</em></p>
+<h2 id="2-2-程序视角"><a href="#2-2-程序视角" class="headerlink" title="2.2. 程序视角"></a>2.2. 程序视角</h2><p>应用程序作为一个文件保存在磁盘中，只有加载到内存到成为一个进程才能运行。应用程序运行在计算机内存中，必然会涉及到数据交换，比如读写磁盘文件，访问数据库，调用远程API等等。但我们编写的程序并不能像操作系统内核一样直接进行I/O操作。</p>
+<p>因为为了确保操作系统的安全稳定运行，操作系统启动后，将会开启保护模式：将内存分为内核空间（内核对应进程所在内存空间）和用户空间，进行内存隔离。我们构建的程序将运行在用户空间，用户空间无法操作内核空间，也就意味着用户空间的程序不能直接访问由内核管理的I/O，比如：硬盘、网卡等。</p>
+<p>但操作系统向外提供API，其由各种类型的系统调用（System Call）组成，以提供安全的访问控制。<br>所以应用程序要想访问内核管理的I/O，必须通过调用内核提供的系统调用(system call）进行间接访问。</p>
+<p>所以I/O之于应用程序来说，强调的通过<strong>向内核发起系统调用完成对I/O的间接访问</strong>。换句话说应用程序发起的一次IO操作实际包含两个阶段：</p>
+<ol>
+<li>IO调用阶段：应用程序进程向内核发起系统调用</li>
+<li>IO执行阶段：内核执行IO操作并返回<br>2.1. 准备数据阶段：内核等待I/O设备准备好数据<br>  2.2. 拷贝数据阶段：将数据从内核缓冲区拷贝到用户空间缓冲区</li>
+</ol>
+<p>怎么理解准备数据阶段呢？<br>对于写请求：等待系统调用的完整请求数据，并写入内核缓冲区；<br>对于读请求：等待系统调用的完整请求数据；（若请求数据不存在于内核缓冲区）则将外围设备的数据读入到内核缓冲区。</p>
+<p> <img src="../images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
+<p>而应用程序进程在发起IO调用至内核执行IO返回之前，应用程序进程/线程所处状态，就是我们下面要讨论的第二个话题阻塞IO与非阻塞IO。</p>
+<h1 id="3-IO-模型之阻塞I-O-BIO"><a href="#3-IO-模型之阻塞I-O-BIO" class="headerlink" title="3. IO 模型之阻塞I/O(BIO)"></a>3. IO 模型之阻塞I/O(BIO)</h1><p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。阻塞IO简称BIO，Blocking IO。其处理流程如下图所示：</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
+<p>从上图可知当用户进程发起IO系统调用后，内核从准备数据到拷贝数据到用户空间的两个阶段期间<strong>用户调用线程选择阻塞等待</strong>数据返回。</p>
+<p>因此BIO带来了一个问题：如果内核数据需要耗时很久才能准备好，那么用户进程将被阻塞，浪费性能。为了提升应用的性能，虽然可以通过多线程来提升性能，但线程的创建依然会借助系统调用，同时多线程会导致频繁的线程上下文的切换，同样会影响性能。所以要想解决BIO带来的问题，我们就得看到问题的本质，那就是<strong>阻塞</strong>二字。</p>
+<h1 id="4-IO-模型之非阻塞I-O-NIO"><a href="#4-IO-模型之非阻塞I-O-NIO" class="headerlink" title="4. IO 模型之非阻塞I/O(NIO)"></a>4. IO 模型之非阻塞I/O(NIO)</h1><p>那解决方案自然也容易想到，将阻塞变为非阻塞，那就是用户进程在发起系统调用时指定为非阻塞，内核接收到请求后，就会立即返回，然后用户进程通过轮询的方式来拉取处理结果。也就是如下图所示：</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
+<p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程不会等待而是立即返回，则此次IO操作为非阻塞IO模型。非阻塞IO简称NIO，Non-Blocking IO。</p>
+<p>然而，非阻塞IO虽然相对于阻塞IO大幅提升了性能，但依旧不是完美的解决方案，其依然存在性能问题，也就是频繁的轮询导致频繁的系统调用，会耗费大量的CPU资源。比如当并发很高时，假设有1000个并发，那么单位时间循环内将会有1000次系统调用去轮询执行结果，而实际上可能只有2个请求结果执行完毕，这就会有998次无效的系统调用，造成严重的性能浪费。有问题就要解决，那<strong>NIO问题的本质就是频繁轮询导致的无效系统调用</strong>。</p>
+<h1 id="5-IO模型之IO多路复用"><a href="#5-IO模型之IO多路复用" class="headerlink" title="5. IO模型之IO多路复用"></a>5. IO模型之IO多路复用</h1><p>解决NIO的思路就是降解无效的系统调用，如何降解呢？我们一起来看看以下几种IO多路复用的解决思路。</p>
+<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
+<p>但是，select有一个限制，就是存在连接数限制，针对于此，又提出了poll。其与select相比，主要是解决了连接限制。</p>
+<p>select/epoll 虽然解决了NIO重复无效系统调用用的问题，但同时又引入了新的问题。问题是：</p>
+<ol>
+<li>用户空间和内核空间之间，大量的数据拷贝</li>
+<li>内核循环遍历IO状态，浪费CPU时间</li>
+</ol>
+<p>换句话说，select/poll虽然减少了用户进程的发起的系统调用，但内核的工作量只增不减。在高并发的情况下，内核的性能问题依旧。所以select/poll的问题本质是：内核存在无效的循环遍历。</p>
+<h2 id="5-2-IO多路复用之epoll"><a href="#5-2-IO多路复用之epoll" class="headerlink" title="5.2. IO多路复用之epoll"></a>5.2. IO多路复用之epoll</h2><p>针对select/pool引入的问题，我们把解决问题的思路转回到内核上，如何减少内核重复无效的循环遍历呢？变主动为被动，基于事件驱动来实现。其流程图如下所示：</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
+<p>epoll相较于select/poll，多了两次系统调用，其中epoll_create建立与内核的连接，epoll_ctl注册事件，epoll_wait阻塞用户进程，等待IO事件。</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
+<p>epoll，已经大大优化了IO的执行效率，但在IO执行的第一阶段：数据准备阶段都还是被阻塞的。所以这是一个可以继续优化的点。</p>
+<h1 id="6-IO-模型之信号驱动IO-SIGIO"><a href="#6-IO-模型之信号驱动IO-SIGIO" class="headerlink" title="6. IO 模型之信号驱动IO(SIGIO)"></a>6. IO 模型之信号驱动IO(SIGIO)</h1><p>信号驱动IO与BIO和NIO最大的区别就在于，在IO执行的数据准备阶段，不会阻塞用户进程。<br>如下图所示：当用户进程需要等待数据的时候，会向内核发送一个信号，告诉内核我要什么数据，然后用户进程就继续做别的事情去了，而当内核中的数据准备好之后，内核立马发给用户进程一个信号，说”数据准备好了，快来查收“，用户进程收到信号之后，立马调用recvfrom，去查收数据。</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
+<p>乍一看，信号驱动式I/O模型有种异步操作的感觉，但是在IO执行的第二阶段，也就是将数据从内核空间复制到用户空间这个阶段，用户进程还是被阻塞的。</p>
+<p>综上，你会发现，不管是BIO还是NIO还是SIGIO，它们最终都会被阻塞在IO执行的第二阶段。<br>那如果能将IO执行的第二阶段变成非阻塞，那就完美了。</p>
+<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
+<p>所以，之所以称为异步IO，取决于IO执行的第二阶段是否阻塞。因此前面讲的BIO，NIO和SIGIO均为同步IO。</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
+<h1 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h1><p>梳理完这些IO模型后，之前一直处于懵懂状态的阻塞，非阻塞，同步异步IO，终于算是有个概念了。同时也纠正了自己一直以来的误解，所以一路走来，愈发觉得返璞归真的重要性，只有如此，才能在快速更迭的技术演进中，以不变应万变。</p>
+<p><em>本片综合多方资料写就，难免纰漏，但只有写下来，才能得以指正。所以，烦请各位看官不吝赐教。</em></p>
+<blockquote>
+<p>参考资料：</p>
+<ol>
+<li><a href="https://www.jianshu.com/p/fa7bdc4f3de7" target="_blank" rel="noopener">程序员应该这样理解IO</a></li>
+<li><a href="https://www.jianshu.com/p/511b9cffbdac" target="_blank" rel="noopener">IO复用模型同步，异步，阻塞，非阻塞及实例详解</a></li>
+<li><a href="https://juejin.im/post/5ca4c044e51d4565372e47cf" target="_blank" rel="noopener">服务器网络编程之 IO 模型</a></li>
+<li><a href="http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html" target="_blank" rel="noopener">http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html</a></li>
+<li><a href="https://cllc.fun/2019/03/07/synchronous-asynchronous-io/" target="_blank" rel="noopener">同步I/O(阻塞I/O，非阻塞I/O)，异步I/O</a></li>
+<li><a href="https://www.bilibili.com/video/BV11K4y1C7rm?p=2" target="_blank" rel="noopener">马士兵：权威讲解nio,epoll,多路复用</a></li>
+<li><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/9050467" target="_blank" rel="noopener">Linux 内核详解以及内核缓冲区技术</a></li>
+</ol>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/" title="IO模型知多少">https://blog.shengjie.dev/how-much-you-know-about-the-io-models/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/I-O/" rel="tag"># I/O</a>
+              <a href="/tags/EPOLL/" rel="tag"># EPOLL</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-orleans/" rel="prev" title="Orleans 知多少 | .NET分布式框架">
+      <i class="fa fa-chevron-left"></i> Orleans 知多少 | .NET分布式框架
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-number">1.</span> <span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-I-O-的定义"><span class="nav-number">2.</span> <span class="nav-text">2. I&#x2F;O 的定义</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-计算机视角"><span class="nav-number">2.1.</span> <span class="nav-text">2.1. 计算机视角</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-程序视角"><span class="nav-number">2.2.</span> <span class="nav-text">2.2. 程序视角</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-IO-模型之阻塞I-O-BIO"><span class="nav-number">3.</span> <span class="nav-text">3. IO 模型之阻塞I&#x2F;O(BIO)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-IO-模型之非阻塞I-O-NIO"><span class="nav-number">4.</span> <span class="nav-text">4. IO 模型之非阻塞I&#x2F;O(NIO)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-IO模型之IO多路复用"><span class="nav-number">5.</span> <span class="nav-text">5. IO模型之IO多路复用</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#5-1-IO多路复用之select-poll"><span class="nav-number">5.1.</span> <span class="nav-text">5.1. IO多路复用之select&#x2F;poll</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-2-IO多路复用之epoll"><span class="nav-number">5.2.</span> <span class="nav-text">5.2. IO多路复用之epoll</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-IO-模型之信号驱动IO-SIGIO"><span class="nav-number">6.</span> <span class="nav-text">6. IO 模型之信号驱动IO(SIGIO)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#7-IO-模型之异步IO-AIO"><span class="nav-number">7.</span> <span class="nav-text">7. IO 模型之异步IO(AIO)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#8-总结"><span class="nav-number">8.</span> <span class="nav-text">8. 总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+  <script defer src="/lib/three/three.min.js"></script>
+    <script defer src="/lib/three/three-waves.min.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
+      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
+      placeholder: "Code is cheap, show me your mind!",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

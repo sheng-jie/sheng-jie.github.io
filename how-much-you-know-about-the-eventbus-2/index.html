@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。这一节我们再来结合IOC来对上节的事件总线予以进一步的优化。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="事件总线知多少(2)">
+<meta property="og:url" content="https://blog.shengjie.dev/how-much-you-know-about-the-eventbus-2/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。这一节我们再来结合IOC来对上节的事件总线予以进一步的优化。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png">
+<meta property="article:published_time" content="2017-06-22T12:37:14.000Z">
+<meta property="article:modified_time" content="2020-05-02T04:46:32.530Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content=".NET Core">
+<meta property="article:tag" content="发布订阅模式">
+<meta property="article:tag" content="EventBus">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/how-much-you-know-about-the-eventbus-2/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>事件总线知多少(2) | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/how-much-you-know-about-the-eventbus-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          事件总线知多少(2)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-06-22 20:37:14" itemprop="dateCreated datePublished" datetime="2017-06-22T20:37:14+08:00">2017-06-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-05-02 12:46:32" itemprop="dateModified" datetime="2020-05-02T12:46:32+08:00">2020-05-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/how-much-you-know-about-the-eventbus-2/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/how-much-you-know-about-the-eventbus-2/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <div class="post-description">事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。这一节我们再来结合IOC来对上节的事件总线予以进一步的优化。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
+<h1 id="2-回顾事件总线"><a href="#2-回顾事件总线" class="headerlink" title="2.回顾事件总线"></a>2.回顾事件总线</h1><p>在进行具体分析之前，我们还是先对我们实现的事件总线进行一个简单的回顾：</p>
+<ol>
+<li>针对事件源，抽象<code>IEventData</code>接口；</li>
+<li>针对事件处理，抽象<code>IEventHandler&lt;TEventData&gt;</code>接口，定义唯一事件处理方法<code>void HandleEvent(IEventData eventData)</code>；</li>
+<li>事件总线维护一个事件源和事件处理的类型映射字典<code>ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping</code>；</li>
+<li>通过单例模式，确保事件总线的唯一入口；</li>
+<li>利用反射完成事件源与事件处理的动态初始化绑定；</li>
+<li>提供入口支持事件的手动注册/取消注册；</li>
+<li>提供统一的事件触发接口，通过反射动态创建<code>IEventHandler</code>实例完成具体事件处理逻辑的调用。</li>
+</ol>
+<h1 id="3-发现反射问题"><a href="#3-发现反射问题" class="headerlink" title="3.发现反射问题"></a>3.发现反射问题</h1><p>基于以上的简单回顾，我们可以发现Alpha版本事件总线的成功离不开反射的支持。从动态绑定到动态触发，都是反射在默默的处理着业务逻辑。如果我们只是简单学习了解事件总线，使用反射无可厚非。但如果在实际的项目中，使用反射却不是一个很明智的行为，因为其性能问题。尤其是事件总线要集中处理整个应用程序的所有事件，更易导致程序性能瓶颈。<br>既然说到了反射性能，那就顺便解释下为什么反射性能差？</p>
+<ol>
+<li>类型绑定（元数据字符串匹配）</li>
+<li>参数校验</li>
+<li>安全校验</li>
+<li>基于运行时</li>
+<li>反射产生大量临时对象，增加GC负担</li>
+</ol>
+<p>那既然反射有性能瓶颈，我们该如何是好呢？<br>你可能会说，既然反射有问题，那就对反射进行性能优化，比如增加缓存机制。出发点是好的，但最终还是在反射问题的阴影之下。对于反射我们应该持以这样一种态度：能不用反射，则不用反射。</p>
+<p>那既然要推翻反射这条路，那如何解决动态绑定和动态触发的问题呢？<br>办法总比问题多。额，啊，嗯。就不饶圈子了，咱们上IOC。</p>
+<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
+<p>下面我们就以<a href="https://github.com/castleproject/Windsor" target="_blank" rel="noopener">Castle Windsor</a>作为我们的IOC容器为例，来讲解下如何解除依赖。</p>
+<h2 id="4-1-了解Castle-Windsor"><a href="#4-1-了解Castle-Windsor" class="headerlink" title="4.1. 了解Castle Windsor"></a>4.1. 了解Castle Windsor</h2><p>使用Castle Windsor主要包含以下几步：</p>
+<ol>
+<li>初始化容器：<code>var container = new WindsorContainer();</code></li>
+<li>使用WindsorInstallers从执行程序集添加和配置所有组件：<code>container.Install(FromAssembly.This());</code></li>
+<li>实现<code>IWindsorInstaller</code>自定义安装器：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public class RepositoriesInstaller : IWindsorInstaller</span><br><span class="line">&#123;</span><br><span class="line">	public void Install(IWindsorContainer container, IConfigurationStore store)</span><br><span class="line">	&#123;</span><br><span class="line">		container.Register(Classes.FromThisAssembly()</span><br><span class="line">			                .Where(Component.IsInSameNamespaceAs&lt;King&gt;())</span><br><span class="line">			                .WithService.DefaultInterfaces()</span><br><span class="line">			                .LifestyleTransient());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>注册和解析依赖</li>
+<li>程序退出时，释放容器</li>
+</ol>
+<h2 id="4-2-使用Castle-Windsor"><a href="#4-2-使用Castle-Windsor" class="headerlink" title="4.2. 使用Castle Windsor"></a>4.2. 使用Castle Windsor</h2><p>使用IOC容器的目的很明确，一个是在注册事件时完成依赖的注入，一个是在触发事件时完成依赖的解析。从而完成事件的动态绑定和触发。</p>
+<h3 id="4-2-1-初始化容器"><a href="#4-2-1-初始化容器" class="headerlink" title="4.2.1. 初始化容器"></a>4.2.1. 初始化容器</h3><p>要在<code>EventBus</code>这个类中完成事件依赖的注入和解析，就需要在本类中持有一个对<code>IWindsorContainer</code>的引用。<br>可以直接定义一个只读属性，并在构造函数中进行初始化即可。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public IWindsorContainer IocContainer &#123; get; private set; &#125;&#x2F;&#x2F;定义IOC容器</span><br><span class="line">private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br><span class="line">public EventBus()</span><br><span class="line">&#123;</span><br><span class="line">      IocContainer &#x3D; new WindsorContainer();</span><br><span class="line">      _eventAndHandlerMapping &#x3D; new ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-2-注册和取消注册依赖"><a href="#4-2-2-注册和取消注册依赖" class="headerlink" title="4.2.2.注册和取消注册依赖"></a>4.2.2.注册和取消注册依赖</h3><p>初始化完容器，我们需要在手动注册和取消注册事件API上分别完成依赖的注册和取消注册。因为Castle Windsor在3.0版本取消了UnRegister方法，所以在进行事件注册时，就不再手动卸载IOC容器中已注册的依赖。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 手动绑定事件源与事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;handlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line"> public void Register(Type eventType, Type handlerType)</span><br><span class="line"> &#123;</span><br><span class="line">     &#x2F;&#x2F;注册IEventHandler&lt;T&gt;到IOC容器</span><br><span class="line">     var handlerInterface &#x3D; handlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line">     if (!IocContainer.Kernel.HasComponent(handlerInterface))</span><br><span class="line">     &#123;</span><br><span class="line">         IocContainer.Register(Component.For(handlerInterface, handlerType));</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     &#x2F;&#x2F;注册到事件总线</span><br><span class="line">     &#x2F;&#x2F;省略其他代码</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 手动解除事件源与事件处理的绑定</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;handlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    _eventAndHandlerMapping.GetOrAdd(typeof(TEventData), (type) &#x3D;&gt; new List&lt;Type&gt;())</span><br><span class="line">        .RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-3-动态事件绑定"><a href="#4-2-3-动态事件绑定" class="headerlink" title="4.2.3. 动态事件绑定"></a>4.2.3. 动态事件绑定</h3><p>要实现事件的动态绑定，我们要拿到所有<code>IEventHandler&lt;T&gt;</code>的实现。而遍历所有类型最好的办法就是拿到程序集（Assembly）。拿到程序集后就可以将所有<code>IEventHandler&lt;T&gt;</code>的实现注册到IOC容器，然后再基于IOC容器注册的<code>IEventHandler&lt;T&gt;</code>动态映射事件源和事件处理。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 提供入口支持注册其它程序集中实现的IEventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;assembly&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void RegisterAllEventHandlerFromAssembly(Assembly assembly)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.将IEventHandler注册到Ioc容器</span><br><span class="line">    IocContainer.Register(Classes.FromAssembly(assembly)</span><br><span class="line">        .BasedOn(typeof(IEventHandler&lt;&gt;))</span><br><span class="line">        .WithService.AllInterfaces()</span><br><span class="line">        .LifestyleSingleton());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;2.从IOC容器中获取注册的所有IEventHandler</span><br><span class="line">    var handlers &#x3D; IocContainer.Kernel.GetHandlers(typeof(IEventHandler));</span><br><span class="line">    foreach (var handler in handlers)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;循环遍历所有的IEventHandler&lt;T&gt;</span><br><span class="line">        var interfaces &#x3D; handler.ComponentModel.Implementation.GetInterfaces();</span><br><span class="line">        foreach (var @interface in interfaces)</span><br><span class="line">        &#123;</span><br><span class="line">            if (!typeof(IEventHandler).IsAssignableFrom(@interface))</span><br><span class="line">            &#123;</span><br><span class="line">                continue;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;获取泛型参数类型</span><br><span class="line">            var genericArgs &#x3D; @interface.GetGenericArguments();</span><br><span class="line">            if (genericArgs.Length &#x3D;&#x3D; 1)</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;注册到事件源与事件处理的映射字典中</span><br><span class="line">                Register(genericArgs[0], handler.ComponentModel.Implementation);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过这种方式，我们就可以再其他需要使用事件总线的项目中，添加引用后，通过调用以下代码，来完成程序集中<code>IEventHandler&lt;T&gt;</code>的动态绑定。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;注册当前程序集中实现的所有IEventHandler&lt;T&gt;</span><br><span class="line">EventBus.Default.RegisterAllEventHandlerFromAssembly(Assembly.GetExecutingAssembly());</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-4-动态事件触发"><a href="#4-2-4-动态事件触发" class="headerlink" title="4.2.4. 动态事件触发"></a>4.2.4. 动态事件触发</h3><p>触发事件时主要分三步，第一步从事件源与事件处理的字典中取出映射的<code>IEventHandler</code>集合，第二步使用IOC容器解析依赖，第三步调用<code>HandleEvent</code>方法。代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 根据事件源触发绑定的事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void Trigger&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;获取所有映射的EventHandler</span><br><span class="line">    List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line"></span><br><span class="line">    if (handlerTypes !&#x3D; null &amp;&amp; handlerTypes.Count &gt; 0)</span><br><span class="line">    &#123;</span><br><span class="line">        foreach (var handlerType in handlerTypes)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;从Ioc容器中获取所有的实例</span><br><span class="line">            var handlerInterface &#x3D; handlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line">            var eventHandlers &#x3D; IocContainer.ResolveAll(handlerInterface);</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;循环遍历，仅当解析的实例类型与映射字典中事件处理类型一致时，才触发事件</span><br><span class="line">            foreach (var eventHandler in eventHandlers)</span><br><span class="line">            &#123;</span><br><span class="line">                if (eventHandler.GetType() &#x3D;&#x3D; handlerType)</span><br><span class="line">                &#123;</span><br><span class="line">                    var handler &#x3D; eventHandler as IEventHandler&lt;TEventData&gt;;</span><br><span class="line">                    handler.HandleEvent(eventData);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="5-用例完善"><a href="#5-用例完善" class="headerlink" title="5.用例完善"></a>5.用例完善</h1><p>我们上面使用IOC容器替换了反射，在程序的易用性和性能上都有所提升。但很显然，用例不够完善且存在一些潜在问题，比如：</p>
+<ol>
+<li>支持Action EventHandler的绑定和触发</li>
+<li>异步触发</li>
+<li>触发指定的EventHandler</li>
+<li>线程安全</li>
+<li>等等等</li>
+</ol>
+<p>下面我们就来先一一完善以上几个问题。</p>
+<h2 id="5-1-支持Action事件处理器"><a href="#5-1-支持Action事件处理器" class="headerlink" title="5.1.支持Action事件处理器"></a>5.1.支持Action事件处理器</h2><p>如果每一个事件处理都要定义一个类去实现<code>IEventHandler&lt;T&gt;</code>接口，很显然会造成类急剧膨胀。且在一些简单场景，定义一个类又大才小用。这时我们应该立刻想到Action。<br>使用Action，第一步我们要对其进行封装，提供一个公共的<code>ActionEventHandler</code>来统一处理所有的Action事件处理器。代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 支持Action的事件处理器</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">internal class ActionEventHandler&lt;TEventData&gt; : IEventHandler&lt;TEventData&gt; where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 定义Action的引用，并通过构造函数传参初始化</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public Action&lt;TEventData&gt; Action &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public ActionEventHandler(Action&lt;TEventData&gt; handler)</span><br><span class="line">    &#123;</span><br><span class="line">        Action &#x3D; handler;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 调用具体的Action来处理事件逻辑</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void HandleEvent(TEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        Action(eventData);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有了<code>ActionEventHandler</code>做封装，下一步就是注入IOC容器并注册到事件总线了。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 注册Action事件处理器</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;action&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void Register&lt;TEventData&gt;(Action&lt;TEventData&gt; action) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.构造ActionEventHandler</span><br><span class="line">    var actionHandler &#x3D; new ActionEventHandler&lt;TEventData&gt;(action);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;2.将ActionEventHandler的实例注入到Ioc容器</span><br><span class="line">    IocContainer.Register(</span><br><span class="line">        Component.For&lt;IEventHandler&lt;TEventData&gt;&gt;()</span><br><span class="line">        .UsingFactoryMethod(() &#x3D;&gt; actionHandler)</span><br><span class="line">        .LifestyleSingleton());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;3.注册到事件总线</span><br><span class="line">    Register&lt;TEventData&gt;(actionHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用起来就很简单：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;注册Action事件处理器</span><br><span class="line">EventBus.Default.Register&lt;EventData&gt;(</span><br><span class="line">    actionEventData &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        Trace.TraceInformation(actionEventData.EventTime.ToLongDateString());</span><br><span class="line">    &#125;);</span><br><span class="line">&#x2F;&#x2F;触发</span><br><span class="line">EventBus.Default.Trigger(new EventData());</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-2-支持异步触发"><a href="#5-2-支持异步触发" class="headerlink" title="5.2. 支持异步触发"></a>5.2. 支持异步触发</h2><p>异步触发很简单直接使用<code>Task.Run</code>包装一下就ok了。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 异步触发</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">public Task TriggerAsync&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    return Task.Run(() &#x3D;&gt; Trigger&lt;TEventData&gt;(eventData));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-3-触发指定EventHandler"><a href="#5-3-触发指定EventHandler" class="headerlink" title="5.3.触发指定EventHandler"></a>5.3.触发指定EventHandler</h2><p>在我们的<code>Trigger</code>方法中我们会将某一个事件源绑定的事件处理全部触发。但在某些场景下，我们可能并不需要全部触发，仅需要触发指定的EventHandler。这个需求很实际，我们来实现一下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 触发指定EventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line"></span><br><span class="line">public void Trigger&lt;TEventData&gt;(Type eventHandlerType, TEventData eventData) </span><br><span class="line">    where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;获取类型实现的泛型接口</span><br><span class="line">    var handlerInterface &#x3D; eventHandlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line"></span><br><span class="line">    var eventHandlers &#x3D; IocContainer.ResolveAll(handlerInterface);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;循环遍历，仅当解析的实例类型与映射字典中事件处理类型一致时，才触发事件</span><br><span class="line">    foreach (var eventHandler in eventHandlers)</span><br><span class="line">    &#123;</span><br><span class="line">        if (eventHandler.GetType() &#x3D;&#x3D; eventHandlerType)</span><br><span class="line">        &#123;</span><br><span class="line">            var handler &#x3D; eventHandler as IEventHandler&lt;TEventData&gt;;</span><br><span class="line">            handler?.HandleEvent(eventData);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 异步触发指定EventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">public Task TriggerAsycn&lt;TEventData&gt;(Type eventHandlerType, TEventData eventData)</span><br><span class="line">    where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    return Task.Run(() &#x3D;&gt; Trigger(eventHandlerType, eventData));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上个测试用例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"> [Fact]</span><br><span class="line">public async void Should_Call_Specified_Handler_Async()</span><br><span class="line">&#123;</span><br><span class="line">    TestEventBus.Register&lt;TestEventData&gt;(new TestEventHandler());</span><br><span class="line"></span><br><span class="line">    var count &#x3D; 0;</span><br><span class="line">    TestEventBus.Register&lt;TestEventData&gt;(</span><br><span class="line">        actionEventData &#x3D;&gt; &#123; count++; &#125;</span><br><span class="line">    );</span><br><span class="line">    await TestEventBus.TriggerAsycn&lt;TestEventData&gt;</span><br><span class="line">        (typeof(TestEventHandler), new TestEventData(999));</span><br><span class="line"></span><br><span class="line">    TestEventHandler.TestValue.ShouldBe(999);</span><br><span class="line">    count.ShouldBe(0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-4-线程安全问题"><a href="#5-4-线程安全问题" class="headerlink" title="5.4.线程安全问题"></a>5.4.线程安全问题</h2><p>在事件总线中，维护的事件源和事件处理的映射字典是整个程序中的重中之重。我们选择了使用<code>ConcurrentDictionary</code>线程安全字典来规避线程安全问题。但实际我们真正做到线程安全了吗？我们看下映射字典申明：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义线程安全集合</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br></pre></td></tr></table></figure>
+<p>聪慧如你，我们的事件源支持绑定多个事件处理，<code>ConcurrentDictionary</code>确保了对key值（事件源）修改的线程安全，但无法确保事件处理的列表<code>List&lt;Type&gt;</code>的线程安全。那我们就来动手改造吧。同样代码很简单：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义锁对象</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private static object lockObj&#x3D; new object();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 获取事件总线映射字典中指定事件源的事件列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若有，返回列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若无，构造空列表返回</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">private List&lt;Type&gt; GetOrCreateHandlers(Type eventType)</span><br><span class="line">&#123;</span><br><span class="line">    return _eventAndHandlerMapping.GetOrAdd(eventType, (type) &#x3D;&gt; new List&lt;Type&gt;());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void Register(Type eventType, Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    &#x2F;&#x2F;注册到事件总线</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(eventType).Add(handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(typeof(TEventData)).RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="6-单元测试"><a href="#6-单元测试" class="headerlink" title="6.单元测试"></a>6.单元测试</h1><p>为了确保重构的正确性和业务的完整性，以上的改进都是基于单元测试进行改进的，使用的是Xunit+Shouldly。虽然不能保证单元测试的覆盖度，但至少确保了正常业务的流转。</p>
+<p><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
+<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
+<hr>
+<blockquote>
+<p>参考资料：<br><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lwhkdash/archive/2012/09/28/2707549.html" target="_blank" rel="noopener">[c#] 反射真的很可怕吗？</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/how-much-you-know-about-the-eventbus-2/" title="事件总线知多少(2)">https://blog.shengjie.dev/how-much-you-know-about-the-eventbus-2/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/NET-Core/" rel="tag"># .NET Core</a>
+              <a href="/tags/%E5%8F%91%E5%B8%83%E8%AE%A2%E9%98%85%E6%A8%A1%E5%BC%8F/" rel="tag"># 发布订阅模式</a>
+              <a href="/tags/EventBus/" rel="tag"># EventBus</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-eventbus-1/" rel="prev" title="事件总线知多少(1)">
+      <i class="fa fa-chevron-left"></i> 事件总线知多少(1)
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-performance-optimization/" rel="next" title="性能优化知多少">
+      性能优化知多少 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-number">1.</span> <span class="nav-text">1.引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-回顾事件总线"><span class="nav-number">2.</span> <span class="nav-text">2.回顾事件总线</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-发现反射问题"><span class="nav-number">3.</span> <span class="nav-text">3.发现反射问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-使用IOC解除依赖"><span class="nav-number">4.</span> <span class="nav-text">4.使用IOC解除依赖</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-了解Castle-Windsor"><span class="nav-number">4.1.</span> <span class="nav-text">4.1. 了解Castle Windsor</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-使用Castle-Windsor"><span class="nav-number">4.2.</span> <span class="nav-text">4.2. 使用Castle Windsor</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-1-初始化容器"><span class="nav-number">4.2.1.</span> <span class="nav-text">4.2.1. 初始化容器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-2-注册和取消注册依赖"><span class="nav-number">4.2.2.</span> <span class="nav-text">4.2.2.注册和取消注册依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-3-动态事件绑定"><span class="nav-number">4.2.3.</span> <span class="nav-text">4.2.3. 动态事件绑定</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-4-动态事件触发"><span class="nav-number">4.2.4.</span> <span class="nav-text">4.2.4. 动态事件触发</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-用例完善"><span class="nav-number">5.</span> <span class="nav-text">5.用例完善</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#5-1-支持Action事件处理器"><span class="nav-number">5.1.</span> <span class="nav-text">5.1.支持Action事件处理器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-2-支持异步触发"><span class="nav-number">5.2.</span> <span class="nav-text">5.2. 支持异步触发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-3-触发指定EventHandler"><span class="nav-number">5.3.</span> <span class="nav-text">5.3.触发指定EventHandler</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-4-线程安全问题"><span class="nav-number">5.4.</span> <span class="nav-text">5.4.线程安全问题</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-单元测试"><span class="nav-number">6.</span> <span class="nav-text">6.单元测试</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#7-总结"><span class="nav-number">7.</span> <span class="nav-text">7.总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+  <script defer src="/lib/three/three.min.js"></script>
+    <script defer src="/lib/three/three-waves.min.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
+      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
+      placeholder: "Code is cheap, show me your mind!",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

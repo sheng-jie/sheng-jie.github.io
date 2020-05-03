@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Unit Of Work由马丁大叔提出的一种数据访问模式，用于确保数据的完整性和有效性。那具体什么是UOW，在EF Core中如何实现该模式，咱不妨一探究竟。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UnitOfWork 知多少">
+<meta property="og:url" content="https://blog.shengjie.dev/how-much-you-know-about-the-unit-of-work/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="Unit Of Work由马丁大叔提出的一种数据访问模式，用于确保数据的完整性和有效性。那具体什么是UOW，在EF Core中如何实现该模式，咱不妨一探究竟。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2017-08-22T07:54:48.000Z">
+<meta property="article:modified_time" content="2020-05-02T05:13:27.053Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content=".NET Core">
+<meta property="article:tag" content="UOW">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://blog.shengjie.dev/how-much-you-know-about-the-unit-of-work/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>UnitOfWork 知多少 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/how-much-you-know-about-the-unit-of-work/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          UnitOfWork 知多少
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-08-22 15:54:48" itemprop="dateCreated datePublished" datetime="2017-08-22T15:54:48+08:00">2017-08-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-05-02 13:13:27" itemprop="dateModified" datetime="2020-05-02T13:13:27+08:00">2020-05-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/how-much-you-know-about-the-unit-of-work/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/how-much-you-know-about-the-unit-of-work/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <div class="post-description">Unit Of Work由马丁大叔提出的一种数据访问模式，用于确保数据的完整性和有效性。那具体什么是UOW，在EF Core中如何实现该模式，咱不妨一探究竟。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><blockquote>
+<p>Maintains a list of objects affected by a business transaction and coordinates the writing out of changes and the resolution of concurrency problems.<br> <em><a href="https://martinfowler.com/eaaCatalog/unitOfWork.html" target="_blank" rel="noopener">Unit of Work</a> –Martin Fowler</em></p>
+</blockquote>
+<p>Unit Of Work模式，由马丁大叔提出，是一种数据访问模式。UOW模式的作用是在业务用例的操作中跟踪对象的所有更改（增加、删除和更新），并将所有更改的对象保存在其维护的列表中。在业务用例的终点，通过事务，<strong>一次性提交所有更改</strong>，以确保数据的完整性和有效性。总而言之，UOW协调这些对象的持久化及并发问题。</p>
+<h1 id="2-UOW的本质"><a href="#2-UOW的本质" class="headerlink" title="2. UOW的本质"></a>2. UOW的本质</h1><p>通过以上的介绍，我们可以总结出实现UOW的几个要点：</p>
+<ol>
+<li>UOW跟踪变化</li>
+<li>UOW维护了一个变更列表</li>
+<li>UOW将跟踪到的已变更的对象保存到变更列表中</li>
+<li>UOW借助事务一次性提交变更列表中的所有更改</li>
+<li>UOW处理并发</li>
+</ol>
+<p>而对于这些要点，EF中的DBContext已经实现了。</p>
+<h1 id="3-EF中的UOW"><a href="#3-EF中的UOW" class="headerlink" title="3. EF中的UOW"></a>3. EF中的UOW</h1><p>每个<code>DbContext</code>类型实例都有一个<code>ChangeTracker</code>用来跟踪记录实体的变化。当调用<code>SaveChanges</code>时，所有的更改将通过事务一次性提交到数据库。</p>
+<p>我们直接看个EF Core的测试用例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line">public ApplicationDbContext InMemorySqliteTestDbContext</span><br><span class="line">&#123;</span><br><span class="line">    get</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F; In-memory database only exists while the connection is open</span><br><span class="line">        var connection &#x3D; new SqliteConnection(&quot;DataSource&#x3D;:memory:&quot;);</span><br><span class="line">        connection.Open();</span><br><span class="line"></span><br><span class="line">        var options &#x3D; new DbContextOptionsBuilder&lt;ApplicationDbContext&gt;()</span><br><span class="line">            .UseSqlite(connection)</span><br><span class="line">            .Options;</span><br><span class="line"></span><br><span class="line">        var context &#x3D; new ApplicationDbContext(options);</span><br><span class="line">        context.Database.EnsureCreated();</span><br><span class="line">        return context;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">[Fact]</span><br><span class="line">public void Test_Ef_Implemented_Uow()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;新增用户</span><br><span class="line">    var user &#x3D; new ApplicationUser()</span><br><span class="line">    &#123;</span><br><span class="line">        UserName &#x3D; &quot;shengjie&quot;,</span><br><span class="line">        Email &#x3D; &quot;ysjshengjie@qq.com&quot;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    InMemorySqliteTestDbContext.Users.Add(user);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;创建用户对应客户</span><br><span class="line">    var customer &#x3D; new Customer()</span><br><span class="line">    &#123;</span><br><span class="line">        ApplicationUser &#x3D; user,</span><br><span class="line">        NickName &#x3D; &quot;圣杰&quot;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    InMemorySqliteTestDbContext.Customers.Add(customer);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;添加地址</span><br><span class="line">    var address &#x3D; new Address(&quot;广东省&quot;, &quot;深圳市&quot;, &quot;福田区&quot;, &quot;下沙街道&quot;, &quot;圣杰&quot;, &quot;135****9309&quot;);</span><br><span class="line"></span><br><span class="line">    InMemorySqliteTestDbContext.Addresses.Add(address);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;修改客户对象的派送地址</span><br><span class="line">    customer.AddShippingAddress(address);</span><br><span class="line"></span><br><span class="line">    InMemoryTestDbContext.Entry(customer).State &#x3D; EntityState.Modified;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;保存</span><br><span class="line">    var changes &#x3D; InMemorySqliteTestDbContext.SaveChanges();</span><br><span class="line"></span><br><span class="line">    Assert.Equal(3, changes);</span><br><span class="line"></span><br><span class="line">    var savedCustomer &#x3D; InMemorySqliteTestDbContext.Customers</span><br><span class="line">        .FirstOrDefault(c &#x3D;&gt; c.NickName &#x3D;&#x3D; &quot;圣杰&quot;);</span><br><span class="line"></span><br><span class="line">    Assert.Equal(&quot;shengjie&quot;, savedCustomer.ApplicationUser.UserName);</span><br><span class="line"></span><br><span class="line">    Assert.Equal(customer.ApplicationUserId, savedCustomer.ApplicationUserId);</span><br><span class="line"></span><br><span class="line">    Assert.Equal(1, savedCustomer.ShippingAddresses.Count);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先这个用例是绿色通过的。该测试用例中我们添加了一个User，并为User创建对应的Customer，同时为Customer添加一条Address。从代码中我们可以看出仅做了一次保存，新增加的User、Customer、Address对象都成功持久化到了内存数据库中。从而证明EF Core是实现了Uow模式的。但很显然应用程序与基础设施层高度耦合，那如何解耦呢？继续往下看。</p>
+<h1 id="4-DDD中的UOW"><a href="#4-DDD中的UOW" class="headerlink" title="4. DDD中的UOW"></a>4. DDD中的UOW</h1><p>那既然EF Core已经实现了Uow模式，我们还有必要自行实现一套Uow模式吗？这就视具体情况而定了，如果你的项目简单的增删改查就搞定了的，就不用折腾了。</p>
+<p>在DDD中，我们会借助仓储模式来实现领域对象的持久化。仓储只关注于单一聚合的持久化，而业务用例却常常会涉及多个聚合的更改，为了确保业务用例的一致型，我们需要引入事务管理，而事务管理是应用服务层的关注点。我们如何在应用服务层来管理事务呢？借助UOW。这样就形成了一条链：Uow-&gt;仓储–&gt;聚合–&gt;实体和值对象。即Uow负责管理仓储处理事务，仓储管理单一聚合，聚合又由实体和值对象组成。</p>
+<p>下面我们就先来定义实体和值对象，这里我们使用层超类型。</p>
+<h2 id="4-1-定义实体"><a href="#4-1-定义实体" class="headerlink" title="4.1. 定义实体"></a>4.1. 定义实体</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; A shortcut of &lt;see cref&#x3D;&quot;IEntity&#123;TPrimaryKey&#125;&quot;&#x2F;&gt; for most used primary key type (&lt;see cref&#x3D;&quot;int&quot;&#x2F;&gt;).</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IEntity : IEntity&lt;int&gt;</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Defines interface for base entity type. All entities in the system must implement this interface.</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TPrimaryKey&quot;&gt;Type of the primary key of the entity&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IEntity&lt;TPrimaryKey&gt;</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; Unique identifier for this entity.</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    TPrimaryKey Id &#123; get; set; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-2-定义聚合"><a href="#4-2-定义聚合" class="headerlink" title="4.2. 定义聚合"></a>4.2. 定义聚合</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">namespace UnitOfWork</span><br><span class="line">&#123;</span><br><span class="line">    public interface IAggregateRoot : IAggregateRoot&lt;int&gt;, IEntity</span><br><span class="line">    &#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public interface IAggregateRoot&lt;TPrimaryKey&gt; : IEntity&lt;TPrimaryKey&gt;</span><br><span class="line">    &#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-3-定义泛型仓储"><a href="#4-3-定义泛型仓储" class="headerlink" title="4.3. 定义泛型仓储"></a>4.3. 定义泛型仓储</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">namespace UnitOfWork</span><br><span class="line">&#123;</span><br><span class="line">    public interface IRepository&lt;TEntity&gt; : IRepository&lt;TEntity, int&gt;</span><br><span class="line">        where TEntity : class, IEntity, IAggregateRoot</span><br><span class="line">    &#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public interface IRepository&lt;TEntity, TPrimaryKey&gt;</span><br><span class="line">        where TEntity : class, IEntity&lt;TPrimaryKey&gt;, IAggregateRoot&lt;TPrimaryKey&gt;</span><br><span class="line">    &#123;        </span><br><span class="line">        IQueryable&lt;TEntity&gt; GetAll();</span><br><span class="line"></span><br><span class="line">        TEntity Get(TPrimaryKey id);</span><br><span class="line"></span><br><span class="line">        TEntity FirstOrDefault(TPrimaryKey id);</span><br><span class="line"></span><br><span class="line">        TEntity Insert(TEntity entity);</span><br><span class="line">        </span><br><span class="line">        TEntity Update(TEntity entity);</span><br><span class="line"></span><br><span class="line">        void Delete(TEntity entity);</span><br><span class="line"></span><br><span class="line">        void Delete(TPrimaryKey id);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>因为仓储是管理聚合的，所以我们需要限制泛型参数为实现<code>IAggregateRoot</code>的类。</p>
+<h2 id="4-4-实现泛型仓储"><a href="#4-4-实现泛型仓储" class="headerlink" title="4.4. 实现泛型仓储"></a>4.4. 实现泛型仓储</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line">amespace UnitOfWork.Repositories</span><br><span class="line">&#123;</span><br><span class="line">    public class EfCoreRepository&lt;TEntity&gt;</span><br><span class="line">        : EfCoreRepository&lt;TEntity, int&gt;, IRepository&lt;TEntity&gt;</span><br><span class="line">        where TEntity : class, IEntity, IAggregateRoot</span><br><span class="line">    &#123;</span><br><span class="line">        public EfCoreRepository(UnitOfWorkDbContext dbDbContext) : base(dbDbContext)</span><br><span class="line">        &#123;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public class EfCoreRepository&lt;TEntity, TPrimaryKey&gt;</span><br><span class="line">        : IRepository&lt;TEntity, TPrimaryKey&gt;</span><br><span class="line">        where TEntity : class, IEntity&lt;TPrimaryKey&gt;, IAggregateRoot&lt;TPrimaryKey&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        private readonly UnitOfWorkDbContext _dbContext;</span><br><span class="line"></span><br><span class="line">        public virtual DbSet&lt;TEntity&gt; Table &#x3D;&gt; _dbContext.Set&lt;TEntity&gt;();</span><br><span class="line"></span><br><span class="line">        public EfCoreRepository(UnitOfWorkDbContext dbDbContext)</span><br><span class="line">        &#123;</span><br><span class="line">            _dbContext &#x3D; dbDbContext;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public IQueryable&lt;TEntity&gt; GetAll()</span><br><span class="line">        &#123;</span><br><span class="line">            return Table.AsQueryable();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public TEntity Insert(TEntity entity)</span><br><span class="line">        &#123;</span><br><span class="line">            var newEntity &#x3D; Table.Add(entity).Entity;</span><br><span class="line">            _dbContext.SaveChanges();</span><br><span class="line">            return newEntity;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public TEntity Update(TEntity entity)</span><br><span class="line">        &#123;</span><br><span class="line">            AttachIfNot(entity);</span><br><span class="line">            _dbContext.Entry(entity).State &#x3D; EntityState.Modified;</span><br><span class="line"></span><br><span class="line">            _dbContext.SaveChanges();</span><br><span class="line"></span><br><span class="line">            return entity;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public void Delete(TEntity entity)</span><br><span class="line">        &#123;</span><br><span class="line">            AttachIfNot(entity);</span><br><span class="line">            Table.Remove(entity);</span><br><span class="line"></span><br><span class="line">           _dbContext.SaveChanges();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public void Delete(TPrimaryKey id)</span><br><span class="line">        &#123;</span><br><span class="line">            var entity &#x3D; GetFromChangeTrackerOrNull(id);</span><br><span class="line">            if (entity !&#x3D; null)</span><br><span class="line">            &#123;</span><br><span class="line">                Delete(entity);</span><br><span class="line">                return;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            entity &#x3D; FirstOrDefault(id);</span><br><span class="line">            if (entity !&#x3D; null)</span><br><span class="line">            &#123;</span><br><span class="line">                Delete(entity);</span><br><span class="line">                return;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        protected virtual void AttachIfNot(TEntity entity)</span><br><span class="line">        &#123;</span><br><span class="line">            var entry &#x3D; _dbContext.ChangeTracker.Entries().FirstOrDefault(ent &#x3D;&gt; ent.Entity &#x3D;&#x3D; entity);</span><br><span class="line">            if (entry !&#x3D; null)</span><br><span class="line">            &#123;</span><br><span class="line">                return;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            Table.Attach(entity);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        private TEntity GetFromChangeTrackerOrNull(TPrimaryKey id)</span><br><span class="line">        &#123;</span><br><span class="line">            var entry &#x3D; _dbContext.ChangeTracker.Entries()</span><br><span class="line">                .FirstOrDefault(</span><br><span class="line">                    ent &#x3D;&gt;</span><br><span class="line">                        ent.Entity is TEntity &amp;&amp;</span><br><span class="line">                        EqualityComparer&lt;TPrimaryKey&gt;.Default.Equals(id, ((TEntity)ent.Entity).Id)</span><br><span class="line">                );</span><br><span class="line"></span><br><span class="line">            return entry?.Entity as TEntity;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>因为我们直接使用EF Core进行持久化，所以我们直接通过构造函数初始化DbContex实例。同时，我们注意到<code>Insert、Update、Delete</code>方法都显式的调用了<code>SaveChanges</code>方法。</p>
+<p>至此，我们完成了从实体到聚合再到仓储的定义和实现，万事俱备，只欠Uow。</p>
+<h2 id="4-5-实现UOW"><a href="#4-5-实现UOW" class="headerlink" title="4.5. 实现UOW"></a>4.5. 实现UOW</h2><p>通过第3节的说明我们已经知道，EF Core已经实现了UOW模式。而为了确保领域层透明的进行持久化，我们对其进行了更高一层的抽象，实现了仓储模式。但这似乎引入了另外一个问题，因为仓储是管理单一聚合的，每次做增删改时都显式的提交了更改（调用了SaveChanges），在处理多个聚合时，就无法利用DbContext进行批量提交了。那该如何是好？一不做二不休，我们再对其进行一层抽象，抽离保存接口，这也就是Uow的核心接口方法。<br>我们抽离<code>SaveChanges</code>方法，定义<code>IUnitOfWork</code>接口。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">namespace UnitOfWork</span><br><span class="line">&#123;</span><br><span class="line">    public interface IUnitOfWork</span><br><span class="line">    &#123;</span><br><span class="line">        int SaveChanges();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>因为我们是基于EFCore实现Uow的，所以我们只需要依赖DbContex，就可以实现批量提交。实现也很简单：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">namespace UnitOfWork</span><br><span class="line">&#123;</span><br><span class="line">    public class UnitOfWork&lt;TDbContext&gt; : IUnitOfWork where TDbContext : DbContext</span><br><span class="line">    &#123;</span><br><span class="line">        private readonly TDbContext _dbContext;</span><br><span class="line"></span><br><span class="line">        public UnitOfWork(TDbContext context)</span><br><span class="line">        &#123;</span><br><span class="line">            _dbContext &#x3D; context ?? throw new ArgumentNullException(nameof(context));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public int SaveChanges()</span><br><span class="line">        &#123;</span><br><span class="line">            return _dbContext.SaveChanges();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>既然Uow接手保存操作，自然我们需要：<strong>注释掉EfCoreRepository中Insert、Update、Delete方法中的显式保存调用<code>_dbContext.SaveChanges();</code></strong>。</p>
+<p>那如何确保操作多个仓储时，最终能够一次性提交所有呢？</p>
+<p><strong>确保Uow和仓储共用同一个DbContex即可</strong>。这个时候我们就可以借助依赖注入。</p>
+<h2 id="4-6-依赖注入"><a href="#4-6-依赖注入" class="headerlink" title="4.6. 依赖注入"></a>4.6. 依赖注入</h2><p>我们直接使用.net core 提供的依赖注入，依次注入DbContext、UnitOfWork和Repository。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;注入DbContext</span><br><span class="line">services.AddDbContext&lt;UnitOfWorkDbContext&gt;(</span><br><span class="line">    options &#x3D;&gt;options.UseSqlServer(</span><br><span class="line">    Configuration.GetConnectionString(&quot;DefaultConnection&quot;)));</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;注入Uow依赖</span><br><span class="line">services.AddScoped&lt;IUnitOfWork, UnitOfWork&lt;UnitOfWorkDbContext&gt;&gt;();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;注入泛型仓储</span><br><span class="line">services.AddTransient(typeof(IRepository&lt;&gt;), typeof(EfCoreRepository&lt;&gt;));</span><br><span class="line">services.AddTransient(typeof(IRepository&lt;,&gt;), typeof(EfCoreRepository&lt;,&gt;));</span><br></pre></td></tr></table></figure>
+<p>这里我们限定了DbContext和UnitOfWork的生命周期为<code>Scoped</code>，从而确保每次请求共用同一个对象。如何理解呢？就是<strong>整个调用链</strong>上的需要注入的同类型对象，使用是同一个类型实例。</p>
+<h2 id="4-7-使用UOW"><a href="#4-7-使用UOW" class="headerlink" title="4.7. 使用UOW"></a>4.7. 使用UOW</h2><p>下面我们就来实际看一看如何使用UOW，我们定义一个应用服务：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">namespace UnitOfWork.Customer</span><br><span class="line">&#123;</span><br><span class="line">    public class CustomerAppService : ICustomerAppService</span><br><span class="line">    &#123;</span><br><span class="line">        private readonly IUnitOfWork _unitOfWork;</span><br><span class="line">        private readonly IRepository&lt;Customer&gt; _customerRepository;</span><br><span class="line">        private readonly IRepository&lt;ShoppingCart.ShoppingCart&gt; _shoppingCartRepository;</span><br><span class="line"></span><br><span class="line">        public CustomerAppService(IRepository&lt;ShoppingCart&gt; shoppingCartRepository, </span><br><span class="line">            IRepository&lt;Customer&gt; customerRepository, IUnitOfWork unitOfWork)</span><br><span class="line">        &#123;</span><br><span class="line">            _shoppingCartRepository &#x3D; shoppingCartRepository;</span><br><span class="line">            _customerRepository &#x3D; customerRepository;</span><br><span class="line">            _unitOfWork &#x3D; unitOfWork;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public void CreateCustomer(Customer customer)</span><br><span class="line">        &#123;</span><br><span class="line">            _customerRepository.Insert(customer);&#x2F;&#x2F;创建客户</span><br><span class="line"></span><br><span class="line">            var cart &#x3D; new ShoppingCart.ShoppingCart() &#123;CustomerId &#x3D; customer.Id&#125;;</span><br><span class="line">            _shoppingCartRepository.Insert(cart);&#x2F;&#x2F;创建购物车</span><br><span class="line">            _unitOfWork.SaveChanges();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F;....</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过以上案例，我们可以看出，我们只需要通过构造函数依赖注入需要的仓储和Uow即可完成对多个仓储的持久化操作。</p>
+<h1 id="5-最后"><a href="#5-最后" class="headerlink" title="5. 最后"></a>5. 最后</h1><p>对于Uow模式，有很多种实现方式，大多过于复杂抽象。EF和EF Core本身已经实现了Uow模式，所以在实现时，我们应避免不必要的抽象来降低系统的复杂度。</p>
+<p>最后，重申一下：<br><strong>Uow模式是用来管理仓储处理事务的，仓储用来解耦的（领域层与基础设施层）。而基于EF实现Uow模式的关键：确保Uow和Reopository之间共享同一个DbContext实例。</strong></p>
+<p>最后附上基于.Net Core和EF Core实现的源码： <a href="https://github.com/yanshengjie/UnitOfWork" target="_blank" rel="noopener">GitHub–UnitOfWork</a></p>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/how-much-you-know-about-the-unit-of-work/" title="UnitOfWork 知多少">https://blog.shengjie.dev/how-much-you-know-about-the-unit-of-work/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/NET-Core/" rel="tag"># .NET Core</a>
+              <a href="/tags/UOW/" rel="tag"># UOW</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-rabbitmq/" rel="prev" title="RabbitMQ 知多少">
+      <i class="fa fa-chevron-left"></i> RabbitMQ 知多少
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/use-windbg-to-analyze-high-memory-issue/" rel="next" title="WinDbg分析高内存占用问题">
+      WinDbg分析高内存占用问题 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-number">1.</span> <span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-UOW的本质"><span class="nav-number">2.</span> <span class="nav-text">2. UOW的本质</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-EF中的UOW"><span class="nav-number">3.</span> <span class="nav-text">3. EF中的UOW</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-DDD中的UOW"><span class="nav-number">4.</span> <span class="nav-text">4. DDD中的UOW</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-定义实体"><span class="nav-number">4.1.</span> <span class="nav-text">4.1. 定义实体</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-定义聚合"><span class="nav-number">4.2.</span> <span class="nav-text">4.2. 定义聚合</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-3-定义泛型仓储"><span class="nav-number">4.3.</span> <span class="nav-text">4.3. 定义泛型仓储</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-4-实现泛型仓储"><span class="nav-number">4.4.</span> <span class="nav-text">4.4. 实现泛型仓储</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-5-实现UOW"><span class="nav-number">4.5.</span> <span class="nav-text">4.5. 实现UOW</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-6-依赖注入"><span class="nav-number">4.6.</span> <span class="nav-text">4.6. 依赖注入</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-7-使用UOW"><span class="nav-number">4.7.</span> <span class="nav-text">4.7. 使用UOW</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-最后"><span class="nav-number">5.</span> <span class="nav-text">5. 最后</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+  <script defer src="/lib/three/three.min.js"></script>
+    <script defer src="/lib/three/three-waves.min.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
+      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
+      placeholder: "Code is cheap, show me your mind!",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

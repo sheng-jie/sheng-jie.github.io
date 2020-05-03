@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="结合一次具体线上问题，带你使用WinDbg抽丝剥茧，救线上于水火。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="WinDbg分析高内存占用问题">
+<meta property="og:url" content="https://blog.shengjie.dev/use-windbg-to-analyze-high-memory-issue/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="结合一次具体线上问题，带你使用WinDbg抽丝剥茧，救线上于水火。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-0f1cf31d06374907.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-fc4cfcbf08a0df04.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-fe85d20242c6f435.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-6b4c4abbb111e312.png">
+<meta property="article:published_time" content="2018-08-17T11:24:48.000Z">
+<meta property="article:modified_time" content="2020-05-02T05:19:44.132Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content="WinDbg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-0f1cf31d06374907.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/use-windbg-to-analyze-high-memory-issue/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>WinDbg分析高内存占用问题 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/use-windbg-to-analyze-high-memory-issue/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          WinDbg分析高内存占用问题
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-08-17 19:24:48" itemprop="dateCreated datePublished" datetime="2018-08-17T19:24:48+08:00">2018-08-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-05-02 13:19:44" itemprop="dateModified" datetime="2020-05-02T13:19:44+08:00">2020-05-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/" itemprop="url" rel="index"><span itemprop="name">性能优化</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/use-windbg-to-analyze-high-memory-issue/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/use-windbg-to-analyze-high-memory-issue/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <div class="post-description">结合一次具体线上问题，带你使用WinDbg抽丝剥茧，救线上于水火。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-0f1cf31d06374907.png" alt=""></p>
+<h1 id="1-问题简介"><a href="#1-问题简介" class="headerlink" title="1. 问题简介"></a>1. 问题简介</h1><p>最近产品发布大版本补丁更新，一商超客户升级后，反馈系统经常奔溃，导致超市的收银系统无法正常收银，现场排队付款的顾客更是抱怨声声。为了缓解现场的情况， 客户都是手动回收IIS应用程序池才能解决。<br><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-fc4cfcbf08a0df04.png" alt="现场排队情况"></p>
+<p>这样的后果是很严重的，接到反馈，第一时间想到的是加内存吧，这样最快。但是客户从8G–&gt;16G–&gt;32G，只是延长了每次奔溃的时间，但是并没有解决系统卡顿的问题。到这里，也基本猜测了问题所在了，肯定是什么东西一直在吃内存且得不到释放。这种问题，也就只能打Dump分析了。</p>
+<h1 id="2-打Dump"><a href="#2-打Dump" class="headerlink" title="2. 打Dump"></a>2. 打Dump</h1><p>远程客户应用服务器，32G内存占用已经消耗了78%，而现场已经反馈收银系统接近奔溃了，要求先强制回收内存。反正也要奔溃了，先打Dump再说吧。<br>（PS：打Dump会挂起进程，导致应用无法响应！而打Dump的耗时，也是根据当时进程的内存占用有关，内存占用越大，耗时越久。）<br>打开任务管理器，选择对应的IIS进程，右键创建转储文件（Dump）。<br><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-fe85d20242c6f435.png" alt="打Dump"></p>
+<p>结果，Dump文件是生成的，结果当分析的时候，发现Windbg提示Dump无效。说明Dump文件创建的有问题。观察任务管理器，发现内存占用一下就降下来了，原来是之前的进程直接奔溃了，重启了一个W3WP进程。</p>
+<p>既然直接从任务管理器无法创建，就使用第三方工具收集Dump吧。经过Goggle，找到一款很好用的Dump收集工具<a href="https://docs.microsoft.com/zh-cn/sysinternals/downloads/procdump" target="_blank" rel="noopener">ProcDump</a>，是一个命令行应用，其主要用途是监视应用程序的CPU或内存峰值并在峰值期间生成Dump。</p>
+<p>因为是高内存占用问题，我们使用以下命令来抓取dump：<br>（PS：可以使用进程名称，也可以使用进程ID来指定要创建Dump的进程。当有多个相同名称的进程时，必须使用进程ID来指定！）</p>
+<blockquote>
+<p>procdump w3wp -m 20480 -o D:\Dumps （当内存超过20G时抓取一个w3wp进程的MiniDump）</p>
+</blockquote>
+<p>上面就是我踩得第一个坑，因为默认抓取的是MiniDump，很快就抓下来，文件也很小，正在我得意的时候，Windbg加载Dump分析的时候，发现包含的信息很少，根本无法进行进一步的分析。</p>
+<p>调整创建Dump的命令，添加<code>-ma</code>参数即可创建完整Dump。</p>
+<blockquote>
+<p>procdump w3wp -ma -m 20480 -o D:\Dumps （当内存超过20G时抓取一个w3wp进程的完整Dump）</p>
+</blockquote>
+<p>结果再一次，当内存占用到达20G，占比80%的时候，Dump再次创建失败，提示：<code>Procdump Error writing dump file</code>。再一次感觉到绝望。不过至少有错误提示，Google一把，果然存在天涯沦落人。<a href="https://stackoverflow.com/questions/39936971/procdump-error-writing-dump-file-0x80070005-error-0x80070005-2147024891-acc" target="_blank" rel="noopener">Procdump Error writing dump file: 0x80070005 Error 0x80070005 (-2147024891): Access is denied</a>。大致的意思是说，当90S内Dump文件没有成功创建的话（也就意味着w3wp进程被挂起了90s），IIS检测到w3wp进程挂起超过90s没有响应就会终止进程，重新创建一个新的进程。好嘛，真是处处是坑。</p>
+<p>这个坑，也让我开始真正停下来思考问题。<strong>罗马不是一日建成的，内存也不是一下撑爆的。</strong>我干嘛死脑筋非要到内存占用超过80%才去打Dump呢呢呢？？？！</p>
+<p>焕然大悟，如醍醐灌顶。</p>
+<blockquote>
+<p>procdump w3wp -ma -m 8000 -o D:\Dumps （当内存超过8000M时抓取一个w3wp进程的完整Dump，并输出到D:\Dumps文件夹）</p>
+</blockquote>
+<p>此时内存占用在40%左右，这次Dump终于成功创建了。</p>
+<h1 id="3-分析Dump"><a href="#3-分析Dump" class="headerlink" title="3..分析Dump"></a>3..分析Dump</h1><p>分析Dump，上WinDbg。如果对WinDbg不理解，可以看我这篇<a href="https://www.jianshu.com/p/57f0ab8702b5" target="_blank" rel="noopener">WinDbg学习笔记</a>。</p>
+<p>接下来就是一通命令乱敲，我尽量解释清晰。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !dumpheap -stat &#x2F;&#x2F;检查当前所有托管类型的统计信息</span><br><span class="line">....</span><br><span class="line">00007ffdb9387a98   777101     69462436 System.Char[]</span><br><span class="line">00007ffdb938c988   588917    115563505 System.Byte[]</span><br><span class="line">00007ffdb9389220  1026406    119828936 System.Int32[]</span><br><span class="line">00007ffdb93516a8   663559    128819040 System.Collections.Generic.Dictionary&#96;2+Entry[[System.String, mscorlib],[System.Object, mscorlib]][]</span><br><span class="line">00000218c6c30a80  6436865    197832116      Free</span><br><span class="line">00007ffdae9cc240    23171    273333144 System.Collections.Generic.HashSet&#96;1+Slot[[System.String, mscorlib]][]</span><br><span class="line">00007ffdb9391f28 13885170    333244080 System.Boolean</span><br><span class="line">00007ffd5c24a068 14003455    560138200 Kingdee.BOS.JSON.JSONArray</span><br><span class="line">00007ffdb9386fc0 14373648   1393615400 System.Object[]</span><br><span class="line">00007ffdb9386948 76146065   4000287202 System.String</span><br><span class="line">Total 138435970 objects</span><br></pre></td></tr></table></figure>
+<p>使用<code>dumpheap -stat</code>命令查看当前所有托管类型的统计信息。从输出的结果来看：</p>
+<ol>
+<li>其中占用内存最多当属<code>System.String</code>类型，接近4G的大小（是不是很吃惊？!）。</li>
+<li>其次<code>System.Object[]</code>类型占有1.3G大小。</li>
+<li><code>Kingdee.BOS.JSON.JSONArray</code>类型也大概占用了560M。</li>
+</ol>
+<p>我们首先来分析占用最多的<code>System.String</code>类型，看看有什么发现。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !dumpheap -mt 00007ffdb9386948 -min 200 &#x2F;&#x2F;查看200byte以上的string</span><br><span class="line">Address               MT     Size</span><br><span class="line">...</span><br><span class="line">0000021bcbaf5158 00007ffdb9386948     1140</span><br><span class="line">0000021d375d1038 00007ffdb9386948   149698     </span><br><span class="line">0000021d375f5920 00007ffdb9386948   149698     </span><br><span class="line">0000021d3765b138 00007ffdb9386948   149706     </span><br><span class="line">0000021d37f739c8 00007ffdb9386948   217120     </span><br><span class="line">0000021d37fa8a08 00007ffdb9386948   190162     </span><br><span class="line">0000021d38047330 00007ffdb9386948  1224698     </span><br><span class="line">0000021d3829d348 00007ffdb9386948  1224698     </span><br><span class="line">0000021d386bd678 00007ffdb9386948  2610994     </span><br><span class="line">0000021d38bb8500 00007ffdb9386948  2610994     </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Statistics:</span><br><span class="line">              MT    Count    TotalSize Class Name</span><br><span class="line">00007ffdb9386948    10991     76632628 System.String</span><br><span class="line">Total 10991 objects</span><br></pre></td></tr></table></figure>
+<p>从上面的输出可以发现：</p>
+<ol>
+<li>单个<code>System.String</code>类型最大占用2M以上。</li>
+<li>超过200byte的字节的大小的<code>System.String</code>总大小也不过76M。（所以我们也不必深究大的String对象。）</li>
+</ol>
+<p>那我们索性挑一个小点的对象来看看存储的是什么字符串，来满足一下我们的好奇心。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">0.000&gt; !do 0000021bcbaf5158 &#x2F;&#x2F;使用!do命令查看一个对象的内容</span><br><span class="line">Name:        System.String</span><br><span class="line">MethodTable: 00007ffdb9386948</span><br><span class="line">EEClass:     00007ffdb8c850e0</span><br><span class="line">Size:        1140(0x474) bytes</span><br><span class="line">File:        C:\Windows\Microsoft.Net\assembly\GAC_64\mscorlib\v4.0_4.0.0.0__b77a5c561934e089\mscorlib.dll</span><br><span class="line">String:      5b13710029d012False2052_T_BD_MATERIAL_MATERIAL.FAuxPropertyIdFBaseUnitIdFCategoryIDFChargeIDFCheckIncomingFDefaultVendorFErpClsIDFInvPtyIdFIsAffectPlanFIsAffectPlan1FIsBatchManageFIsComControlFIsEnableFIsEnable1FIsExpParToFlotFIsInventoryFIsPRFIsReturnMaterialFIsSourceControlFIsVmiBusinessFNameFNumberFPlanModeFPurchasePriceUnitIdFPurchaseUnitIdFPurPriceURNomFPurPriceURNumFPurURNomFPurURNumFReceiveAdvanceDaysFReceiveDelayDaysFReceiveMaxScaleFReceiveMinScaleFSalePriceUnitIdFSaleUnitIdFSpecificationFStockIdFStockPlaceIdFStoreUnitIDFTaxTypeFUseOrgId111193</span><br><span class="line">Fields:</span><br><span class="line">              MT    Field   Offset                 Type VT     Attr            Value Name</span><br><span class="line">00007ffdb9389288  400026f        8         System.Int32  1 instance              557 m_stringLength</span><br><span class="line">00007ffdb9387b00  4000270        c          System.Char  1 instance               35 m_firstChar</span><br><span class="line">00007ffdb9386948  4000274       90        System.String  0   shared           static Empty</span><br><span class="line">                                 &gt;&gt; Domain:Value  00000218c6c4d220:NotInit  0000021d52d81840:NotInit  &lt;&lt;</span><br></pre></td></tr></table></figure>
+<p>似乎是基础资料字段信息。那接下来使用<code>!gcroot</code>命令查看其对应的GC根，看看到底是什么对象持有其引用，导致占用内存得不到释放。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !gcroot 0000021bcbaf5158 &#x2F;&#x2F;使用!gcroot 查看一个对象的gc根</span><br><span class="line">HandleTable:</span><br><span class="line">    00000218c6ff15e8 (pinned handle)</span><br><span class="line">    -&gt; 0000021cc75ebe68 System.Object[]</span><br><span class="line">    -&gt; 0000021bc7629a10 Kingdee.BOS.Cache.KCacheManagerFactory</span><br><span class="line">    -&gt; 0000021bc7629ab8 System.Collections.Generic.Dictionary&#96;2[[System.String, mscorlib],[Kingdee.BOS.Cache.AbstractKCacheManager, Kingdee.BOS]]</span><br><span class="line">    -&gt; 0000021c4da6fa48 System.Collections.Generic.Dictionary&#96;2+Entry[[System.String, mscorlib],[Kingdee.BOS.Cache.AbstractKCacheManager, Kingdee.BOS]][]</span><br><span class="line">    -&gt; 00000218c83861b8 Kingdee.BOS.Cache.KCacheManager</span><br><span class="line">    -&gt; 00000218c8386630 Kingdee.BOS.Cache.ECache.ECacheManager</span><br><span class="line">    -&gt; 00000218c83866e8 System.Collections.Concurrent.ConcurrentDictionary&#96;2[[System.String, mscorlib],[System.Collections.Generic.HashSet&#96;1[[System.String, mscorlib]], System.Core]]</span><br><span class="line">    -&gt; 0000021bcbae0c70 System.Collections.Concurrent.ConcurrentDictionary&#96;2+Tables[[System.String, mscorlib],[System.Collections.Generic.HashSet&#96;1[[System.String, mscorlib]], System.Core]]</span><br><span class="line">    -&gt; 0000021bcbad0128 System.Collections.Concurrent.ConcurrentDictionary&#96;2+Node[[System.String, mscorlib],[System.Collections.Generic.HashSet&#96;1[[System.String, mscorlib]], System.Core]][]</span><br><span class="line">    -&gt; 0000021bcbb34bf8 System.Collections.Concurrent.ConcurrentDictionary&#96;2+Node[[System.String, mscorlib],[System.Collections.Generic.HashSet&#96;1[[System.String, mscorlib]], System.Core]]</span><br><span class="line">    -&gt; 0000021bcbada790 System.Collections.Concurrent.ConcurrentDictionary&#96;2+Node[[System.String, mscorlib],[System.Collections.Generic.HashSet&#96;1[[System.String, mscorlib]], System.Core]]</span><br><span class="line">    -&gt; 0000021a49766460 System.Collections.Generic.HashSet&#96;1[[System.String, mscorlib]]</span><br><span class="line">    -&gt; 00000219540976b0 System.Collections.Generic.HashSet&#96;1+Slot[[System.String, mscorlib]][]</span><br><span class="line">    -&gt; 0000021bcbaf5158 System.String</span><br><span class="line"></span><br><span class="line">Found 1 unique roots (run &#39;!GCRoot -all&#39; to see all roots).</span><br></pre></td></tr></table></figure>
+
+<p>从以上输出可以看出：</p>
+<ol>
+<li>该String类型被一个Hashset所持有。</li>
+<li>从<code>Cache</code>关键字可以看出该String类型是被<strong>缓存</strong>所持有。</li>
+</ol>
+<p>分析到这里，我们大致可以得出一个结论：</p>
+<blockquote>
+<p>String类型占用4G内存，绝大多数是由缓存所占用，才导致String类型得不到释放。</p>
+</blockquote>
+<p>那我们是不是可以猜测<strong>内存占用持续走高是不是被缓存撑爆的呢？</strong>。</p>
+<p>带着这个疑问我们来继续分析下<code>Kingdee.BOS.JSON.JSONArray</code>类型。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !dumpheap -mt 00007ffd5c24a068 &#x2F;&#x2F;输出托管堆上的所有JSONArray对象</span><br><span class="line">         Address               MT     Size</span><br><span class="line">....</span><br><span class="line">0000021975972b48 00007ffd5c24a068       40     </span><br><span class="line">00000218c933f060 00007ffd5c24a068       40     </span><br><span class="line">00000218c7605990 00007ffd5c24a068       40     </span><br><span class="line">00000218c7605af0 00007ffd5c24a068       40     </span><br><span class="line">00000218c7605c50 00007ffd5c24a068       40     </span><br><span class="line">00000218c7605e18 00007ffd5c24a068       40     </span><br><span class="line">00000218c7605fa0 00007ffd5c24a068       40     </span><br><span class="line">00000218c7606198 00007ffd5c24a068       40     </span><br><span class="line">00000218c7606338 00007ffd5c24a068       40     </span><br><span class="line">00000218c76064b0 00007ffd5c24a068       40     </span><br><span class="line">User interrupt.</span><br></pre></td></tr></table></figure>
+<p>从输出结果来看：</p>
+<ol>
+<li>满屏都是40byte的JSONArray。只能使用<code>Ctrl+Break</code>命令中止输出。</li>
+</ol>
+<p>但为了保险期间，我们来验证下有没有100byte以上的<code>JSONArray</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !dumpheap -mt 00007ffd5c24a068 -min 100</span><br><span class="line">         Address               MT     Size</span><br><span class="line"></span><br><span class="line">Statistics:</span><br><span class="line">              MT    Count    TotalSize Class Name</span><br><span class="line">Total 0 objects</span><br></pre></td></tr></table></figure>
+<p>这时我们可以大胆猜测所有的<code>JSONArray</code>对象都是40byte。从而可以得出另一个猜测<strong>占用560M内存的JSONArray，都具有相似的对象结构。</strong>接下来我们来验证这个猜测。随机选择几个对象，看看其内容具体是什么。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !DumpObj &#x2F;d 0000021975972b48  &#x2F;&#x2F;查看第一个JSONArray</span><br><span class="line">Name:        System.Object[]</span><br><span class="line">MethodTable: 00007ffdb9386fc0</span><br><span class="line">EEClass:     00007ffdb8d4aa00</span><br><span class="line">Size:        88(0x58) bytes</span><br><span class="line">Array:       Rank 1, Number of elements 8, Type CLASS (Print Array)</span><br><span class="line">Fields:</span><br><span class="line">None</span><br></pre></td></tr></table></figure>
+<p>从输出可以看出：</p>
+<ol>
+<li>JSONArray实质是<code>System.Object[]</code>类型。</li>
+<li>对应的<code>MethodTable: 00007ffdb9386fc0</code>。</li>
+</ol>
+<p>如果你记性好的话，我们应当还记得占用内存第二多的就是这个<code>System.Object[]</code>类型，占用1.3G。翻到上面，你可以发现其MethodTable和上面的统计信息是一致的。<br>（PS：到这里我们是不是可以猜测：<strong><code>System.Object[]</code>占用的内存无法释放，就是由于被<code>JSONArray</code>持有引用导致的呢？</strong>）</p>
+<p>既然是数组，就使用<code>!DumpArray</code> 命令来解开数组的面纱。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !DumpArray &#x2F;d 0000021975972b48 </span><br><span class="line">Name:        System.Object[]</span><br><span class="line">MethodTable: 00007ffdb9386fc0</span><br><span class="line">EEClass:     00007ffdb8d4aa00</span><br><span class="line">Size:        88(0x58) bytes</span><br><span class="line">Array:       Rank 1, Number of elements 8, Type CLASS</span><br><span class="line">Element Methodtable: 00007ffdb9386f28</span><br><span class="line">[0] 0000021975972a08</span><br><span class="line">[1] 0000021975972a70</span><br><span class="line">[2] 0000021975972a40</span><br><span class="line">[3] 0000021ac75e87b8</span><br><span class="line">[4] 0000021975972b10</span><br><span class="line">[5] 0000021975972ba0</span><br><span class="line">[6] null</span><br><span class="line">[7] null</span><br><span class="line">0:000&gt; !DumpObj &#x2F;d 0000021975972a08</span><br><span class="line">Name:        System.String</span><br><span class="line">MethodTable: 00007ffdb9386948</span><br><span class="line">EEClass:     00007ffdb8c850e0</span><br><span class="line">Size:        54(0x36) bytes</span><br><span class="line">File:        C:\Windows\Microsoft.Net\assembly\GAC_64\mscorlib\v4.0_4.0.0.0__b77a5c561934e089\mscorlib.dll</span><br><span class="line">String:      555d8ca25a6261</span><br><span class="line">Fields:7</span><br><span class="line">              MT    Field   Offset                 Type VT     Attr            Value Name</span><br><span class="line">00007ffdb9389288  400026f        8         System.Int32  1 instance               14 m_stringLength</span><br><span class="line">00007ffdb9387b00  4000270        c          System.Char  1 instance               35 m_firstChar</span><br><span class="line">00007ffdb9386948  4000274       90        System.String  0   shared           static Empty</span><br><span class="line">                                 &gt;&gt; Domain:Value  00000218c6c4d220:NotInit  0000021d52d81840:NotInit  &lt;&lt;</span><br></pre></td></tr></table></figure>
+<p>从以上输出可以看出，其共有8个子项，我们再随机挑几个子项看看是什么内容。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !DumpObj &#x2F;d 0000021975972a70</span><br><span class="line">Name:        System.String</span><br><span class="line">MethodTable: 00007ffdb9386948</span><br><span class="line">EEClass:     00007ffdb8c850e0</span><br><span class="line">Size:        42(0x2a) bytes</span><br><span class="line">File:        C:\Windows\Microsoft.Net\assembly\GAC_64\mscorlib\v4.0_4.0.0.0__b77a5c561934e089\mscorlib.dll</span><br><span class="line">String:      FHTZDLB</span><br><span class="line">Fields:</span><br><span class="line">              MT    Field   Offset                 Type VT     Attr            Value Name</span><br><span class="line">00007ffdb9389288  400026f        8         System.Int32  1 instance                8 m_stringLength</span><br><span class="line">00007ffdb9387b00  4000270        c          System.Char  1 instance               50 m_firstChar</span><br><span class="line">00007ffdb9386948  4000274       90        System.String  0   shared           static Empty</span><br><span class="line">                                 &gt;&gt; Domain:Value  00000218c6c4d220:NotInit  0000021d52d81840:NotInit  &lt;&lt;</span><br><span class="line">0:000&gt; !DumpObj &#x2F;d 0000021975972a40</span><br><span class="line">Name:        System.String</span><br><span class="line">MethodTable: 00007ffdb9386948</span><br><span class="line">EEClass:     00007ffdb8c850e0</span><br><span class="line">Size:        42(0x2a) bytes</span><br><span class="line">File:        C:\Windows\Microsoft.Net\assembly\GAC_64\mscorlib\v4.0_4.0.0.0__b77a5c561934e089\mscorlib.dll</span><br><span class="line">String:      发货通知单列表</span><br><span class="line">Fields:</span><br><span class="line">              MT    Field   Offset                 Type VT     Attr            Value Name</span><br><span class="line">00007ffdb9389288  400026f        8         System.Int32  1 instance                8 m_stringLength</span><br><span class="line">00007ffdb9387b00  4000270        c          System.Char  1 instance             6279 m_firstChar</span><br><span class="line">00007ffdb9386948  4000274       90        System.String  0   shared           static Empty</span><br><span class="line">                                 &gt;&gt; Domain:Value  00000218c6c4d220:NotInit  0000021d52d81840:NotInit  &lt;&lt;</span><br></pre></td></tr></table></figure>
+<p>我们可以看到一个字符串内容是<code>FHTZDLB</code>，另一个是<code>发货通知单列表</code>。看到这，我立马就条件反射的想到，这不就是我们的菜单信息嘛。为了验证我的想法，连续查看几个<code>JSONArray</code>，都是相似的内容。</p>
+<p>这时，我们继续发扬敢猜敢做的精神。<strong>是不是内存被菜单缓存撑爆的？！</strong></p>
+<p>为了验证这一猜测，我们继续从Dump中寻找佐证。使用<code>~* e!clrstack</code>来看看所有线程的调用堆栈吧。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; ~* e!clrstack</span><br><span class="line">OS Thread Id: 0x11dc (0)</span><br><span class="line">Unable to walk the managed stack. The current thread is likely not a </span><br><span class="line">managed thread. You can run !threads to get a list of managed threads in</span><br><span class="line">the process</span><br><span class="line">Failed to start stack walk: 80070057</span><br><span class="line">OS Thread Id: 0x2b2c (28)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">00000076cff7ecc8 00007ffdca2e6bf4 [HelperMethodFrame_1OBJ: 00000076cff7ecc8] System.Threading.WaitHandle.WaitMultiple(System.Threading.WaitHandle[], Int32, Boolean, Boolean)</span><br><span class="line">00000076cff7ee00 00007ffdb91af67c System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[], Int32, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\waithandle.cs @ 454]</span><br><span class="line">00000076cff7ee60 00007ffdb201b2fb System.Net.TimerThread.ThreadProc()</span><br><span class="line">00000076cff7ef10 00007ffdb915ca72 System.Threading.ExecutionContext.RunInternal(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 954]</span><br><span class="line">00000076cff7efe0 00007ffdb915c904 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 902]</span><br><span class="line">00000076cff7f010 00007ffdb915c8c2 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 891]</span><br><span class="line">00000076cff7f060 00007ffdb9196472 System.Threading.ThreadHelper.ThreadStart() [f:\dd\ndp\clr\src\BCL\system\threading\thread.cs @ 111]</span><br><span class="line">00000076cff7f2b8 00007ffdbb4f6793 [GCFrame: 00000076cff7f2b8] </span><br><span class="line">00000076cff7f608 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076cff7f608] </span><br><span class="line">00000076cff7f798 00007ffdbb4f6793 [ContextTransitionFrame: 00000076cff7f798] </span><br><span class="line">00000076cff7f9c8 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076cff7f9c8] </span><br><span class="line"></span><br><span class="line">OS Thread Id: 0x1bd4 (133)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x1a98 (134)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">00000076dbdbcc88 00007ffdca2e6124 [InlinedCallFrame: 00000076dbdbcc88] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbdbcc88 00007ffdaaaf5dd4 [InlinedCallFrame: 00000076dbdbcc88] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbdbcc60 00007ffdaaaf5dd4 DomainNeutralILStubClass.IL_STUB_PInvoke(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbdbcd10 00007ffdaab08fe3 SNINativeMethodWrapper.SNIReadSyncOverAsync(System.Runtime.InteropServices.SafeHandle, IntPtr ByRef, Int32)</span><br><span class="line">00000076dbdbcd70 00007ffdaabe0ae0 System.Data.SqlClient.TdsParserStateObject.ReadSniSyncOverAsync()</span><br><span class="line">00000076dbdbcdd0 00007ffdaabe09dd System.Data.SqlClient.TdsParserStateObject.TryReadNetworkPacket()</span><br><span class="line">00000076dbdbce10 00007ffdaabdf7f5 System.Data.SqlClient.TdsParserStateObject.TryPrepareBuffer()</span><br><span class="line">00000076dbdbce50 00007ffdaabdfa0e System.Data.SqlClient.TdsParserStateObject.TryReadByte(Byte ByRef)</span><br><span class="line">00000076dbdbce90 00007ffdaabc7daa System.Data.SqlClient.TdsParser.TryRun(System.Data.SqlClient.RunBehavior, System.Data.SqlClient.SqlCommand, System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.BulkCopySimpleResultSet, System.Data.SqlClient.TdsParserStateObject, Boolean ByRef)</span><br><span class="line">00000076dbdbcff0 00007ffdaabbb3c7 System.Data.SqlClient.SqlDataReader.TryConsumeMetaData()</span><br><span class="line">00000076dbdbd050 00007ffdaabb8325 System.Data.SqlClient.SqlDataReader.get_MetaData()</span><br><span class="line">00000076dbdbd0a0 00007ffdaab3be73 System.Data.SqlClient.SqlCommand.FinishExecuteReader(System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.RunBehavior, System.String, Boolean, Boolean)</span><br><span class="line">00000076dbdbd110 00007ffdaab3b75f System.Data.SqlClient.SqlCommand.RunExecuteReaderTds(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, Boolean, Int32, System.Threading.Tasks.Task ByRef, Boolean, Boolean, System.Data.SqlClient.SqlDataReader, Boolean)</span><br><span class="line">00000076dbdbd1f0 00007ffdaab3a763 System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String, System.Threading.Tasks.TaskCompletionSource&#96;1, Int32, System.Threading.Tasks.Task ByRef, Boolean ByRef, Boolean, Boolean)</span><br><span class="line">00000076dbdbd2c0 00007ffdaab3a49b System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String)</span><br><span class="line">00000076dbdbd360 00007ffdaab35cc6 System.Data.SqlClient.SqlCommand.ExecuteReader(System.Data.CommandBehavior, System.String)</span><br><span class="line">00000076dbdbd3f0 00007ffd5c517ead Kingdee.BOS.App.Data.AbstractDatabase.DoExecuteReader(System.Data.Common.DbCommand, System.Data.CommandBehavior)</span><br><span class="line">00000076dbdbd450 00007ffd5c515ebb Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbdbd4d0 00007ffd5c4fd6f2 Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior)</span><br><span class="line">00000076dbdbd500 00007ffd5c4e31b1 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbdbd570 00007ffd5c51d2a7 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, Boolean)</span><br><span class="line">00000076dbdbd5b0 00007ffd5c51d2fc Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Data.CommandType, Boolean)</span><br><span class="line">00000076dbdbd5e0 00007ffd5c51d341 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String)</span><br><span class="line">00000076dbdbd610 00007ffd5ca5a5d4 Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetSearchMenuData(Kingdee.BOS.Context, System.String, System.Collections.Generic.HashSet&#96;1 ByRef, System.Collections.Generic.HashSet&#96;1 ByRef)</span><br><span class="line">00000076dbdbd7d0 00007ffd5ca58164 Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</span><br><span class="line">00000076dbdbda78 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbdbda78] </span><br><span class="line">00000076dbdbddb8 00007ffdbb4f6793 [HelperMethodFrame_PROTECTOBJ: 00000076dbdbddb8] System.RuntimeMethodHandle.InvokeMethod(System.Object, System.Object[], System.Signature, Boolean)</span><br><span class="line">00000076dbdbdf30 00007ffdb914b690 System.Reflection.RuntimeMethodInfo.UnsafeInvokeInternal(System.Object, System.Object[], System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 761]</span><br><span class="line">00000076dbdbdfa0 00007ffdb9142922 System.Reflection.RuntimeMethodInfo.Invoke(System.Object, System.Reflection.BindingFlags, System.Reflection.Binder, System.Object[], System.Globalization.CultureInfo) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 735]</span><br><span class="line">00000076dbdbe020 00007ffdb9143f22 System.Reflection.MethodBase.Invoke(System.Object, System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodbase.cs @ 211]</span><br><span class="line">00000076dbdbe060 00007ffd5c61990c Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbdbe160 00007ffd5c619477 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe200 00007ffd5c61cbc4 Kingdee.BOS.Cache.KCacheMethodCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe350 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe3e0 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe470 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe500 00007ffd5c61936d Microsoft.Practices.Unity.InterceptionExtension.HandlerPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeHandlerDelegate)</span><br><span class="line">00000076dbdbe590 00007ffd5c618999 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbdbe620 00007ffd5c61845d Microsoft.Practices.Unity.InterceptionExtension.InterceptionBehaviorPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbdbe6b0 00007ffd5c617002 Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy.Invoke(System.Runtime.Remoting.Messaging.IMessage)</span><br><span class="line">00000076dbdbe790 00007ffdb911190c System.Runtime.Remoting.Proxies.RealProxy.PrivateInvoke(System.Runtime.Remoting.Proxies.MessageData ByRef, Int32) [f:\dd\ndp\clr\src\BCL\system\runtime\remoting\realproxy.cs @ 823]</span><br><span class="line">00000076dbdbe980 00007ffdbb4f4a02 [TPMethodFrame: 00000076dbdbe980] Kingdee.BOS.Contracts.IMainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</span><br><span class="line">00000076dbdbec00 00007ffdb91ad436 System.Threading.Tasks.Task.Execute() [f:\dd\ndp\clr\src\BCL\system\threading\Tasks\Task.cs @ 2498]</span><br><span class="line">00000076dbdbec40 00007ffdb915ca72 System.Threading.ExecutionContext.RunInternal(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 954]</span><br><span class="line">00000076dbdbed10 00007ffdb915c904 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 902]</span><br><span class="line">00000076dbdbed40 00007ffdb91ad6dc System.Threading.Tasks.Task.ExecuteWithThreadLocal(System.Threading.Tasks.Task ByRef) [f:\dd\ndp\clr\src\BCL\system\threading\Tasks\Task.cs @ 2827]</span><br><span class="line">00000076dbdbedf0 00007ffdb91acdf3 System.Threading.Tasks.Task.ExecuteEntry(Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\Tasks\Task.cs @ 2767]</span><br><span class="line">00000076dbdbee30 00007ffdb9194882 System.Threading.ThreadPoolWorkQueue.Dispatch() [f:\dd\ndp\clr\src\BCL\system\threading\threadpool.cs @ 820]</span><br><span class="line">00000076dbdbf2c8 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbdbf2c8] </span><br><span class="line">00000076dbdbf458 00007ffdbb4f6793 [ContextTransitionFrame: 00000076dbdbf458] </span><br><span class="line">00000076dbdbf688 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbdbf688] </span><br><span class="line">OS Thread Id: 0x153c (135)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x242c (136)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x153c (135)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x242c (136)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x2a04 (137)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">00000076dbf7af08 00007ffdca2e6124 [InlinedCallFrame: 00000076dbf7af08] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbf7af08 00007ffdaaaf5dd4 [InlinedCallFrame: 00000076dbf7af08] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbf7aee0 00007ffdaaaf5dd4 DomainNeutralILStubClass.IL_STUB_PInvoke(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbf7af90 00007ffdaab08fe3 SNINativeMethodWrapper.SNIReadSyncOverAsync(System.Runtime.InteropServices.SafeHandle, IntPtr ByRef, Int32)</span><br><span class="line">00000076dbf7aff0 00007ffdaabe0ae0 System.Data.SqlClient.TdsParserStateObject.ReadSniSyncOverAsync()</span><br><span class="line">00000076dbf7b050 00007ffdaabe09dd System.Data.SqlClient.TdsParserStateObject.TryReadNetworkPacket()</span><br><span class="line">00000076dbf7b090 00007ffdaabdf7f5 System.Data.SqlClient.TdsParserStateObject.TryPrepareBuffer()</span><br><span class="line">00000076dbf7b0d0 00007ffdaabdfa0e System.Data.SqlClient.TdsParserStateObject.TryReadByte(Byte ByRef)</span><br><span class="line">00000076dbf7b110 00007ffdaabc7daa System.Data.SqlClient.TdsParser.TryRun(System.Data.SqlClient.RunBehavior, System.Data.SqlClient.SqlCommand, System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.BulkCopySimpleResultSet, System.Data.SqlClient.TdsParserStateObject, Boolean ByRef)</span><br><span class="line">00000076dbf7b270 00007ffdaabbb3c7 System.Data.SqlClient.SqlDataReader.TryConsumeMetaData()</span><br><span class="line">00000076dbf7b2d0 00007ffdaabb8325 System.Data.SqlClient.SqlDataReader.get_MetaData()</span><br><span class="line">00000076dbf7b320 00007ffdaab3be73 System.Data.SqlClient.SqlCommand.FinishExecuteReader(System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.RunBehavior, System.String, Boolean, Boolean)</span><br><span class="line">00000076dbf7b390 00007ffdaab3b75f System.Data.SqlClient.SqlCommand.RunExecuteReaderTds(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, Boolean, Int32, System.Threading.Tasks.Task ByRef, Boolean, Boolean, System.Data.SqlClient.SqlDataReader, Boolean)</span><br><span class="line">00000076dbf7b470 00007ffdaab3a763 System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String, System.Threading.Tasks.TaskCompletionSource&#96;1, Int32, System.Threading.Tasks.Task ByRef, Boolean ByRef, Boolean, Boolean)</span><br><span class="line">00000076dbf7b540 00007ffdaab3a49b System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String)</span><br><span class="line">00000076dbf7b5e0 00007ffdaab35cc6 System.Data.SqlClient.SqlCommand.ExecuteReader(System.Data.CommandBehavior, System.String)</span><br><span class="line">00000076dbf7b670 00007ffd5c517ead Kingdee.BOS.App.Data.AbstractDatabase.DoExecuteReader(System.Data.Common.DbCommand, System.Data.CommandBehavior)</span><br><span class="line">00000076dbf7b6d0 00007ffd5c515ebb Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbf7b750 00007ffd5c4fd6f2 Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior)</span><br><span class="line">00000076dbf7b780 00007ffd5c4e31b1 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbf7b7f0 00007ffd5c51d2a7 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, Boolean)</span><br><span class="line">00000076dbf7b830 00007ffd5c61737a Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.List&#96;1)</span><br><span class="line">00000076dbf7b860 00007ffd5c8d2bd7 Kingdee.BOS.App.Core.UserParameterService.GetParamter(Kingdee.BOS.Context, Int64, System.String, System.String)</span><br><span class="line">00000076dbf7bb68 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbf7bb68] </span><br><span class="line">00000076dbf7bea8 00007ffdbb4f6793 [HelperMethodFrame_PROTECTOBJ: 00000076dbf7bea8] System.RuntimeMethodHandle.InvokeMethod(System.Object, System.Object[], System.Signature, Boolean)</span><br><span class="line">00000076dbf7c020 00007ffdb914b690 System.Reflection.RuntimeMethodInfo.UnsafeInvokeInternal(System.Object, System.Object[], System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 761]</span><br><span class="line">00000076dbf7c090 00007ffdb9142922 System.Reflection.RuntimeMethodInfo.Invoke(System.Object, System.Reflection.BindingFlags, System.Reflection.Binder, System.Object[], System.Globalization.CultureInfo) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 735]</span><br><span class="line">00000076dbf7c110 00007ffdb9143f22 System.Reflection.MethodBase.Invoke(System.Object, System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodbase.cs @ 211]</span><br><span class="line">00000076dbf7c150 00007ffd5c61990c Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbf7c250 00007ffd5c619477 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c2f0 00007ffd5c61cbc4 Kingdee.BOS.Cache.KCacheMethodCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c440 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c4d0 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c560 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c5f0 00007ffd5c61936d Microsoft.Practices.Unity.InterceptionExtension.HandlerPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeHandlerDelegate)</span><br><span class="line">00000076dbf7c680 00007ffd5c618999 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbf7c710 00007ffd5c61845d Microsoft.Practices.Unity.InterceptionExtension.InterceptionBehaviorPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbf7c7a0 00007ffd5c617002 Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy.Invoke(System.Runtime.Remoting.Messaging.IMessage)</span><br><span class="line">00000076dbf7c880 00007ffdb911190c System.Runtime.Remoting.Proxies.RealProxy.PrivateInvoke(System.Runtime.Remoting.Proxies.MessageData ByRef, Int32) [f:\dd\ndp\clr\src\BCL\system\runtime\remoting\realproxy.cs @ 823]</span><br><span class="line">00000076dbf7ca70 00007ffdbb4f4a02 [TPMethodFrame: 00000076dbf7ca70] Kingdee.BOS.Contracts.IUserParameterService.GetParamter(Kingdee.BOS.Context, Int64, System.String, System.String)</span><br><span class="line">00000076dbf7ccf0 00007ffd5c8d28c5 Kingdee.BOS.App.Security.K3CloudLoginService.SetRegionInfo(Kingdee.BOS.Context, Kingdee.BOS.Contracts.IUserParameterService, Kingdee.BOS.Orm.DataEntity.DynamicObject)</span><br><span class="line">00000076dbf7cd70 00007ffd5c22b2e2 Kingdee.BOS.App.Security.K3DataCenterService.GetDataCenterContextByID(System.String)</span><br><span class="line">00000076dbf7cdc0 00007ffd5c227d97 Kingdee.BOS.App.Security.K3CloudLoginService+c__DisplayClass8.b__3(System.String)</span><br><span class="line">00000076dbf7cdf0 00007ffd5c228471 Kingdee.BOS.Core.Authentication.AbstractAuthService.LoadContext(Kingdee.BOS.Core.Authentication.LoadContextArg)</span><br><span class="line">00000076dbf7ce50 00007ffd5c226ed8 Kingdee.BOS.App.Security.K3CloudLoginService.Login(Kingdee.BOS.Performance.Common.PerformanceContext, Kingdee.BOS.Authentication.LoginInfo)</span><br><span class="line">00000076dbf7ced0 00007ffd5c20b5a9 Kingdee.BOS.ServiceHelper.LoginServiceHelper.Login(Kingdee.BOS.Performance.Common.PerformanceContext, System.String, Kingdee.BOS.Authentication.LoginInfo)</span><br><span class="line">00000076dbf7cf30 00007ffd5c20960f Kingdee.BOS.WebApi.ServicesStub.AuthService.ValidateLoginInfo(System.String, Kingdee.BOS.Authentication.LoginInfo)</span><br><span class="line">00000076dbf7d080 00007ffd5c20783c Kingdee.BOS.WebApi.ServicesStub.AuthService.ValidateUser(System.String, System.String, System.String, Int32)</span><br><span class="line">00000076dbf7d318 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbf7d318] </span><br><span class="line">00000076dbf7d658 00007ffdbb4f6793 [HelperMethodFrame_PROTECTOBJ: 00000076dbf7d658] System.RuntimeMethodHandle.InvokeMethod(System.Object, System.Object[], System.Signature, Boolean)</span><br><span class="line">00000076dbf7d7d0 00007ffdb914b690 System.Reflection.RuntimeMethodInfo.UnsafeInvokeInternal(System.Object, System.Object[], System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 761]</span><br><span class="line">00000076dbf7d840 00007ffdb9142922 System.Reflection.RuntimeMethodInfo.Invoke(System.Object, System.Reflection.BindingFlags, System.Reflection.Binder, System.Object[], System.Globalization.CultureInfo) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 735]</span><br><span class="line">00000076dbf7d8c0 00007ffd5c206201 Kingdee.BOS.ServiceFacade.KDServiceFx.ServiceExecutor.Execute(Kingdee.BOS.ServiceFacade.KDServiceFx.KDServiceContext, Kingdee.BOS.ServiceFacade.KDServiceFx.ServiceType, System.String[], Kingdee.BOS.ServiceFacade.SerializerProxy, Kingdee.BOS.ServiceFacade.KDServiceFx.ServiceType)</span><br><span class="line">00000076dbf7d960 00007ffd5c203ea9 Kingdee.BOS.ServiceFacade.KDServiceFx.ExecuteServiceModule.OnProcess(Kingdee.BOS.ServiceFacade.KDServiceFx.KDServiceContext)</span><br><span class="line">00000076dbf7da00 00007ffd5c203ab8 Kingdee.BOS.ServiceFacade.KDServiceFx.ModulePipeline.ExcuteRequest(Kingdee.BOS.ServiceFacade.KDServiceFx.KDServiceContext)</span><br><span class="line">00000076dbf7da50 00007ffd5c20123e Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExcuteRuntime.StartRequest(Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExtractor, Kingdee.BOS.ServiceFacade.KDServiceFx.WebContext)</span><br><span class="line">00000076dbf7daa0 00007ffd5c200f00 Kingdee.BOS.ServiceFacade.KDServiceFx.KDSVCHandler.ExecuteRequest(Kingdee.BOS.ServiceFacade.KDServiceFx.WebContext, Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExtractor)</span><br><span class="line">00000076dbf7dae0 00007ffd5c200d45 Kingdee.BOS.ServiceFacade.KDServiceFx.KDSVCHandler.ProcessRequestInternal(Kingdee.BOS.ServiceFacade.KDServiceFx.WebContext, Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExtractor)</span><br><span class="line">00000076dbf7db30 00007ffdac1a373e *** WARNING: Unable to verify checksum for System.Web.ni.dll</span><br><span class="line">System.Web.HttpApplication+CallHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()</span><br><span class="line">00000076dbf7dbc0 00007ffdac1633fb System.Web.HttpApplication.ExecuteStep(IExecutionStep, Boolean ByRef)</span><br><span class="line">00000076dbf7dc10 00007ffdac178220 System.Web.HttpApplication+PipelineStepManager.ResumeSteps(System.Exception)</span><br><span class="line">00000076dbf7dd70 00007ffdac163f79 System.Web.HttpApplication.BeginProcessRequestNotification(System.Web.HttpContext, System.AsyncCallback)</span><br><span class="line">00000076dbf7ddc0 00007ffdac1766c3 System.Web.HttpRuntime.ProcessRequestNotificationPrivate(System.Web.Hosting.IIS7WorkerRequest, System.Web.HttpContext)</span><br><span class="line">00000076dbf7de40 00007ffdac165398 System.Web.Hosting.PipelineRuntime.ProcessRequestNotificationHelper(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7e000 00007ffdac164f63 System.Web.Hosting.PipelineRuntime.ProcessRequestNotification(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7e040 00007ffdac8646ba DomainNeutralILStubClass.IL_STUB_ReversePInvoke(Int64, Int64, Int64, Int32)</span><br><span class="line">00000076dbf7e8b0 00007ffdbb4f21fe [InlinedCallFrame: 00000076dbf7e8b0] System.Web.Hosting.UnsafeIISMethods.MgdIndicateCompletion(IntPtr, System.Web.RequestNotificationStatus ByRef)</span><br><span class="line">00000076dbf7e8b0 00007ffdac1d2dde [InlinedCallFrame: 00000076dbf7e8b0] System.Web.Hosting.UnsafeIISMethods.MgdIndicateCompletion(IntPtr, System.Web.RequestNotificationStatus ByRef)</span><br><span class="line">00000076dbf7e880 00007ffdac1d2dde DomainNeutralILStubClass.IL_STUB_PInvoke(IntPtr, System.Web.RequestNotificationStatus ByRef)</span><br><span class="line">00000076dbf7e940 00007ffdac16556f System.Web.Hosting.PipelineRuntime.ProcessRequestNotificationHelper(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7eb00 00007ffdac164f63 System.Web.Hosting.PipelineRuntime.ProcessRequestNotification(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7eb40 00007ffdac8646ba DomainNeutralILStubClass.IL_STUB_ReversePInvoke(Int64, Int64, Int64, Int32)</span><br><span class="line">00000076dbf7ed18 00007ffdbb4f2453 [ContextTransitionFrame: 00000076dbf7ed18]</span><br></pre></td></tr></table></figure>
+<p>通过仔细比对发现这么一条<code>Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</code>调用堆栈。从方法命名来看，像是用来获取菜单数组并缓存。结合前后堆栈的联系，我们可以大致得出这样一个线索：<strong>用户使用WebApi登录后会缓存一份独立的菜单供用户使用</strong>。</p>
+<p>有了代码堆栈，接下来知道怎么干了吧？当然是核实源代码确定问题啊。</p>
+<h1 id="4-分析源码验证问题"><a href="#4-分析源码验证问题" class="headerlink" title="4. 分析源码验证问题"></a>4. 分析源码验证问题</h1><p><code>Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</code>方法源代码如下：<br><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-6b4c4abbb111e312.png" alt="GetMenuArrayForCache"></p>
+<p>我们发现它是用的<code>UserToken</code>来缓存用户菜单。看到<code>Token</code>，你可能就会条件反射的想到其生命周期。是的，聪明贤惠如你，Token是有生命周期的。也就意味着Token过期后，下次登录还会再次缓存一份菜单。你可能会问Token过期后没有去清对应的菜单缓存吗？是的，并没有。</p>
+<p>严谨的你，可能又会问Token多久过期？20mins。你眼珠子一转，接着问，满打满算，一个用户1个小时也就申请3次Token，24小时，也就申请72个Token，一个菜单缓存也就顶多1K，所以一个用户一天也就最多占用72K。你的网站得有多少并发，才能被这么多菜单缓存撑爆啊？！</p>
+<p>Good Question！！！</p>
+<p>是的，客户的应用场景的并发也就顶多几百而已。那到底是什么导致如此多的菜单缓存呢？</p>
+<p>原因是，客户的第三方客户端使用WebApi与我们的系统对接。而每次调用WebApi时都会先去调用登录接口，但却未保存会话信息。也就是说，客户第三方客户端每次的WebApi调用都会产生一个新的Token。那如果有成千上万的WebApi请求，也就意味着成千上万的菜单缓存啊。</p>
+<p>好了，点到为止。至此，已经基本定位到问题的根源了。</p>
+<h1 id="5-最后"><a href="#5-最后" class="headerlink" title="5. 最后"></a>5. 最后</h1><p>也许很多同学没有接触过WinDbg，觉得其是一个复杂的工具。其实通过本文的案例讲解，其无非是通过一系列常见的命令来进行问题跟踪来定位问题。</p>
+<p>最后来简单总结下，Windbg分析问题的步骤：</p>
+<ol>
+<li>创建完整Dump文件</li>
+<li>Windbg加载Dump文件</li>
+<li>根据不同问题类型，使用相关的命令进行分析</li>
+<li>耐心分析，抽丝剥茧</li>
+<li>边分析边猜测边验证</li>
+<li>结合源码验证猜想</li>
+<li>修复验证</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/use-windbg-to-analyze-high-memory-issue/" title="WinDbg分析高内存占用问题">https://blog.shengjie.dev/use-windbg-to-analyze-high-memory-issue/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/WinDbg/" rel="tag"># WinDbg</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-unit-of-work/" rel="prev" title="UnitOfWork 知多少">
+      <i class="fa fa-chevron-left"></i> UnitOfWork 知多少
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-MediatR/" rel="next" title="MediatR 知多少">
+      MediatR 知多少 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-问题简介"><span class="nav-number">1.</span> <span class="nav-text">1. 问题简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-打Dump"><span class="nav-number">2.</span> <span class="nav-text">2. 打Dump</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-分析Dump"><span class="nav-number">3.</span> <span class="nav-text">3..分析Dump</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-分析源码验证问题"><span class="nav-number">4.</span> <span class="nav-text">4. 分析源码验证问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-最后"><span class="nav-number">5.</span> <span class="nav-text">5. 最后</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+  <script defer src="/lib/three/three.min.js"></script>
+    <script defer src="/lib/three/three-waves.min.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
+      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
+      placeholder: "Code is cheap, show me your mind!",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

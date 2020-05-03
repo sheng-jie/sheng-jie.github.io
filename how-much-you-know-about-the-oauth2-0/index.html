@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="OAuth 2.0是用于授权的行业标准协议，大大简化了Web应用程序，桌面应用程序，手机和客厅设备的授权流程。而且我们日常使用的第三发登录（QQ、微信、微博等）就是基于OAuth2.0协议，下面我们就来结合实际案例来一探究竟吧！">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OAtuth2.0 知多少">
+<meta property="og:url" content="https://blog.shengjie.dev/how-much-you-know-about-the-oauth2-0/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="OAuth 2.0是用于授权的行业标准协议，大大简化了Web应用程序，桌面应用程序，手机和客厅设备的授权流程。而且我们日常使用的第三发登录（QQ、微信、微博等）就是基于OAuth2.0协议，下面我们就来结合实际案例来一探究竟吧！">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-264c5378f5c255b1.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-54cf4032678fe331.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-bce90f200d70a514.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-27b3e30b6563dc2f.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-b7dab004998d702d.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-2ad0271ee9af4618.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-714ba763cb80cd6e.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-efe4ebcd991746f2.png">
+<meta property="article:published_time" content="2017-03-16T07:54:48.000Z">
+<meta property="article:modified_time" content="2020-05-02T04:32:02.765Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content="OAuth2.0">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/how-much-you-know-about-the-oauth2-0/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>OAtuth2.0 知多少 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/how-much-you-know-about-the-oauth2-0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          OAtuth2.0 知多少
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-03-16 15:54:48" itemprop="dateCreated datePublished" datetime="2017-03-16T15:54:48+08:00">2017-03-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-05-02 12:32:02" itemprop="dateModified" datetime="2020-05-02T12:32:02+08:00">2020-05-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/how-much-you-know-about-the-oauth2-0/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/how-much-you-know-about-the-oauth2-0/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <div class="post-description">OAuth 2.0是用于授权的行业标准协议，大大简化了Web应用程序，桌面应用程序，手机和客厅设备的授权流程。而且我们日常使用的第三发登录（QQ、微信、微博等）就是基于OAuth2.0协议，下面我们就来结合实际案例来一探究竟吧！</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png" alt=""></p>
+<p>#1. 引言</p>
+<p>周末逛简书，看了一篇写的极好的文章，点击大红心点赞，就直接给我跳转到登录界面了，原来点赞是需要登录的。</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-264c5378f5c255b1.png" alt="简书登录界面"></p>
+<p>可是没有我并没有简书账号，一直使用的QQ的集成登录。下面有一排社交登录按钮，我们可以用第三方社交账号登陆即可。点击QQ图标，就给我跳转到了QQ登录授权页面，如下图：</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-54cf4032678fe331.png" alt="QQ登录授权页面"></p>
+<p>从图片上我们可以看到主要包括两个部分，一个是左边的用户登录，一个是右边告知简书将获取哪些权限。输入QQ账号和密码，点击授权并登录，就成功登录到简书了，并成功获取到了我QQ的账号和昵称，如下图：</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-bce90f200d70a514.png" alt="简书成功获取到QQ昵称和头像"></p>
+<p>简书集成的社交登录，大大简化了我们的注册登录流程，真是一号在手上网无忧啊。<br>这看似简单的集成，但背后的技术原理『OAuth2.0』可没那么简单，那我们废话不多说，一探究竟吧。</p>
+<p>#2. OAuth 2.0</p>
+<blockquote>
+<p><a href="https://oauth.net/2/" target="_blank" rel="noopener">OAuth 2.0</a>是用于授权的行业标准协议。OAuth 2.0取代了在2006年创建的原始OAuth协议上所做的工作。OAuth 2.0专注于客户端开发人员的简单性，同时为Web应用程序，桌面应用程序，手机和客厅设备提供特定的授权流程。</p>
+</blockquote>
+<p>在传统的client-server认证模型中，客户端请求访问服务器上受限的资源（protected resource），需要通过使用资源所有者（resource owner）的凭证在服务器上进行认证。为了支持第三方应用程序访问受限资源，资源所有者需要向第三方应用共享其凭证。这就会造成以下问题：</p>
+<ol>
+<li>第三方应用为了后续使用，会存储资源所有者的凭证主要是密码。</li>
+<li>服务端需要支持密码认证，尽管密码认证不安全。</li>
+<li>第三方应用获得对资源的过度访问而不仅局限于受限资源，且资源所有者没有办法对其进行限制。</li>
+<li>资源所有者无法收回权限，除非修改密码。</li>
+<li>如果第三方应用的密码被破解，就会导致所有被该密码保护的数据被泄露。</li>
+</ol>
+<p>想一想这样一个场景，如果简书是直接使用QQ用户名密码登录，简书就很有可能会为了后续业务的需要而擅自保存QQ用户名及密码，简书只要拿到了QQ用户名密码就可以访问不仅仅QQ昵称、头像等信息，甚至可以获取到QQ用户的所有通讯录列表。如果简书的账号密码泄露，就会直接影响到QQ数据的安全。这是一个可怕的问题。</p>
+<p>所以OAuth应运而生，来解决这一问题。</p>
+<p>#3. OAuth 2.0授权流程</p>
+<p>下面我们就以简书使用QQ授权登录为例，来捋一捋OAuth 2.0的流程。<br>先来看看OAuth 2.0的流程，如下图所示：<br><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-27b3e30b6563dc2f.png" alt="OAuth 2.0授权流程"></p>
+<p>这里面主要包含四个角色：</p>
+<ol>
+<li>Client：需要授权的客户端，本文中就是【简书】。</li>
+<li>Resource Owner：资源所有者，在本文中你可能会以为是 QQ，但要想清楚，QQ是属于个人的，所以在本文中资源所有者是指【QQ用户】。</li>
+<li>Authorization Server：认证服务器，本文中特指【QQ互联平台】。</li>
+<li>Resource Server：资源服务器，顾名思义，用来专门保存资源的服务器，接受通过访问令牌进行访问。本文特指【QQ用户信息中心】。</li>
+</ol>
+<p>##3.1. 第一步：引导用户到认证服务器</p>
+<p>圣杰打开简书网页，简书跳转到登录界面，要求用户登录。可是圣杰未在简书注册帐号，所以就点击了QQ图标，使用QQ帐号进行集成登录。跳转到QQ登录界面后，QQ要求用户授权。<br>这一步中简书主要做了这样一件事就是引导用户到认证服务器。<br>很显然【QQ互联平台】就是认证服务器。</p>
+<p>如何引导？当然是页面跳转。<br>那认证服务器如何知道是简书过来的认证请求？<br>当然是传参。<br>那需要传递哪些参数呢？</p>
+<ul>
+<li>response_type：表示响应类型，必选项，此处的值固定为”code”；</li>
+<li>client_id：表示客户端的ID，用来标志授权请求的来源，必选项；</li>
+<li>redirect_uri：成功授权后的回调地址；</li>
+<li>scope：表示申请的权限范围，可选项；</li>
+<li>state：表示客户端的当前状态，可以指定任意值，认证服务器会原封不动地返回这个值。</li>
+</ul>
+<p>咱们看看简书实际发送的授权请求Url是：<br><code>https://graph.qq.com/oauth2.0/authorize?client_id=100410602
+&amp;redirect_uri=http://www.jianshu.com/users/auth/qq_connect/callback
+&amp;response_type=code
+&amp;state=bb38108d1aaf567c72da0f1167e87142d0e20cb2bb24ec5a</code></p>
+<p>无图无真相，咱们看看控制台的网络监控：</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-b7dab004998d702d.png" alt="简书跳转到QQ登录的认证请求"></p>
+<p>如图所示，除了scope参数外，其他四个参数均有传参。<br>此时你可能唯一对state参数比较迷惑，传递一个state参数，认证服务器会原封不动返回，那还干嘛要传递state参数呢？</p>
+<p>我的理解是，简书用一个guid加长版字符串来唯一标识一个授权请求。这样才会正确获取授权服务器返回的授权码。</p>
+<p>这里你可能会问了，既然我知道了这些参数，我岂不是可以伪造简书认证请求，修改<code>redirect_uri</code>参数跳转到个人的网站，然后不就可以获取QQ授权？</p>
+<p>跟我一样太傻太天真，简书在QQ互联平台申请时肯定已经预留备案了要跳转返回的URL。QQ互联平台在收到简书的授权请求时肯定会验证回调Url的。</p>
+<p>##3.2. 第二步：用户同意为第三方客户端授权</p>
+<p>这一步，对于用户来说，只需要使用资源所有者（QQ）的用户名密码登录，并同意授权即可。点击授权并登录后，授权服务器首先会post一个请求回服务器进行用户认证，认证通过后授权服务器会生成一个授权码，然后服务器根据授权请求的<code>redirect_uri</code>进行跳转，并返回授权码<code>code</code>和授权请求中传递的<code>state</code>。<br>这里要注意的是：<strong>授权码有一个短暂的时效</strong></p>
+<p>无图无真相，咱们还是看一下控制台网络监控：</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-2ad0271ee9af4618.png" alt="用户授权并登录"></p>
+<p>从图中即可验证我们上面所说，最终跳转回简书的Url为：<br><code>http://www.jianshu.com/users/auth/qq_connect/callback?code=093B9307E38DC5A2C3AD147B150F2AB3
+&amp;state=bb38108d1aaf567c72da0f1167e87142d0e20cb2bb24ec5a</code><br>和之前的授权请求URL进行对比，可以发现<code>redirect_uri</code>、<code>state</code>完全一致。<br>而<code>code=093B9307E38DC5A2C3AD147B150F2AB3</code>就是返回的授权码。</p>
+<p>##3.3. 第三步：使用授权码向认证服务器申请令牌</p>
+<p>从这一步开始，对于用户来说是察觉不到的。简书后台默默的在做后续的工作。</p>
+<p>简书拿到QQ互联平台返回的授权码后，需要根据授权码再次向认证服务器申请令牌（access token）。<br>到这里有必要再理清两个概念：</p>
+<ul>
+<li>授权码（Authorization Code）：相当于授权服务器口头告诉简书，用户同意授权使用他的QQ登录简书了。</li>
+<li>令牌（Access Token）：相当于临时身份证。</li>
+</ul>
+<p>那如何申请令牌呢？<br>简书需要后台发送一个get请求到认证服务器（QQ互联平台）。<br>那要携带哪些必要信息呢？<br>是的，要携带以下参数：</p>
+<ul>
+<li>grant_type：表示授权类型，此处的值固定为”authorization_code”，必选项；</li>
+<li>client_id：表示从QQ互联平台申请到的客户端ID，用来标志请求的来源，必选项；</li>
+<li>client_secret：这个是从QQ互联平台申请到的客户端认证密钥，机密信息十分重要，必选项；</li>
+<li>redirect_uri：成功申请到令牌后的回调地址；</li>
+<li>code：上一步申请到的授权码。</li>
+</ul>
+<p>根据以上信息我们可以模拟一个申请AccessToken的请求：<br><code>https://graph.qq.com/oauth2.0/token?client_id=100410602
+&amp;client_secret=123456jianshu
+&amp;redirect_uri=http://www.jianshu.com/users/auth/qq_connect/callback
+&amp;grant_type=authorization_code
+&amp;code=093B9307E38DC5A2C3AD147B150F2AB3</code></p>
+<p>发送完该请求后，认证服务器验证通过后就会发放令牌，并跳转会简书，其中应该包含以下信息：</p>
+<ul>
+<li>access_token：令牌</li>
+<li>expires_in：access token的有效期，单位为秒。</li>
+<li>refresh_token：在授权自动续期步骤中，获取新的Access_Token时需要提供的参数。</li>
+</ul>
+<p>同样，我们可以模拟出一个返回的token：<br><code>http://www.jianshu.com/users/auth/qq_connect/callback?access_token=548ADF2D5E1C5E88H4JH15FKUN51F
+&amp;expires_in=36000&amp;refresh_token=53AD68JH834HHJF9J349FJADF3</code></p>
+<p>这个时候简书还有一件事情要做，就是把用户token写到cookie里，进行用户登录状态的维持。咱们还是打开控制器验证一下。</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-714ba763cb80cd6e.png" alt="保存token到cookie"></p>
+<p>从图中可以看出简书把用户token保存在名为<code>remember_user_token</code>的cookie里。<br>不用打cookie的歪主意了，肯定是加密了的。<br>可以尝试下手动把<code>remember_user_token</code>这条cookie删除，保证刷新界面后需要你重新登录简书。</p>
+<p>##3.4. 第四步：向资源服务器申请资源<br>有了token，向资源服务器提供的资源接口发送一个get请求不就行了，资源服务器校验令牌无误，就会向简书返回资源（QQ用户信息）。</p>
+<p>同样咱们也来模拟一个使用token请求QQ用户基本信息资源的URL：<br><code>https://graph.qq.com/user/get_user_info?client_id=100410602
+&amp;qq=2098769873
+&amp;access_token=548ADF2D5E1C5E88H4JH15FKUN51F</code></p>
+<p>到这一步OAuth2.0的流程可以说是结束了，但是对于简书来说还有重要的事情要做。那就是：<br><strong>拿到token、reresh_token和用户数据这么重要的东西不存数据库傻呀？</strong></p>
+<p>##3.5. 第五步：令牌延期（刷新）<br>你肯定对第四步返回的<code>refresh_token</code>比较好奇。<br>它是用来对令牌进行延期（刷新）的。为什么会有两种说法呢，因为可能认证服务器会重新生成一个令牌，也有可能<br>对过期的令牌进行延期。</p>
+<p>比如说，QQ互联平台为了安全性考虑，返回的<code>access_token</code>是有时间限制的，假如用户某天不想授权了呢，总不能给了个<code>access_token</code>你几年后还能用吧。我们上面模拟返回的令牌有效期为10小时。10小时后，用户打开浏览器逛简书，浏览器中用户的token对应的cookie已过期。简书发现浏览器没有携带token信息过来，就明白token失效了，需要重新向认证平台申请授权。如果让用户再点击QQ进行登录授权，这明显用户体验不好。咋搞呢？<code>refresh_token</code>就派上了用场，可以直接跳过前面申请授权码的步骤，当发现token失效了，简书从浏览器携带的cookie中的sessionid找到存储在数据库中的<code>refresh_token</code>，然后再使用<code>refresh_token</code>进行token续期（刷新）。</p>
+<p>那用refresh_token进行token续期需要怎么做呢？<br>同样需要向认证服务器发送一个get请求。<br>需要哪些参数？</p>
+<ul>
+<li>grant_type：表示授权类型，此处的值固定为”refresh_token”，必选项；</li>
+<li>client_id：表示从QQ互联平台申请到的客户端ID，用来标志请求的来源，必选项；</li>
+<li>client_secret：这个是从QQ互联平台申请到的客户端认证密钥，机密信息十分重要，必选项；</li>
+<li>refresh_token：即申请令牌返回的refresh_token。</li>
+</ul>
+<p>根据上述信息，我们又可以模拟一个令牌刷新的URL：<br><code>https://graph.qq.com/oauth2.0/token?client_id=100410602
+&amp;client_secret=123456jianshu
+&amp;redirect_uri=http://www.jianshu.com/users/auth/qq_connect/callback
+&amp;grant_type=refresh_token
+&amp;refresh_token=53AD68JH834HHJF9J349FJADF3</code><br>那返回的结果呢?<br>和第四步返回的结果一样。</p>
+<p>这里你可能又有疑问了，那既然每次进行令牌延期后都会重新返回一个<code>refresh_token</code>，那岂不是我可以使用<code>refresh_token</code>无限延期？<br>天真如我啊，<code>refresh_token</code>也是有过期时间的。而这个过期时间具体是由认证服务器决定的。<br>一般来说<code>refresh_token</code>的过期时间要大于<code>access_token</code>的过期时间。只有这样，<code>access_token</code>过期时，才可以使用<code>refresh_token</code>进行令牌延期（刷新）。</p>
+<p>举个简单例子：<br>假设简书从QQ互联平台默认获取到的<code>access_token</code>的有效期是1天，<code>refresh_token</code>的有效期为一周。</p>
+<p>用户今天使用QQ登录授权后，过了两天再去逛简书，简书发现token失效，立马用<code>refresh_token</code>刷新令牌，默默的完成了授权的延期。<br>假如用户隔了两周再去逛简书，简书一核对，<code>access_token</code>、<code>refresh_token</code>全都失效，就只能乖乖引导用户到授权页面重新授权，也就是回到OAuth2.0的第一步。</p>
+<p>#4.0 总结<br>本文以简书通过QQ进行授权登录为例，对OAuth2.0 的授权流程进行了梳理，希望通读此文，对你有所帮助。</p>
+<p>如果对OAuth2.0有所了解的话，你应该明白本文其实是对OAuth2.0中<strong>授权码模式</strong>授权方式的讲解。</p>
+<p>如果想了解OAuth2.0其他几种授权方式，建议参考<a href="http://www.baidu.com/link?url=j4_T_fCI4T_gWL2Snyg_xg9DfuYvjKupGPbyr6HnHRJRlpEFAUMPaIEUgszkDxfKUbf_r-dRmYYaFXm13C-BEK" target="_blank" rel="noopener">理解<em>OAuth 2.0</em> - 阮一峰的网络日志</a>。</p>
+<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-efe4ebcd991746f2.png" alt=""></p>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/how-much-you-know-about-the-oauth2-0/" title="OAtuth2.0 知多少">https://blog.shengjie.dev/how-much-you-know-about-the-oauth2-0/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/OAuth2-0/" rel="tag"># OAuth2.0</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/" rel="prev" title="SQL递归查询知多少">
+      <i class="fa fa-chevron-left"></i> SQL递归查询知多少
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-eventbus-1/" rel="next" title="事件总线知多少(1)">
+      事件总线知多少(1) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+  <script defer src="/lib/three/three.min.js"></script>
+    <script defer src="/lib/three/three-waves.min.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
+      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
+      placeholder: "Code is cheap, show me your mind!",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
