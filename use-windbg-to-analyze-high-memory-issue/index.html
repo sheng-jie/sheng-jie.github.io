@@ -36,7 +36,7 @@
 <meta property="og:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-fe85d20242c6f435.png">
 <meta property="og:image" content="https://blog.shengjie.dev/images/use-windbg-to-analyze-high-memory-issue/2799767-6b4c4abbb111e312.png">
 <meta property="article:published_time" content="2018-08-17T11:24:48.000Z">
-<meta property="article:modified_time" content="2020-05-04T09:46:21.677Z">
+<meta property="article:modified_time" content="2020-05-04T10:42:41.705Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content="WinDbg">
 <meta name="twitter:card" content="summary">
@@ -134,17 +134,17 @@
   </li>
         <li class="menu-item menu-item-tags">
 
-    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">17</span></a>
 
   </li>
         <li class="menu-item menu-item-categories">
 
-    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">2</span></a>
 
   </li>
         <li class="menu-item menu-item-archives">
 
-    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">13</span></a>
 
   </li>
   </ul>
@@ -208,7 +208,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-04 17:46:21" itemprop="dateModified" datetime="2020-05-04T17:46:21+08:00">2020-05-04</time>
+                <time title="修改时间：2020-05-04 18:42:41" itemprop="dateModified" datetime="2020-05-04T18:42:41+08:00">2020-05-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -275,7 +275,7 @@
 <p>procdump w3wp -ma -m 8000 -o D:\Dumps （当内存超过8000M时抓取一个w3wp进程的完整Dump，并输出到D:\Dumps文件夹）</p>
 </blockquote>
 <p>此时内存占用在40%左右，这次Dump终于成功创建了。</p>
-<h1 id="3-分析Dump"><a href="#3-分析Dump" class="headerlink" title="3..分析Dump"></a>3..分析Dump</h1><p>分析Dump，上WinDbg。如果对WinDbg不理解，可以看我这篇<a href="https://www.jianshu.com/p/57f0ab8702b5" target="_blank" rel="noopener">WinDbg学习笔记</a>。</p>
+<h1 id="3-分析Dump"><a href="#3-分析Dump" class="headerlink" title="3.分析Dump"></a>3.分析Dump</h1><p>分析Dump，上WinDbg。如果对WinDbg不理解，可以看我这篇<a href="https://www.jianshu.com/p/57f0ab8702b5" target="_blank" rel="noopener">WinDbg学习笔记</a>。</p>
 <p>接下来就是一通命令乱敲，我尽量解释清晰。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">0:000&gt; !dumpheap -stat &#x2F;&#x2F;检查当前所有托管类型的统计信息</span><br><span class="line">....</span><br><span class="line">00007ffdb9387a98   777101     69462436 System.Char[]</span><br><span class="line">00007ffdb938c988   588917    115563505 System.Byte[]</span><br><span class="line">00007ffdb9389220  1026406    119828936 System.Int32[]</span><br><span class="line">00007ffdb93516a8   663559    128819040 System.Collections.Generic.Dictionary&#96;2+Entry[[System.String, mscorlib],[System.Object, mscorlib]][]</span><br><span class="line">00000218c6c30a80  6436865    197832116      Free</span><br><span class="line">00007ffdae9cc240    23171    273333144 System.Collections.Generic.HashSet&#96;1+Slot[[System.String, mscorlib]][]</span><br><span class="line">00007ffdb9391f28 13885170    333244080 System.Boolean</span><br><span class="line">00007ffd5c24a068 14003455    560138200 Kingdee.BOS.JSON.JSONArray</span><br><span class="line">00007ffdb9386fc0 14373648   1393615400 System.Object[]</span><br><span class="line">00007ffdb9386948 76146065   4000287202 System.String</span><br><span class="line">Total 138435970 objects</span><br></pre></td></tr></table></figure>
 <p>使用<code>dumpheap -stat</code>命令查看当前所有托管类型的统计信息。从输出的结果来看：</p>
@@ -373,6 +373,19 @@
 </ul>
 </div>
 
+        
+
+  <div class="followme">
+    <p>扫码关注我的公众号-「微服务知多少」</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <img src="/images/subscribe-dotnet-microservices.png" alt="">
+        </div>
+    </div>
+  </div>
+
 
       <footer class="post-footer">
           <div class="post-tags">
@@ -440,18 +453,18 @@
   <aside class="sidebar">
     <div class="sidebar-inner">
 
-      <ul class="sidebar-nav motion-element">
+      <ol class="sidebar-nav motion-element">
         <li class="sidebar-nav-toc">
           文章目录
         </li>
         <li class="sidebar-nav-overview">
           站点概览
         </li>
-      </ul>
+      </ol>
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-问题简介"><span class="nav-number">1.</span> <span class="nav-text">1. 问题简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-打Dump"><span class="nav-number">2.</span> <span class="nav-text">2. 打Dump</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-分析Dump"><span class="nav-number">3.</span> <span class="nav-text">3..分析Dump</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-分析源码验证问题"><span class="nav-number">4.</span> <span class="nav-text">4. 分析源码验证问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-最后"><span class="nav-number">5.</span> <span class="nav-text">5. 最后</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-问题简介"><span class="nav-number">1.</span> <span class="nav-text">1. 问题简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-打Dump"><span class="nav-number">2.</span> <span class="nav-text">2. 打Dump</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-分析Dump"><span class="nav-number">3.</span> <span class="nav-text">3.分析Dump</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-分析源码验证问题"><span class="nav-number">4.</span> <span class="nav-text">4. 分析源码验证问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-最后"><span class="nav-number">5.</span> <span class="nav-text">5. 最后</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -488,6 +501,15 @@
   <div class="links-of-author motion-element">
       <span class="links-of-author-item">
         <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/shengjie_yan@live.com" title="E-Mail → shengjie_yan@live.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.jianshu.com/u/39ec0e6b1844" title="简书 → https:&#x2F;&#x2F;www.jianshu.com&#x2F;u&#x2F;39ec0e6b1844" rel="noopener" target="_blank"><i class="fa fa-fw fa-paper-plane"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://sheng-jie.cnblogs.com/" title="博客园 → https:&#x2F;&#x2F;sheng-jie.cnblogs.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-tree"></i>博客园</a>
       </span>
   </div>
   <div class="cc-license motion-element" itemprop="license">
