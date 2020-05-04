@@ -974,6 +974,118 @@
       </tags>
   </entry>
   <entry>
+    <title>反应式编程知多少|Rx.NET了解下</title>
+    <url>/how-much-you-know-about-the-reactive-programming-in-dotnet/</url>
+    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54048d974ab3962e.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><blockquote>
+<p>An API for asynchronous programming with observable streams.<br>ReactiveX is a combination of the best ideas from the <strong>Observer</strong> pattern, the <strong>Iterator</strong> pattern, and <strong>functional programming</strong>.<br><em>ReactiveX 使用可观察数据流进行异步编程的API。<br>ReactiveX结合了观察者模式、迭代器模式和函数式编程的精华</em>。</p>
+</blockquote>
+<p>关于Reactive（本文统一译作响应式），有一个<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">The Reactive Manifesto</a>【响应式宣言】：<strong>响应式系统（Reactive System）具备以下特质：即时响应性（Responsive）、回弹性（Resilient）、弹性（Elastic）以及消息驱动（Message Driven）。</strong></p>
+<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-84eafef9e10f402d.png" alt=""></p>
+<p>很显然开发一个响应式系统，并不简单。<br>那本文就来讲一讲如何基于Rx.NET进行响应式编程，进而开发更加灵活、松耦合、可伸缩的响应式系统。</p>
+<h1 id="2-编程范式"><a href="#2-编程范式" class="headerlink" title="2. 编程范式"></a>2. 编程范式</h1><p>在开始之前呢，我们有必要了解下几种编程范式：命令式编程、声明式编程、函数式编程和响应式编程。</p>
+<p><strong>命令式编程</strong>：命令式编程的主要思想是关注计算机执行的步骤，即一步一步告诉计算机先做什么再做什么。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;1. 声明变量</span><br><span class="line">List&lt;int&gt; results &#x3D; new List&lt;int&gt;();</span><br><span class="line">&#x2F;&#x2F;2. 循环变量</span><br><span class="line">foreach(var num in Enumerable.Range(1,10))</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;3. 添加条件</span><br><span class="line">    if (num &gt; 5)</span><br><span class="line">    &#123;  </span><br><span class="line">        &#x2F;&#x2F;4. 添加处理逻辑</span><br><span class="line">        results.Add(num);</span><br><span class="line">        Console.WriteLine(num);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>声明式编程</strong>：声明式编程是以数据结构的形式来表达程序执行的逻辑。它的主要思想是告诉计算机应该做什么，但不指定具体要怎么做。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; from num in Enumerable.Range(1,10) where num &gt; 5 select num</span><br></pre></td></tr></table></figure>
+<p><strong>函数式编程</strong>：主要思想是把运算过程尽量写成一系列嵌套的函数调用。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Enumerable.Range(1, 10).Where(num &#x3D;&gt; num &gt; 5).ToList().ForEach(Console.WriteLine);</span><br></pre></td></tr></table></figure>
+<p><strong>响应式编程</strong>：响应式编程是一种面向数据流和变化传播的编程范式，旨在简化事件驱动应用的实现。响应式编程专注于如何创建依赖于变更的数据流并对变化做出响应。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;int&gt; nums &#x3D; Enumerable.Range(1, 10).ToObservable();</span><br><span class="line"></span><br><span class="line">IDisposable subscription &#x3D; nums.Where(num &#x3D;&gt; num &gt; 5).Subscribe(Console.WriteLine);</span><br><span class="line"></span><br><span class="line">subscription.Dispose();</span><br></pre></td></tr></table></figure>
+
+<h1 id="3-Hello-Rx-NET"><a href="#3-Hello-Rx-NET" class="headerlink" title="3. Hello Rx.NET"></a>3. Hello Rx.NET</h1><p>从一个简单的Demo开始。<br>假设我们现在模拟电热壶烧水，实时输出当前水温，一般我们会这样做：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Enumerable.Range(1, 100).ToList().ForEach(Console.WriteLine);</span><br><span class="line">&#x2F;&#x2F; do something else. 阻塞</span><br></pre></td></tr></table></figure>
+<p>假设当前程序是智能家居的中控设备，不仅控制电热壶烧水，还控制其他设备，为了避免阻塞主线程。一般我们会创建一个Thread或Task去做。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Task.Run(() &#x3D;&gt; Enumerable.Range(1, 100).ToList().ForEach(Console.WriteLine));</span><br><span class="line">&#x2F;&#x2F; do something else. 非阻塞</span><br></pre></td></tr></table></figure>
+<p>假设现在我们不仅要在控制台输出而且还要实时通过扬声器报警。这时我们应该想到委托和事件。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">class Heater</span><br><span class="line">&#123;</span><br><span class="line">    private delegate void TemperatureChanged(int temperature);</span><br><span class="line">    private event TemperatureChanged TemperatureChangedEvent;</span><br><span class="line">    public void BoilWater()</span><br><span class="line">    &#123;</span><br><span class="line">        TemperatureChangedEvent +&#x3D; ShowTemperature;</span><br><span class="line">        TemperatureChangedEvent +&#x3D; MakeAlerm;</span><br><span class="line">        Task.Run(</span><br><span class="line">            () &#x3D;&gt;</span><br><span class="line">        Enumerable.Range(1, 100).ToList().ForEach((temperature) &#x3D;&gt; TemperatureChangedEvent(temperature))</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line">    private void ShowTemperature(int temperature)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;当前温度：&#123;temperature&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    private void MakeAlerm(int temperature)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;嘟嘟嘟，当前水温&#123;temperature&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">class Program</span><br><span class="line">&#123;</span><br><span class="line">    static void Main(string[] args)</span><br><span class="line">    &#123;</span><br><span class="line">        Heater heater &#x3D; new Heater();        </span><br><span class="line">        heater.BoilWater();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>瞬间代码量就上去了。但是借助Rx.NET，我们可以简化成以下代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var observable &#x3D; Enumerable.Range(1, 100).ToObservable(NewTheadScheduler.Default);&#x2F;&#x2F;申明可观察序列</span><br><span class="line">Subject&lt;int&gt; subject &#x3D; new Subject&lt;int&gt;();&#x2F;&#x2F;申明Subject</span><br><span class="line">subject.Subscribe((temperature) &#x3D;&gt; Console.WriteLine($&quot;当前温度：&#123;temperature&#125;&quot;));&#x2F;&#x2F;订阅subject</span><br><span class="line">subject.Subscribe((temperature) &#x3D;&gt; Console.WriteLine($&quot;嘟嘟嘟，当前水温：&#123;temperature&#125;&quot;));&#x2F;&#x2F;订阅subject</span><br><span class="line">observable.Subscribe(subject);&#x2F;&#x2F;订阅observable</span><br></pre></td></tr></table></figure>
+<p>仅仅通过以下三步：</p>
+<ol>
+<li>调用<code>ToObservable</code>将枚举序列转换为可观察序列。</li>
+<li>通过指定<code>NewTheadScheduler.Default</code>来指定在单独的线程进行枚举。</li>
+<li>调用<code>Subscribe</code>方法进行事件注册。</li>
+<li>借助<code>Subject</code>进行多播传输</li>
+</ol>
+<p>通过以上我们可以看到Rx.NET大大简化了事件处理的步骤，而这只是Rx的冰山一角。</p>
+<h1 id="4-Rx-NET-核心"><a href="#4-Rx-NET-核心" class="headerlink" title="4. Rx.NET 核心"></a>4. Rx.NET 核心</h1><p><a href="https://github.com/dotnet/reactive" target="_blank" rel="noopener">Reactive Extensions</a>（Rx）是一个为.NET应用提供响应式编程模型的库，用来构建异步基于事件流的应用，通过安装<code>System.Reactive</code>Nuget包进行引用。Rx将事件流抽象为Observable sequences（可观察序列）表示异步数据流，使用LINQ运算符查询异步数据流，并使用<code>Scheduler</code>来控制异步数据流中的并发性。简单地说：<strong>Rx = Observables + LINQ + Schedulers。</strong></p>
+<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-b4a81ae7fbc5526d.png" alt="Rx layer"></p>
+<p>在软件系统中，事件是一种消息用于指示发生了某些事情。事件由Event Source（事件源）引发并由Event Handler（事件处理程序）使用。<br>在Rx中，事件源可以由observable表示，事件处理程序可以由observer表示。<br>但是应用程序使用的数据如何表示呢，例如数据库中的数据或从Web服务器获取的数据。而在应用程序中我们一般处理的数据无外乎两种：静态数据和动态数据。 但无论使用何种类型的数据，其都可以作为流来观察。换句话说，数据流本身也是可观察的。也就意味着，我们也可以用observable来表示数据流。</p>
+<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-093cbaf2aab308e9.png" alt="Everything is stream"></p>
+<p>讲到这里，Rx.NET的核心也就一目了然了：</p>
+<ol>
+<li>一切皆为数据流</li>
+<li>Observable 是对数据流的抽象</li>
+<li>Observer是对Observable的响应</li>
+</ol>
+<p>在Rx中，分别使用<code>IObservable&lt;T&gt;</code>和<code>IObserver&lt;T&gt;</code>接口来表示可观察序列和观察者。它们预置在system命名空间下，其定义如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IObservable&lt;out T&gt;</span><br><span class="line">&#123;</span><br><span class="line">      &#x2F;&#x2F;Notifies the provider that an observer is to receive notifications.</span><br><span class="line">      IDisposable Subscribe(IObserver&lt;T&gt; observer);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IObserver&lt;in T&gt;</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;Notifies the observer that the provider has finished sending push-based notifications.</span><br><span class="line">    void OnCompleted();</span><br><span class="line"> </span><br><span class="line">    &#x2F;&#x2F;Notifies the observer that the provider has experienced an error condition.</span><br><span class="line">    void OnError(Exception error);</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F;Provides the observer with new data.</span><br><span class="line">    void OnNext(T value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-cb04b6cd6fced9ea.png" alt=""></p>
+<h1 id="5-创建IObservable"><a href="#5-创建IObservable" class="headerlink" title="5. 创建IObservable"></a>5. 创建IObservable<T></h1><p>创建<code>IObservable&lt;T&gt;</code>主要有以下几种方式：<br><strong>1. 直接实现<code>IObservable&lt;T&gt;</code>接口</strong><br><strong>2. 使用<code>Observable.Create</code>创建</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Create&lt;int&gt;(observer&#x3D;&gt;&#123;</span><br><span class="line">    for (int i &#x3D; 0; i &lt; 5; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        observer.OnNext(i);</span><br><span class="line">    &#125;</span><br><span class="line">    observer.OnCompleted();</span><br><span class="line">    return Disposable.Empty;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p><strong>3. 使用<code>Observable.Deffer</code>进行延迟创建（当有观察者订阅时才创建）</strong><br>比如要连接数据库进行查询，如果没有观察者，那么数据库连接会一直被占用，这样会造成资源浪费。使用Deffer可以解决这个问题。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Defer(() &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var connection &#x3D; Connect(user, password);</span><br><span class="line">    return connection.ToObservable();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><strong>4. 使用<code>Observable.Generate</code>创建迭代类型的可观察序列</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;int&gt; observable &#x3D;</span><br><span class="line">    Observable.Generate(</span><br><span class="line">        0,              &#x2F;&#x2F;initial state</span><br><span class="line">        i &#x3D;&gt; i &lt; 10,    &#x2F;&#x2F;condition (false means terminate)</span><br><span class="line">        i &#x3D;&gt; i + 1,     &#x2F;&#x2F;next iteration step</span><br><span class="line">        i &#x3D;&gt; i * 2);      &#x2F;&#x2F;the value in each iteration</span><br></pre></td></tr></table></figure>
+<p><strong>5. 使用<code>Observable.Range</code>创建指定区间的可观察序列</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;int&gt; observable &#x3D; Observable.Range (0, 10).Select (i &#x3D;&gt; i * 2);</span><br></pre></td></tr></table></figure>
+<p><strong>6. 创建特殊用途的可观察序列</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Return (&quot;Hello World&quot;);&#x2F;&#x2F;创建单个元素的可观察序列</span><br><span class="line">Observable.Never&lt;string&gt; ();&#x2F;&#x2F;创建一个空的永远不会结束的可观察序列</span><br><span class="line">Observable.Throw&lt;ApplicationException&gt; (</span><br><span class="line">new ApplicationException (&quot;something bad happened&quot;))&#x2F;&#x2F;创建一个抛出指定异常的可观察序列</span><br><span class="line">Observable.Empty&lt;string&gt; ()&#x2F;&#x2F;创建一个空的立即结束的可观察序列</span><br></pre></td></tr></table></figure>
+<p><strong>7. 使用<code>ToObservable</code>转换<code>IEnumerate</code>和Task类型</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Enumerable.Range(1, 10).ToObservable();</span><br><span class="line">IObservable&lt;IEnumerable&lt;string&gt;&gt; resultsA &#x3D; searchEngineA.SearchAsync(term).ToObservable();</span><br></pre></td></tr></table></figure>
+<p><strong>8. 使用<code>Observable.FromEventPattern&lt;T&gt;</code>和<code>Observable.FromEvent&lt;TDelegate, TEventArgs&gt;</code></strong>进行事件的转换</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate void RoutedEventHandler(object sender,</span><br><span class="line"> System.Windows.RoutedEventArgs e)</span><br><span class="line">IObservable&lt;EventPattern&lt;RoutedEventArgs&gt;&gt; clicks &#x3D;</span><br><span class="line">                Observable.FromEventPattern&lt;RoutedEventHandler, RoutedEventArgs&gt;(</span><br><span class="line">                    h &#x3D;&gt; theButton.Click +&#x3D; h,</span><br><span class="line">                    h &#x3D;&gt; theButton.Click -&#x3D; h);</span><br><span class="line">clicks.Subscribe(eventPattern &#x3D;&gt; output.Text +&#x3D; &quot;button clicked&quot; + Environment.NewLine);</span><br></pre></td></tr></table></figure>
+
+<p><strong>9. 使用<code>Observable.Using</code>进行资源释放</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;string&gt; lines &#x3D;</span><br><span class="line">    Observable.Using (</span><br><span class="line">        () &#x3D;&gt; File.OpenText (&quot;TextFile.txt&quot;), &#x2F;&#x2F; opens the file and returns the stream we work with</span><br><span class="line">        stream &#x3D;&gt;</span><br><span class="line">        Observable.Generate (</span><br><span class="line">            stream, &#x2F;&#x2F;initial state</span><br><span class="line">            s &#x3D;&gt; !s.EndOfStream, &#x2F;&#x2F;we continue until we reach the end of the file</span><br><span class="line">            s &#x3D;&gt; s, &#x2F;&#x2F;the stream is our state, it holds the position in the file </span><br><span class="line">            s &#x3D;&gt; s.ReadLine ()) &#x2F;&#x2F;each iteration will emit the current line (and moves to the next)</span><br><span class="line">    );</span><br></pre></td></tr></table></figure>
+<p><strong>10. 使用<code>Observable.Interval</code>创建指定间隔可观察序列</strong><br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-fbc5816e51fb2b45.png" alt=""></p>
+<p><strong>11. 使用<code>Observable.Timer</code>创建可观察的计时器</strong><br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-9295db8a2f4e08e4.png" alt=""></p>
+<h1 id="6-RX-操作符"><a href="#6-RX-操作符" class="headerlink" title="6. RX 操作符"></a>6. RX 操作符</h1><p>创建完IObservable<T>后，我们可以对其应用系列Linq操作符，对其进行查询、过滤、聚合等等。Rx内置了以下系列操作符：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54a9467df0b603fa.png" alt="Rx 操作符"><br>下面通过图示来解释常用操作符的作用：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-a865665f963a58d8.png" alt="操作符解释"></p>
+<h1 id="7-多播传输靠：Subject"><a href="#7-多播传输靠：Subject" class="headerlink" title="7. 多播传输靠：Subject"></a>7. 多播传输靠：Subject</h1><p>基于以上示例，我们了解到，借助Rx可以简化事件模型的实现，而其实质上就是对观察者模式的扩展。提到观察者模式，我们知道一个Subject可以被多个观察者订阅，从而完成消息的多播。同样，在Rx中，也引入了Subject用于多播消息传输，不过Rx中的Subject具有双重身份——即是观察者也是被观察者。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">interface ISubject&lt;in TSource, out TResult&gt; : IObserver&lt;TSource&gt;,IObservable&lt;TResult&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Rx中默认提供了以下四种实现：</p>
+<ul>
+<li><p>Subject<T>  - 向所有观察者广播每个通知<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-81a5de33fcef3ea5.png" alt=""></p>
+</li>
+<li><p>AsyncSubject<T>  - 当可观察序列完成后有且仅发送一个通知<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-0961c4adefb27d9a.png" alt=""></p>
+</li>
+<li><p>ReplaySubject<T>  - 缓存指定通知以对后续订阅的观察者进行重放<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-f661dc814a8ac625.png" alt=""></p>
+</li>
+<li><p>BehaviorSubject<T>  - 推送默认值或最新值给观察者<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c72dc53ff1f6368d.png" alt=""></p>
+</li>
+</ul>
+<p>但对于第一种<code>Subject&lt;T&gt;</code>有一点需要指出，当其有多个观察者序列时，一旦其中一个停止发送消息，则Subject就停止广播所有其他序列后续发送的任何消息。<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c6fedeb092186767.png" alt=""></p>
+<h1 id="8-有温度的可观察者序列"><a href="#8-有温度的可观察者序列" class="headerlink" title="8. 有温度的可观察者序列"></a>8. 有温度的可观察者序列</h1><p>对于Observable，它们是有温度的，有冷热之分。它们的区别如下图所示：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c4204f808d9849ed.png" alt="冷热观察者序列的区别"></p>
+<p><strong>Cold Observable</strong>：有且仅当有观察者订阅时才发送通知，且每个观察者独享一份完整的观察者序列。<br><strong>Hot Observable</strong>：不管有无观察者订阅都会发送通知，且所有观察者共享同一份观察者序列。</p>
+<h1 id="9-一切皆在掌控：Scheduler"><a href="#9-一切皆在掌控：Scheduler" class="headerlink" title="9. 一切皆在掌控：Scheduler"></a>9. 一切皆在掌控：Scheduler</h1><p>在Rx中，使用Scheduler来控制并发。而对于Scheduler我们可以理解为程序调度，通过Scheduler来规定在什么时间什么地点执行什么事情。Rx提供了以下几种Scheduler：</p>
+<ol>
+<li>NewThreadScheduler：即在新线程上执行</li>
+<li>ThreadPoolScheduler：即在线程池中执行</li>
+<li>TaskPoolScheduler：与ThreadPoolScheduler类似</li>
+<li>CurrentThreadScheduler：在当前线程执行</li>
+<li>ImmediateScheduler：在当前线程立即执行</li>
+<li>EventLoopScheduler：创建一个后台线程按序执行所有操作</li>
+</ol>
+<p>举例而言：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Return(&quot;Hello&quot;,NewThreadScheduler.Default)</span><br><span class="line">.Subscribe(str&#x3D;&gt;Console.WriteLine($&quot;&#123;str&#125; on ThreadId：&#123;Thread.CurrentThread.ManagedThreadId&#125;&quot;)</span><br><span class="line">);</span><br><span class="line">Console.WriteLine($&quot;Current ThreadId：&#123;Thread.CurrentThread.ManagedThreadId&#125;&quot;);</span><br><span class="line"></span><br><span class="line">以上输出：</span><br><span class="line">Current ThreadId：1</span><br><span class="line">Hello on ThreadId：4</span><br></pre></td></tr></table></figure>
+<h1 id="10-最后"><a href="#10-最后" class="headerlink" title="10. 最后"></a>10. 最后</h1><p>罗里吧嗦的总算把《Rx.NET In Action》这本书的内容大致梳理了一遍，对Rx也有了一个更深的认识，Rx扩展了观察者模式用于支持数据和事件序列，内置系列操作符允许我们以声明式的方式组合这些序列，且无需关注底层的实现进行事件驱动开发：如线程、同步、线程安全、并发数据结构和非阻塞IO。</p>
+<p>但事无巨细，难免疏漏。对响应式编程有兴趣的不妨拜读下此书，相信对你会大有裨益。</p>
+<blockquote>
+<p>参考资料：<br><a href="http://dl1.rapidhosting.info/files/1Y6LHgXt/c14bde04cda2eb9b3c3f1da09dc6987b/Rx.Net.Action.Examples.Tamir.Dresher.31.pdf" target="_blank" rel="noopener">Rx.NET in Action.pdf</a><br><a href="http://reactivex.io/" target="_blank" rel="noopener">ReactiveX</a><br><a href="https://www.cnblogs.com/richieyang/p/4974630.html" target="_blank" rel="noopener">.Net中的反应式编程(Reactive Programming)</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET Core</tag>
+        <tag>Rx.NET</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>SQL递归查询知多少</title>
     <url>/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/</url>
     <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
@@ -1223,118 +1335,6 @@
       </categories>
       <tags>
         <tag>WinDbg</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>反应式编程知多少|Rx.NET了解下</title>
-    <url>/how-much-you-know-about-the-reactive-programming-in-dotnet/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54048d974ab3962e.png" alt=""></p>
-<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><blockquote>
-<p>An API for asynchronous programming with observable streams.<br>ReactiveX is a combination of the best ideas from the <strong>Observer</strong> pattern, the <strong>Iterator</strong> pattern, and <strong>functional programming</strong>.<br><em>ReactiveX 使用可观察数据流进行异步编程的API。<br>ReactiveX结合了观察者模式、迭代器模式和函数式编程的精华</em>。</p>
-</blockquote>
-<p>关于Reactive（本文统一译作响应式），有一个<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">The Reactive Manifesto</a>【响应式宣言】：<strong>响应式系统（Reactive System）具备以下特质：即时响应性（Responsive）、回弹性（Resilient）、弹性（Elastic）以及消息驱动（Message Driven）。</strong></p>
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-84eafef9e10f402d.png" alt=""></p>
-<p>很显然开发一个响应式系统，并不简单。<br>那本文就来讲一讲如何基于Rx.NET进行响应式编程，进而开发更加灵活、松耦合、可伸缩的响应式系统。</p>
-<h1 id="2-编程范式"><a href="#2-编程范式" class="headerlink" title="2. 编程范式"></a>2. 编程范式</h1><p>在开始之前呢，我们有必要了解下几种编程范式：命令式编程、声明式编程、函数式编程和响应式编程。</p>
-<p><strong>命令式编程</strong>：命令式编程的主要思想是关注计算机执行的步骤，即一步一步告诉计算机先做什么再做什么。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;1. 声明变量</span><br><span class="line">List&lt;int&gt; results &#x3D; new List&lt;int&gt;();</span><br><span class="line">&#x2F;&#x2F;2. 循环变量</span><br><span class="line">foreach(var num in Enumerable.Range(1,10))</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;3. 添加条件</span><br><span class="line">    if (num &gt; 5)</span><br><span class="line">    &#123;  </span><br><span class="line">        &#x2F;&#x2F;4. 添加处理逻辑</span><br><span class="line">        results.Add(num);</span><br><span class="line">        Console.WriteLine(num);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><strong>声明式编程</strong>：声明式编程是以数据结构的形式来表达程序执行的逻辑。它的主要思想是告诉计算机应该做什么，但不指定具体要怎么做。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; from num in Enumerable.Range(1,10) where num &gt; 5 select num</span><br></pre></td></tr></table></figure>
-<p><strong>函数式编程</strong>：主要思想是把运算过程尽量写成一系列嵌套的函数调用。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Enumerable.Range(1, 10).Where(num &#x3D;&gt; num &gt; 5).ToList().ForEach(Console.WriteLine);</span><br></pre></td></tr></table></figure>
-<p><strong>响应式编程</strong>：响应式编程是一种面向数据流和变化传播的编程范式，旨在简化事件驱动应用的实现。响应式编程专注于如何创建依赖于变更的数据流并对变化做出响应。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;int&gt; nums &#x3D; Enumerable.Range(1, 10).ToObservable();</span><br><span class="line"></span><br><span class="line">IDisposable subscription &#x3D; nums.Where(num &#x3D;&gt; num &gt; 5).Subscribe(Console.WriteLine);</span><br><span class="line"></span><br><span class="line">subscription.Dispose();</span><br></pre></td></tr></table></figure>
-
-<h1 id="3-Hello-Rx-NET"><a href="#3-Hello-Rx-NET" class="headerlink" title="3. Hello Rx.NET"></a>3. Hello Rx.NET</h1><p>从一个简单的Demo开始。<br>假设我们现在模拟电热壶烧水，实时输出当前水温，一般我们会这样做：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Enumerable.Range(1, 100).ToList().ForEach(Console.WriteLine);</span><br><span class="line">&#x2F;&#x2F; do something else. 阻塞</span><br></pre></td></tr></table></figure>
-<p>假设当前程序是智能家居的中控设备，不仅控制电热壶烧水，还控制其他设备，为了避免阻塞主线程。一般我们会创建一个Thread或Task去做。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Task.Run(() &#x3D;&gt; Enumerable.Range(1, 100).ToList().ForEach(Console.WriteLine));</span><br><span class="line">&#x2F;&#x2F; do something else. 非阻塞</span><br></pre></td></tr></table></figure>
-<p>假设现在我们不仅要在控制台输出而且还要实时通过扬声器报警。这时我们应该想到委托和事件。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">class Heater</span><br><span class="line">&#123;</span><br><span class="line">    private delegate void TemperatureChanged(int temperature);</span><br><span class="line">    private event TemperatureChanged TemperatureChangedEvent;</span><br><span class="line">    public void BoilWater()</span><br><span class="line">    &#123;</span><br><span class="line">        TemperatureChangedEvent +&#x3D; ShowTemperature;</span><br><span class="line">        TemperatureChangedEvent +&#x3D; MakeAlerm;</span><br><span class="line">        Task.Run(</span><br><span class="line">            () &#x3D;&gt;</span><br><span class="line">        Enumerable.Range(1, 100).ToList().ForEach((temperature) &#x3D;&gt; TemperatureChangedEvent(temperature))</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line">    private void ShowTemperature(int temperature)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;当前温度：&#123;temperature&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    private void MakeAlerm(int temperature)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;嘟嘟嘟，当前水温&#123;temperature&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">class Program</span><br><span class="line">&#123;</span><br><span class="line">    static void Main(string[] args)</span><br><span class="line">    &#123;</span><br><span class="line">        Heater heater &#x3D; new Heater();        </span><br><span class="line">        heater.BoilWater();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>瞬间代码量就上去了。但是借助Rx.NET，我们可以简化成以下代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var observable &#x3D; Enumerable.Range(1, 100).ToObservable(NewTheadScheduler.Default);&#x2F;&#x2F;申明可观察序列</span><br><span class="line">Subject&lt;int&gt; subject &#x3D; new Subject&lt;int&gt;();&#x2F;&#x2F;申明Subject</span><br><span class="line">subject.Subscribe((temperature) &#x3D;&gt; Console.WriteLine($&quot;当前温度：&#123;temperature&#125;&quot;));&#x2F;&#x2F;订阅subject</span><br><span class="line">subject.Subscribe((temperature) &#x3D;&gt; Console.WriteLine($&quot;嘟嘟嘟，当前水温：&#123;temperature&#125;&quot;));&#x2F;&#x2F;订阅subject</span><br><span class="line">observable.Subscribe(subject);&#x2F;&#x2F;订阅observable</span><br></pre></td></tr></table></figure>
-<p>仅仅通过以下三步：</p>
-<ol>
-<li>调用<code>ToObservable</code>将枚举序列转换为可观察序列。</li>
-<li>通过指定<code>NewTheadScheduler.Default</code>来指定在单独的线程进行枚举。</li>
-<li>调用<code>Subscribe</code>方法进行事件注册。</li>
-<li>借助<code>Subject</code>进行多播传输</li>
-</ol>
-<p>通过以上我们可以看到Rx.NET大大简化了事件处理的步骤，而这只是Rx的冰山一角。</p>
-<h1 id="4-Rx-NET-核心"><a href="#4-Rx-NET-核心" class="headerlink" title="4. Rx.NET 核心"></a>4. Rx.NET 核心</h1><p><a href="https://github.com/dotnet/reactive" target="_blank" rel="noopener">Reactive Extensions</a>（Rx）是一个为.NET应用提供响应式编程模型的库，用来构建异步基于事件流的应用，通过安装<code>System.Reactive</code>Nuget包进行引用。Rx将事件流抽象为Observable sequences（可观察序列）表示异步数据流，使用LINQ运算符查询异步数据流，并使用<code>Scheduler</code>来控制异步数据流中的并发性。简单地说：<strong>Rx = Observables + LINQ + Schedulers。</strong></p>
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-b4a81ae7fbc5526d.png" alt="Rx layer"></p>
-<p>在软件系统中，事件是一种消息用于指示发生了某些事情。事件由Event Source（事件源）引发并由Event Handler（事件处理程序）使用。<br>在Rx中，事件源可以由observable表示，事件处理程序可以由observer表示。<br>但是应用程序使用的数据如何表示呢，例如数据库中的数据或从Web服务器获取的数据。而在应用程序中我们一般处理的数据无外乎两种：静态数据和动态数据。 但无论使用何种类型的数据，其都可以作为流来观察。换句话说，数据流本身也是可观察的。也就意味着，我们也可以用observable来表示数据流。</p>
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-093cbaf2aab308e9.png" alt="Everything is stream"></p>
-<p>讲到这里，Rx.NET的核心也就一目了然了：</p>
-<ol>
-<li>一切皆为数据流</li>
-<li>Observable 是对数据流的抽象</li>
-<li>Observer是对Observable的响应</li>
-</ol>
-<p>在Rx中，分别使用<code>IObservable&lt;T&gt;</code>和<code>IObserver&lt;T&gt;</code>接口来表示可观察序列和观察者。它们预置在system命名空间下，其定义如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IObservable&lt;out T&gt;</span><br><span class="line">&#123;</span><br><span class="line">      &#x2F;&#x2F;Notifies the provider that an observer is to receive notifications.</span><br><span class="line">      IDisposable Subscribe(IObserver&lt;T&gt; observer);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IObserver&lt;in T&gt;</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;Notifies the observer that the provider has finished sending push-based notifications.</span><br><span class="line">    void OnCompleted();</span><br><span class="line"> </span><br><span class="line">    &#x2F;&#x2F;Notifies the observer that the provider has experienced an error condition.</span><br><span class="line">    void OnError(Exception error);</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F;Provides the observer with new data.</span><br><span class="line">    void OnNext(T value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-cb04b6cd6fced9ea.png" alt=""></p>
-<h1 id="5-创建IObservable"><a href="#5-创建IObservable" class="headerlink" title="5. 创建IObservable"></a>5. 创建IObservable<T></h1><p>创建<code>IObservable&lt;T&gt;</code>主要有以下几种方式：<br><strong>1. 直接实现<code>IObservable&lt;T&gt;</code>接口</strong><br><strong>2. 使用<code>Observable.Create</code>创建</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Create&lt;int&gt;(observer&#x3D;&gt;&#123;</span><br><span class="line">    for (int i &#x3D; 0; i &lt; 5; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        observer.OnNext(i);</span><br><span class="line">    &#125;</span><br><span class="line">    observer.OnCompleted();</span><br><span class="line">    return Disposable.Empty;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-<p><strong>3. 使用<code>Observable.Deffer</code>进行延迟创建（当有观察者订阅时才创建）</strong><br>比如要连接数据库进行查询，如果没有观察者，那么数据库连接会一直被占用，这样会造成资源浪费。使用Deffer可以解决这个问题。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Defer(() &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var connection &#x3D; Connect(user, password);</span><br><span class="line">    return connection.ToObservable();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-<p><strong>4. 使用<code>Observable.Generate</code>创建迭代类型的可观察序列</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;int&gt; observable &#x3D;</span><br><span class="line">    Observable.Generate(</span><br><span class="line">        0,              &#x2F;&#x2F;initial state</span><br><span class="line">        i &#x3D;&gt; i &lt; 10,    &#x2F;&#x2F;condition (false means terminate)</span><br><span class="line">        i &#x3D;&gt; i + 1,     &#x2F;&#x2F;next iteration step</span><br><span class="line">        i &#x3D;&gt; i * 2);      &#x2F;&#x2F;the value in each iteration</span><br></pre></td></tr></table></figure>
-<p><strong>5. 使用<code>Observable.Range</code>创建指定区间的可观察序列</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;int&gt; observable &#x3D; Observable.Range (0, 10).Select (i &#x3D;&gt; i * 2);</span><br></pre></td></tr></table></figure>
-<p><strong>6. 创建特殊用途的可观察序列</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Return (&quot;Hello World&quot;);&#x2F;&#x2F;创建单个元素的可观察序列</span><br><span class="line">Observable.Never&lt;string&gt; ();&#x2F;&#x2F;创建一个空的永远不会结束的可观察序列</span><br><span class="line">Observable.Throw&lt;ApplicationException&gt; (</span><br><span class="line">new ApplicationException (&quot;something bad happened&quot;))&#x2F;&#x2F;创建一个抛出指定异常的可观察序列</span><br><span class="line">Observable.Empty&lt;string&gt; ()&#x2F;&#x2F;创建一个空的立即结束的可观察序列</span><br></pre></td></tr></table></figure>
-<p><strong>7. 使用<code>ToObservable</code>转换<code>IEnumerate</code>和Task类型</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Enumerable.Range(1, 10).ToObservable();</span><br><span class="line">IObservable&lt;IEnumerable&lt;string&gt;&gt; resultsA &#x3D; searchEngineA.SearchAsync(term).ToObservable();</span><br></pre></td></tr></table></figure>
-<p><strong>8. 使用<code>Observable.FromEventPattern&lt;T&gt;</code>和<code>Observable.FromEvent&lt;TDelegate, TEventArgs&gt;</code></strong>进行事件的转换</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate void RoutedEventHandler(object sender,</span><br><span class="line"> System.Windows.RoutedEventArgs e)</span><br><span class="line">IObservable&lt;EventPattern&lt;RoutedEventArgs&gt;&gt; clicks &#x3D;</span><br><span class="line">                Observable.FromEventPattern&lt;RoutedEventHandler, RoutedEventArgs&gt;(</span><br><span class="line">                    h &#x3D;&gt; theButton.Click +&#x3D; h,</span><br><span class="line">                    h &#x3D;&gt; theButton.Click -&#x3D; h);</span><br><span class="line">clicks.Subscribe(eventPattern &#x3D;&gt; output.Text +&#x3D; &quot;button clicked&quot; + Environment.NewLine);</span><br></pre></td></tr></table></figure>
-
-<p><strong>9. 使用<code>Observable.Using</code>进行资源释放</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;string&gt; lines &#x3D;</span><br><span class="line">    Observable.Using (</span><br><span class="line">        () &#x3D;&gt; File.OpenText (&quot;TextFile.txt&quot;), &#x2F;&#x2F; opens the file and returns the stream we work with</span><br><span class="line">        stream &#x3D;&gt;</span><br><span class="line">        Observable.Generate (</span><br><span class="line">            stream, &#x2F;&#x2F;initial state</span><br><span class="line">            s &#x3D;&gt; !s.EndOfStream, &#x2F;&#x2F;we continue until we reach the end of the file</span><br><span class="line">            s &#x3D;&gt; s, &#x2F;&#x2F;the stream is our state, it holds the position in the file </span><br><span class="line">            s &#x3D;&gt; s.ReadLine ()) &#x2F;&#x2F;each iteration will emit the current line (and moves to the next)</span><br><span class="line">    );</span><br></pre></td></tr></table></figure>
-<p><strong>10. 使用<code>Observable.Interval</code>创建指定间隔可观察序列</strong><br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-fbc5816e51fb2b45.png" alt=""></p>
-<p><strong>11. 使用<code>Observable.Timer</code>创建可观察的计时器</strong><br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-9295db8a2f4e08e4.png" alt=""></p>
-<h1 id="6-RX-操作符"><a href="#6-RX-操作符" class="headerlink" title="6. RX 操作符"></a>6. RX 操作符</h1><p>创建完IObservable<T>后，我们可以对其应用系列Linq操作符，对其进行查询、过滤、聚合等等。Rx内置了以下系列操作符：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54a9467df0b603fa.png" alt="Rx 操作符"><br>下面通过图示来解释常用操作符的作用：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-a865665f963a58d8.png" alt="操作符解释"></p>
-<h1 id="7-多播传输靠：Subject"><a href="#7-多播传输靠：Subject" class="headerlink" title="7. 多播传输靠：Subject"></a>7. 多播传输靠：Subject</h1><p>基于以上示例，我们了解到，借助Rx可以简化事件模型的实现，而其实质上就是对观察者模式的扩展。提到观察者模式，我们知道一个Subject可以被多个观察者订阅，从而完成消息的多播。同样，在Rx中，也引入了Subject用于多播消息传输，不过Rx中的Subject具有双重身份——即是观察者也是被观察者。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">interface ISubject&lt;in TSource, out TResult&gt; : IObserver&lt;TSource&gt;,IObservable&lt;TResult&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Rx中默认提供了以下四种实现：</p>
-<ul>
-<li><p>Subject<T>  - 向所有观察者广播每个通知<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-81a5de33fcef3ea5.png" alt=""></p>
-</li>
-<li><p>AsyncSubject<T>  - 当可观察序列完成后有且仅发送一个通知<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-0961c4adefb27d9a.png" alt=""></p>
-</li>
-<li><p>ReplaySubject<T>  - 缓存指定通知以对后续订阅的观察者进行重放<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-f661dc814a8ac625.png" alt=""></p>
-</li>
-<li><p>BehaviorSubject<T>  - 推送默认值或最新值给观察者<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c72dc53ff1f6368d.png" alt=""></p>
-</li>
-</ul>
-<p>但对于第一种<code>Subject&lt;T&gt;</code>有一点需要指出，当其有多个观察者序列时，一旦其中一个停止发送消息，则Subject就停止广播所有其他序列后续发送的任何消息。<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c6fedeb092186767.png" alt=""></p>
-<h1 id="8-有温度的可观察者序列"><a href="#8-有温度的可观察者序列" class="headerlink" title="8. 有温度的可观察者序列"></a>8. 有温度的可观察者序列</h1><p>对于Observable，它们是有温度的，有冷热之分。它们的区别如下图所示：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c4204f808d9849ed.png" alt="冷热观察者序列的区别"></p>
-<p><strong>Cold Observable</strong>：有且仅当有观察者订阅时才发送通知，且每个观察者独享一份完整的观察者序列。<br><strong>Hot Observable</strong>：不管有无观察者订阅都会发送通知，且所有观察者共享同一份观察者序列。</p>
-<h1 id="9-一切皆在掌控：Scheduler"><a href="#9-一切皆在掌控：Scheduler" class="headerlink" title="9. 一切皆在掌控：Scheduler"></a>9. 一切皆在掌控：Scheduler</h1><p>在Rx中，使用Scheduler来控制并发。而对于Scheduler我们可以理解为程序调度，通过Scheduler来规定在什么时间什么地点执行什么事情。Rx提供了以下几种Scheduler：</p>
-<ol>
-<li>NewThreadScheduler：即在新线程上执行</li>
-<li>ThreadPoolScheduler：即在线程池中执行</li>
-<li>TaskPoolScheduler：与ThreadPoolScheduler类似</li>
-<li>CurrentThreadScheduler：在当前线程执行</li>
-<li>ImmediateScheduler：在当前线程立即执行</li>
-<li>EventLoopScheduler：创建一个后台线程按序执行所有操作</li>
-</ol>
-<p>举例而言：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Return(&quot;Hello&quot;,NewThreadScheduler.Default)</span><br><span class="line">.Subscribe(str&#x3D;&gt;Console.WriteLine($&quot;&#123;str&#125; on ThreadId：&#123;Thread.CurrentThread.ManagedThreadId&#125;&quot;)</span><br><span class="line">);</span><br><span class="line">Console.WriteLine($&quot;Current ThreadId：&#123;Thread.CurrentThread.ManagedThreadId&#125;&quot;);</span><br><span class="line"></span><br><span class="line">以上输出：</span><br><span class="line">Current ThreadId：1</span><br><span class="line">Hello on ThreadId：4</span><br></pre></td></tr></table></figure>
-<h1 id="10-最后"><a href="#10-最后" class="headerlink" title="10. 最后"></a>10. 最后</h1><p>罗里吧嗦的总算把《Rx.NET In Action》这本书的内容大致梳理了一遍，对Rx也有了一个更深的认识，Rx扩展了观察者模式用于支持数据和事件序列，内置系列操作符允许我们以声明式的方式组合这些序列，且无需关注底层的实现进行事件驱动开发：如线程、同步、线程安全、并发数据结构和非阻塞IO。</p>
-<p>但事无巨细，难免疏漏。对响应式编程有兴趣的不妨拜读下此书，相信对你会大有裨益。</p>
-<blockquote>
-<p>参考资料：<br><a href="http://dl1.rapidhosting.info/files/1Y6LHgXt/c14bde04cda2eb9b3c3f1da09dc6987b/Rx.Net.Action.Examples.Tamir.Dresher.31.pdf" target="_blank" rel="noopener">Rx.NET in Action.pdf</a><br><a href="http://reactivex.io/" target="_blank" rel="noopener">ReactiveX</a><br><a href="https://www.cnblogs.com/richieyang/p/4974630.html" target="_blank" rel="noopener">.Net中的反应式编程(Reactive Programming)</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET Core</tag>
-        <tag>Rx.NET</tag>
       </tags>
   </entry>
 </search>
