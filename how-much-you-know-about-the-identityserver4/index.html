@@ -21,7 +21,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"flat"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。作为.NET技术栈程序员，那我们就得对它有所了解。">
@@ -43,7 +43,7 @@
 <meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-identityserver4/2799767-890a555d2a3922d3.png">
 <meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-identityserver4/2799767-6708925e096c8510.png">
 <meta property="article:published_time" content="2018-08-06T09:35:29.000Z">
-<meta property="article:modified_time" content="2020-05-04T10:42:41.701Z">
+<meta property="article:modified_time" content="2020-05-04T11:08:09.044Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content="id4">
 <meta property="article:tag" content="OAuth2.0">
@@ -121,6 +121,7 @@
 
   <div class="site-nav-right">
     <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
   </div>
 </div>
@@ -155,11 +156,38 @@
     <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">13</span></a>
 
   </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
   </ul>
 </nav>
 
 
 
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
 
 </div>
     </header>
@@ -216,7 +244,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-04 18:42:41" itemprop="dateModified" datetime="2020-05-04T18:42:41+08:00">2020-05-04</time>
+                <time title="修改时间：2020-05-04 19:08:09" itemprop="dateModified" datetime="2020-05-04T19:08:09+08:00">2020-05-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -431,9 +459,10 @@
 
 
       <footer class="post-footer">
+          
           <div class="post-tags">
-              <a href="/tags/id4/" rel="tag"># id4</a>
-              <a href="/tags/OAuth2-0/" rel="tag"># OAuth2.0</a>
+              <a href="/tags/id4/" rel="tag"><i class="fa fa-tag"></i> id4</a>
+              <a href="/tags/OAuth2-0/" rel="tag"><i class="fa fa-tag"></i> OAuth2.0</a>
           </div>
 
         
@@ -508,7 +537,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#"><span class="nav-number">1.</span> <span class="nav-text"></span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-number">2.</span> <span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-OAuth2-0-amp-amp-OpenId-Connect"><span class="nav-number">3.</span> <span class="nav-text">2.OAuth2.0 &amp;&amp; OpenId Connect</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-OpenId"><span class="nav-number">3.1.</span> <span class="nav-text">2.1. OpenId</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-OAuth-2-0"><span class="nav-number">3.2.</span> <span class="nav-text">2.2. OAuth 2.0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-OpenId-Connect"><span class="nav-number">3.3.</span> <span class="nav-text">2.3. OpenId Connect</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-术语解释"><span class="nav-number">4.</span> <span class="nav-text">3. 术语解释</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-JwtBearer-认证"><span class="nav-number">5.</span> <span class="nav-text">4. JwtBearer 认证</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-HTTP身份验证流程"><span class="nav-number">5.1.</span> <span class="nav-text">4.1. HTTP身份验证流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-JWT（Json-Web-Token"><span class="nav-number">5.2.</span> <span class="nav-text">4.2. JWT（Json Web Token)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-授权模式"><span class="nav-number">6.</span> <span class="nav-text">5. 授权模式</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#5-1-Client-Credentials"><span class="nav-number">6.1.</span> <span class="nav-text">5.1. Client Credentials</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-2-Resource-Owner-Password-Credentials"><span class="nav-number">6.2.</span> <span class="nav-text">5.2. Resource Owner Password Credentials</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-3-Authorization-Code"><span class="nav-number">6.3.</span> <span class="nav-text">5.3. Authorization Code</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-4-Implicit"><span class="nav-number">6.4.</span> <span class="nav-text">5.4. Implicit</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-IdentityServer4-集成"><span class="nav-number">7.</span> <span class="nav-text">6. IdentityServer4 集成</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#6-1-Identity-Server-中间件的配置和启用"><span class="nav-number">7.1.</span> <span class="nav-text">6.1. Identity Server 中间件的配置和启用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-2-Resources的保护配置"><span class="nav-number">7.2.</span> <span class="nav-text">6.2. Resources的保护配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-3-Client的请求配置"><span class="nav-number">7.3.</span> <span class="nav-text">6.3. Client的请求配置</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#7-最后"><span class="nav-number">8.</span> <span class="nav-text">7. 最后</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#"><span class="nav-text"></span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-OAuth2-0-amp-amp-OpenId-Connect"><span class="nav-text">2.OAuth2.0 &amp;&amp; OpenId Connect</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-OpenId"><span class="nav-text">2.1. OpenId</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-OAuth-2-0"><span class="nav-text">2.2. OAuth 2.0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-OpenId-Connect"><span class="nav-text">2.3. OpenId Connect</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-术语解释"><span class="nav-text">3. 术语解释</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-JwtBearer-认证"><span class="nav-text">4. JwtBearer 认证</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-HTTP身份验证流程"><span class="nav-text">4.1. HTTP身份验证流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-JWT（Json-Web-Token"><span class="nav-text">4.2. JWT（Json Web Token)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-授权模式"><span class="nav-text">5. 授权模式</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#5-1-Client-Credentials"><span class="nav-text">5.1. Client Credentials</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-2-Resource-Owner-Password-Credentials"><span class="nav-text">5.2. Resource Owner Password Credentials</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-3-Authorization-Code"><span class="nav-text">5.3. Authorization Code</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-4-Implicit"><span class="nav-text">5.4. Implicit</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-IdentityServer4-集成"><span class="nav-text">6. IdentityServer4 集成</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#6-1-Identity-Server-中间件的配置和启用"><span class="nav-text">6.1. Identity Server 中间件的配置和启用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-2-Resources的保护配置"><span class="nav-text">6.2. Resources的保护配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-3-Client的请求配置"><span class="nav-text">6.3. Client的请求配置</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#7-最后"><span class="nav-text">7. 最后</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -644,6 +673,10 @@
   
 
 
+
+
+  
+<script src="/js/local-search.js"></script>
 
 
 
