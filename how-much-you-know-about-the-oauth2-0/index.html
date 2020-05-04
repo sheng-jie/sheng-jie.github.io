@@ -41,7 +41,7 @@
 <meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-714ba763cb80cd6e.png">
 <meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-oauth2-0/2799767-efe4ebcd991746f2.png">
 <meta property="article:published_time" content="2017-03-16T07:54:48.000Z">
-<meta property="article:modified_time" content="2020-05-02T04:32:02.765Z">
+<meta property="article:modified_time" content="2020-05-03T13:01:01.650Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content="OAuth2.0">
 <meta name="twitter:card" content="summary">
@@ -213,7 +213,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-02 12:32:02" itemprop="dateModified" datetime="2020-05-02T12:32:02+08:00">2020-05-02</time>
+                <time title="修改时间：2020-05-03 21:01:01" itemprop="dateModified" datetime="2020-05-03T21:01:01+08:00">2020-05-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -259,16 +259,14 @@
 
       
         <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png" alt=""></p>
-<p>#1. 引言</p>
-<p>周末逛简书，看了一篇写的极好的文章，点击大红心点赞，就直接给我跳转到登录界面了，原来点赞是需要登录的。</p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>周末逛简书，看了一篇写的极好的文章，点击大红心点赞，就直接给我跳转到登录界面了，原来点赞是需要登录的。</p>
 <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-264c5378f5c255b1.png" alt="简书登录界面"></p>
 <p>可是没有我并没有简书账号，一直使用的QQ的集成登录。下面有一排社交登录按钮，我们可以用第三方社交账号登陆即可。点击QQ图标，就给我跳转到了QQ登录授权页面，如下图：</p>
 <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-54cf4032678fe331.png" alt="QQ登录授权页面"></p>
 <p>从图片上我们可以看到主要包括两个部分，一个是左边的用户登录，一个是右边告知简书将获取哪些权限。输入QQ账号和密码，点击授权并登录，就成功登录到简书了，并成功获取到了我QQ的账号和昵称，如下图：</p>
 <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-bce90f200d70a514.png" alt="简书成功获取到QQ昵称和头像"></p>
 <p>简书集成的社交登录，大大简化了我们的注册登录流程，真是一号在手上网无忧啊。<br>这看似简单的集成，但背后的技术原理『OAuth2.0』可没那么简单，那我们废话不多说，一探究竟吧。</p>
-<p>#2. OAuth 2.0</p>
-<blockquote>
+<h1 id="2-OAuth-2-0"><a href="#2-OAuth-2-0" class="headerlink" title="2. OAuth 2.0"></a>2. OAuth 2.0</h1><blockquote>
 <p><a href="https://oauth.net/2/" target="_blank" rel="noopener">OAuth 2.0</a>是用于授权的行业标准协议。OAuth 2.0取代了在2006年创建的原始OAuth协议上所做的工作。OAuth 2.0专注于客户端开发人员的简单性，同时为Web应用程序，桌面应用程序，手机和客厅设备提供特定的授权流程。</p>
 </blockquote>
 <p>在传统的client-server认证模型中，客户端请求访问服务器上受限的资源（protected resource），需要通过使用资源所有者（resource owner）的凭证在服务器上进行认证。为了支持第三方应用程序访问受限资源，资源所有者需要向第三方应用共享其凭证。这就会造成以下问题：</p>
@@ -281,8 +279,7 @@
 </ol>
 <p>想一想这样一个场景，如果简书是直接使用QQ用户名密码登录，简书就很有可能会为了后续业务的需要而擅自保存QQ用户名及密码，简书只要拿到了QQ用户名密码就可以访问不仅仅QQ昵称、头像等信息，甚至可以获取到QQ用户的所有通讯录列表。如果简书的账号密码泄露，就会直接影响到QQ数据的安全。这是一个可怕的问题。</p>
 <p>所以OAuth应运而生，来解决这一问题。</p>
-<p>#3. OAuth 2.0授权流程</p>
-<p>下面我们就以简书使用QQ授权登录为例，来捋一捋OAuth 2.0的流程。<br>先来看看OAuth 2.0的流程，如下图所示：<br><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-27b3e30b6563dc2f.png" alt="OAuth 2.0授权流程"></p>
+<h1 id="3-OAuth-2-0授权流程"><a href="#3-OAuth-2-0授权流程" class="headerlink" title="3. OAuth 2.0授权流程"></a>3. OAuth 2.0授权流程</h1><p>下面我们就以简书使用QQ授权登录为例，来捋一捋OAuth 2.0的流程。<br>先来看看OAuth 2.0的流程，如下图所示：<br><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-27b3e30b6563dc2f.png" alt="OAuth 2.0授权流程"></p>
 <p>这里面主要包含四个角色：</p>
 <ol>
 <li>Client：需要授权的客户端，本文中就是【简书】。</li>
@@ -290,8 +287,7 @@
 <li>Authorization Server：认证服务器，本文中特指【QQ互联平台】。</li>
 <li>Resource Server：资源服务器，顾名思义，用来专门保存资源的服务器，接受通过访问令牌进行访问。本文特指【QQ用户信息中心】。</li>
 </ol>
-<p>##3.1. 第一步：引导用户到认证服务器</p>
-<p>圣杰打开简书网页，简书跳转到登录界面，要求用户登录。可是圣杰未在简书注册帐号，所以就点击了QQ图标，使用QQ帐号进行集成登录。跳转到QQ登录界面后，QQ要求用户授权。<br>这一步中简书主要做了这样一件事就是引导用户到认证服务器。<br>很显然【QQ互联平台】就是认证服务器。</p>
+<h2 id="3-1-第一步：引导用户到认证服务器"><a href="#3-1-第一步：引导用户到认证服务器" class="headerlink" title="3.1. 第一步：引导用户到认证服务器"></a>3.1. 第一步：引导用户到认证服务器</h2><p>圣杰打开简书网页，简书跳转到登录界面，要求用户登录。可是圣杰未在简书注册帐号，所以就点击了QQ图标，使用QQ帐号进行集成登录。跳转到QQ登录界面后，QQ要求用户授权。<br>这一步中简书主要做了这样一件事就是引导用户到认证服务器。<br>很显然【QQ互联平台】就是认证服务器。</p>
 <p>如何引导？当然是页面跳转。<br>那认证服务器如何知道是简书过来的认证请求？<br>当然是传参。<br>那需要传递哪些参数呢？</p>
 <ul>
 <li>response_type：表示响应类型，必选项，此处的值固定为”code”；</li>
@@ -310,14 +306,12 @@
 <p>我的理解是，简书用一个guid加长版字符串来唯一标识一个授权请求。这样才会正确获取授权服务器返回的授权码。</p>
 <p>这里你可能会问了，既然我知道了这些参数，我岂不是可以伪造简书认证请求，修改<code>redirect_uri</code>参数跳转到个人的网站，然后不就可以获取QQ授权？</p>
 <p>跟我一样太傻太天真，简书在QQ互联平台申请时肯定已经预留备案了要跳转返回的URL。QQ互联平台在收到简书的授权请求时肯定会验证回调Url的。</p>
-<p>##3.2. 第二步：用户同意为第三方客户端授权</p>
-<p>这一步，对于用户来说，只需要使用资源所有者（QQ）的用户名密码登录，并同意授权即可。点击授权并登录后，授权服务器首先会post一个请求回服务器进行用户认证，认证通过后授权服务器会生成一个授权码，然后服务器根据授权请求的<code>redirect_uri</code>进行跳转，并返回授权码<code>code</code>和授权请求中传递的<code>state</code>。<br>这里要注意的是：<strong>授权码有一个短暂的时效</strong></p>
+<h2 id="3-2-第二步：用户同意为第三方客户端授权"><a href="#3-2-第二步：用户同意为第三方客户端授权" class="headerlink" title="3.2. 第二步：用户同意为第三方客户端授权"></a>3.2. 第二步：用户同意为第三方客户端授权</h2><p>这一步，对于用户来说，只需要使用资源所有者（QQ）的用户名密码登录，并同意授权即可。点击授权并登录后，授权服务器首先会post一个请求回服务器进行用户认证，认证通过后授权服务器会生成一个授权码，然后服务器根据授权请求的<code>redirect_uri</code>进行跳转，并返回授权码<code>code</code>和授权请求中传递的<code>state</code>。<br>这里要注意的是：<strong>授权码有一个短暂的时效</strong></p>
 <p>无图无真相，咱们还是看一下控制台网络监控：</p>
 <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-2ad0271ee9af4618.png" alt="用户授权并登录"></p>
 <p>从图中即可验证我们上面所说，最终跳转回简书的Url为：<br><code>http://www.jianshu.com/users/auth/qq_connect/callback?code=093B9307E38DC5A2C3AD147B150F2AB3
 &amp;state=bb38108d1aaf567c72da0f1167e87142d0e20cb2bb24ec5a</code><br>和之前的授权请求URL进行对比，可以发现<code>redirect_uri</code>、<code>state</code>完全一致。<br>而<code>code=093B9307E38DC5A2C3AD147B150F2AB3</code>就是返回的授权码。</p>
-<p>##3.3. 第三步：使用授权码向认证服务器申请令牌</p>
-<p>从这一步开始，对于用户来说是察觉不到的。简书后台默默的在做后续的工作。</p>
+<h2 id="3-3-第三步：使用授权码向认证服务器申请令牌"><a href="#3-3-第三步：使用授权码向认证服务器申请令牌" class="headerlink" title="3.3. 第三步：使用授权码向认证服务器申请令牌"></a>3.3. 第三步：使用授权码向认证服务器申请令牌</h2><p>从这一步开始，对于用户来说是察觉不到的。简书后台默默的在做后续的工作。</p>
 <p>简书拿到QQ互联平台返回的授权码后，需要根据授权码再次向认证服务器申请令牌（access token）。<br>到这里有必要再理清两个概念：</p>
 <ul>
 <li>授权码（Authorization Code）：相当于授权服务器口头告诉简书，用户同意授权使用他的QQ登录简书了。</li>
@@ -347,12 +341,12 @@
 <p>这个时候简书还有一件事情要做，就是把用户token写到cookie里，进行用户登录状态的维持。咱们还是打开控制器验证一下。</p>
 <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-714ba763cb80cd6e.png" alt="保存token到cookie"></p>
 <p>从图中可以看出简书把用户token保存在名为<code>remember_user_token</code>的cookie里。<br>不用打cookie的歪主意了，肯定是加密了的。<br>可以尝试下手动把<code>remember_user_token</code>这条cookie删除，保证刷新界面后需要你重新登录简书。</p>
-<p>##3.4. 第四步：向资源服务器申请资源<br>有了token，向资源服务器提供的资源接口发送一个get请求不就行了，资源服务器校验令牌无误，就会向简书返回资源（QQ用户信息）。</p>
+<h2 id="3-4-第四步：向资源服务器申请资源"><a href="#3-4-第四步：向资源服务器申请资源" class="headerlink" title="3.4. 第四步：向资源服务器申请资源"></a>3.4. 第四步：向资源服务器申请资源</h2><p>有了token，向资源服务器提供的资源接口发送一个get请求不就行了，资源服务器校验令牌无误，就会向简书返回资源（QQ用户信息）。</p>
 <p>同样咱们也来模拟一个使用token请求QQ用户基本信息资源的URL：<br><code>https://graph.qq.com/user/get_user_info?client_id=100410602
 &amp;qq=2098769873
 &amp;access_token=548ADF2D5E1C5E88H4JH15FKUN51F</code></p>
 <p>到这一步OAuth2.0的流程可以说是结束了，但是对于简书来说还有重要的事情要做。那就是：<br><strong>拿到token、reresh_token和用户数据这么重要的东西不存数据库傻呀？</strong></p>
-<p>##3.5. 第五步：令牌延期（刷新）<br>你肯定对第四步返回的<code>refresh_token</code>比较好奇。<br>它是用来对令牌进行延期（刷新）的。为什么会有两种说法呢，因为可能认证服务器会重新生成一个令牌，也有可能<br>对过期的令牌进行延期。</p>
+<h2 id="3-5-第五步：令牌延期（刷新）"><a href="#3-5-第五步：令牌延期（刷新）" class="headerlink" title="3.5. 第五步：令牌延期（刷新）"></a>3.5. 第五步：令牌延期（刷新）</h2><p>你肯定对第四步返回的<code>refresh_token</code>比较好奇。<br>它是用来对令牌进行延期（刷新）的。为什么会有两种说法呢，因为可能认证服务器会重新生成一个令牌，也有可能<br>对过期的令牌进行延期。</p>
 <p>比如说，QQ互联平台为了安全性考虑，返回的<code>access_token</code>是有时间限制的，假如用户某天不想授权了呢，总不能给了个<code>access_token</code>你几年后还能用吧。我们上面模拟返回的令牌有效期为10小时。10小时后，用户打开浏览器逛简书，浏览器中用户的token对应的cookie已过期。简书发现浏览器没有携带token信息过来，就明白token失效了，需要重新向认证平台申请授权。如果让用户再点击QQ进行登录授权，这明显用户体验不好。咋搞呢？<code>refresh_token</code>就派上了用场，可以直接跳过前面申请授权码的步骤，当发现token失效了，简书从浏览器携带的cookie中的sessionid找到存储在数据库中的<code>refresh_token</code>，然后再使用<code>refresh_token</code>进行token续期（刷新）。</p>
 <p>那用refresh_token进行token续期需要怎么做呢？<br>同样需要向认证服务器发送一个get请求。<br>需要哪些参数？</p>
 <ul>
@@ -369,7 +363,7 @@
 <p>这里你可能又有疑问了，那既然每次进行令牌延期后都会重新返回一个<code>refresh_token</code>，那岂不是我可以使用<code>refresh_token</code>无限延期？<br>天真如我啊，<code>refresh_token</code>也是有过期时间的。而这个过期时间具体是由认证服务器决定的。<br>一般来说<code>refresh_token</code>的过期时间要大于<code>access_token</code>的过期时间。只有这样，<code>access_token</code>过期时，才可以使用<code>refresh_token</code>进行令牌延期（刷新）。</p>
 <p>举个简单例子：<br>假设简书从QQ互联平台默认获取到的<code>access_token</code>的有效期是1天，<code>refresh_token</code>的有效期为一周。</p>
 <p>用户今天使用QQ登录授权后，过了两天再去逛简书，简书发现token失效，立马用<code>refresh_token</code>刷新令牌，默默的完成了授权的延期。<br>假如用户隔了两周再去逛简书，简书一核对，<code>access_token</code>、<code>refresh_token</code>全都失效，就只能乖乖引导用户到授权页面重新授权，也就是回到OAuth2.0的第一步。</p>
-<p>#4.0 总结<br>本文以简书通过QQ进行授权登录为例，对OAuth2.0 的授权流程进行了梳理，希望通读此文，对你有所帮助。</p>
+<h1 id="4-0-总结"><a href="#4-0-总结" class="headerlink" title="4.0 总结"></a>4.0 总结</h1><p>本文以简书通过QQ进行授权登录为例，对OAuth2.0 的授权流程进行了梳理，希望通读此文，对你有所帮助。</p>
 <p>如果对OAuth2.0有所了解的话，你应该明白本文其实是对OAuth2.0中<strong>授权码模式</strong>授权方式的讲解。</p>
 <p>如果想了解OAuth2.0其他几种授权方式，建议参考<a href="http://www.baidu.com/link?url=j4_T_fCI4T_gWL2Snyg_xg9DfuYvjKupGPbyr6HnHRJRlpEFAUMPaIEUgszkDxfKUbf_r-dRmYYaFXm13C-BEK" target="_blank" rel="noopener">理解<em>OAuth 2.0</em> - 阮一峰的网络日志</a>。</p>
 <p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-efe4ebcd991746f2.png" alt=""></p>
@@ -474,6 +468,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-number">1.</span> <span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-OAuth-2-0"><span class="nav-number">2.</span> <span class="nav-text">2. OAuth 2.0</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-OAuth-2-0授权流程"><span class="nav-number">3.</span> <span class="nav-text">3. OAuth 2.0授权流程</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-1-第一步：引导用户到认证服务器"><span class="nav-number">3.1.</span> <span class="nav-text">3.1. 第一步：引导用户到认证服务器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-2-第二步：用户同意为第三方客户端授权"><span class="nav-number">3.2.</span> <span class="nav-text">3.2. 第二步：用户同意为第三方客户端授权</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-3-第三步：使用授权码向认证服务器申请令牌"><span class="nav-number">3.3.</span> <span class="nav-text">3.3. 第三步：使用授权码向认证服务器申请令牌</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-4-第四步：向资源服务器申请资源"><span class="nav-number">3.4.</span> <span class="nav-text">3.4. 第四步：向资源服务器申请资源</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-5-第五步：令牌延期（刷新）"><span class="nav-number">3.5.</span> <span class="nav-text">3.5. 第五步：令牌延期（刷新）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-0-总结"><span class="nav-number">4.</span> <span class="nav-text">4.0 总结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 

@@ -39,7 +39,7 @@
 <meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-a2159ee0b27a72c7.png">
 <meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-1ed0676674ecdc51.png">
 <meta property="article:published_time" content="2017-01-23T02:24:18.000Z">
-<meta property="article:modified_time" content="2020-05-02T08:23:34.142Z">
+<meta property="article:modified_time" content="2020-05-04T05:03:20.884Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content="SQL">
 <meta name="twitter:card" content="summary">
@@ -211,7 +211,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-02 16:23:34" itemprop="dateModified" datetime="2020-05-02T16:23:34+08:00">2020-05-02</time>
+                <time title="修改时间：2020-05-04 13:03:20" itemprop="dateModified" datetime="2020-05-04T13:03:20+08:00">2020-05-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -256,7 +256,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
+        <h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-438a0621acbccd40.png" alt="流程表结构数据举例"></p>
 <p>仔细观察表结构，会发现其树形结构的特点：</p>
 <ul>
@@ -269,9 +269,7 @@
 <p>图中的流程为：<br><strong>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</strong></p>
 <p>首先想到的办法就是把流程数据取回来，然后代码构造流程图。<br>第一个思路：根据根节点循环往下找，吭呲半天，发现没那么简单。<br>因为任何一个源头单据都可以多次下推目标单据：<br>第二个思路：先找到终极节点，在从终极节点往上找只至根节点为0。<br>这个思路实现起来也没有那么复杂，逻辑理清，循环遍历，最终也能实现结果。（但在大数据量情况下，易导致性能瓶颈。）</p>
 <p>这一次我们换一个思路，让SQL来替我们做这一复杂的递归查询。</p>
-<p>#一、SqlServer 递归查询</p>
-<p>###1、基本概念</p>
-<blockquote>
+<h1 id="SqlServer-递归查询"><a href="#SqlServer-递归查询" class="headerlink" title="SqlServer 递归查询"></a>SqlServer 递归查询</h1><h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><blockquote>
 <p>公用表表达式 (CTE) 可以认为是在单个 SELECT、INSERT、UPDATE、DELETE 或 CREATE VIEW 语句的执行范围内定义的临时结果集。公用表表达式可以包括对自身的引用，这种表达式称为递归公用表表达式。</p>
 </blockquote>
 <ul>
@@ -289,19 +287,17 @@
 <li>查询的列名（可选）</li>
 <li>紧跟AS之后的SELECT语句（<em>如果AS之后有多个对公用表的查询，则只有第一个查询有效</em>）</li>
 </ol>
-<p>###2、动手实践<br>根据官网示例我们很简单就可以写出CTE语句应用于我们的应用场景：</p>
+<h2 id="动手实践"><a href="#动手实践" class="headerlink" title="动手实践"></a>动手实践</h2><p>根据官网示例我们很简单就可以写出CTE语句应用于我们的应用场景：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID  FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
 
 <p>在查询中我们指定条件参数<code>WHERE TBIE.FTTABLENAME = &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID = 121625</code>，即可查询到指定节点的完整流程数据。<br><em>其中在与公用表<code>TEST_CTE</code>进行关联时，我指定了两个条件<code>CTBIE.FSID=CTE.FTID AND CTBIE.FSTABLENAME = CTE.FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7ecb5971eca7ad7a.png" alt="查询结果"></p>
 <p>需要注意的是<strong><code>OPTION(MAXRECURSION 10)</code></strong>是用来限制递归次数，以避免无限递归导致数据库性能消耗严重。</p>
-<p>###3、扩展：构造递归路径</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID,Cast(TBIE.FTID as nvarchar(4000)) AS PATH</span><br><span class="line">FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID,CTE.PATH+&#39;-&gt;&#39;+Cast(CTBIE.FTID as nvarchar(4000)) PATH  </span><br><span class="line">FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
+<h2 id="扩展：构造递归路径"><a href="#扩展：构造递归路径" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID,Cast(TBIE.FTID as nvarchar(4000)) AS PATH</span><br><span class="line">FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID,CTE.PATH+&#39;-&gt;&#39;+Cast(CTBIE.FTID as nvarchar(4000)) PATH  </span><br><span class="line">FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
 
 <p>基于上一个查询，增加一列手动拼接递归路径。注意sql中将PATH设置的类型为navarchar(4000)，在union中，两边的表结构类型必须保持一致，否则会报错<code>定位点类型和递归部分的类型不匹配</code>。可参考此篇博文<br><a href="http://www.cnblogs.com/ccding13/p/3515393.html" target="_blank" rel="noopener">解决CTE定位点类型和递归部分的类型不匹配</a>。</p>
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-82fc5de8bb634c3a.png" alt="递归路径查询结果"></p>
-<p>#二、Oracle 递归查询</p>
-<p>###1、基本概念<br>Oracle中的递归查询语句为<code>start with…connect by prior</code>，为中序遍历算法。<br>可参考<a href="http://www.cnblogs.com/yingsong/p/5035907.html" target="_blank" rel="noopener">Oracle 树操作、递归查询(select…start with…connect by…prior)</a>了解更多。</p>
+<h1 id="Oracle-递归查询"><a href="#Oracle-递归查询" class="headerlink" title="Oracle 递归查询"></a>Oracle 递归查询</h1><h2 id="基本概念-1"><a href="#基本概念-1" class="headerlink" title="基本概念"></a>基本概念</h2><p>Oracle中的递归查询语句为<code>start with…connect by prior</code>，为中序遍历算法。<br>可参考<a href="http://www.cnblogs.com/yingsong/p/5035907.html" target="_blank" rel="noopener">Oracle 树操作、递归查询(select…start with…connect by…prior)</a>了解更多。</p>
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7a6a047617d286e4.png" alt="查询顺序"></p>
 <p>其基本语法是：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">select colname from tablename</span><br><span class="line">start with 条件1</span><br><span class="line">connect by 条件2</span><br><span class="line">where 条件3;</span><br></pre></td></tr></table></figure>
@@ -318,21 +314,19 @@
 <li>PIROR运算符被置于CONNECT BY 子句中<strong>等号的后面</strong>时，则强制从叶节点到根节点的顺序检索，为<strong>自底向上的</strong>查找。<br>如：<code>CONNECT BY Id=PRIOR Parent_Id</code></li>
 </ul>
 <p><strong>PS：当CONNECT BY后指定多个连接条件时，每个条件都应指定<code>PRIOR</code>关键字</strong></p>
-<p>###2、动手实践<br>理清了用法，我们用Oracle来对查询一下业务流程。</p>
+<h2 id="动手实践-1"><a href="#动手实践-1" class="headerlink" title="动手实践"></a>动手实践</h2><p>理清了用法，我们用Oracle来对查询一下业务流程。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">SELECT * FROM T_BF_INSTANCEENTRY </span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-c1c7a780cbb60575.png" alt="查询结果"></p>
 <p>该流程为：<strong>销售订单–&gt;发货通知单–&gt;销售出库单–&gt;退货通知单–&gt;销售退货单</strong><br><em>其中在指定连接条件时，我指定了两个条件<code>FSID= PRIOR FTID AND FSTABLENAME =PRIOR FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
-<p>###3、扩展：构造递归路径</p>
-<p>Oracle中提供了<code>SYS_CONNECT_BY_PATH</code>函数用来进行连接路径。</p>
+<h2 id="扩展：构造递归路径-1"><a href="#扩展：构造递归路径-1" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><p>Oracle中提供了<code>SYS_CONNECT_BY_PATH</code>函数用来进行连接路径。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
 <p>基于上个查询，增加了一列<code>SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH</code>用来拼接递归路径。</p>
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-a2159ee0b27a72c7.png" alt="递归路径查询结果"></p>
-<p>###4、显示当前节点的根节点</p>
-<p>这个时候我们要用到<code>connect_by_root</code>函数，用来记录当前节点的根节点信息。</p>
+<h2 id="显示当前节点的根节点"><a href="#显示当前节点的根节点" class="headerlink" title="显示当前节点的根节点"></a>显示当前节点的根节点</h2><p>这个时候我们要用到<code>connect_by_root</code>函数，用来记录当前节点的根节点信息。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
 
 <p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-1ed0676674ecdc51.png" alt="当前节点的根节点的查询结果"></p>
-<p>###5、Oracle中的with…as语句<br>Oracle也有with..as 查询语法，一般用来进行子查询，提高查询效率。<br>语法：</p>
+<h2 id="Oracle中的with…as语句"><a href="#Oracle中的with…as语句" class="headerlink" title="Oracle中的with…as语句"></a>Oracle中的with…as语句</h2><p>Oracle也有with..as 查询语法，一般用来进行子查询，提高查询效率。<br>语法：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">with tempTableName as ( select * from table1 )</span><br><span class="line">select * from tempTableName</span><br></pre></td></tr></table></figure>
 <p>拿我们的案例举例就是：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">with flow_temp as (</span><br><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">select * from flow_temp</span><br></pre></td></tr></table></figure>
@@ -436,6 +430,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#引言"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SqlServer-递归查询"><span class="nav-number">2.</span> <span class="nav-text">SqlServer 递归查询</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#基本概念"><span class="nav-number">2.1.</span> <span class="nav-text">基本概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#动手实践"><span class="nav-number">2.2.</span> <span class="nav-text">动手实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#扩展：构造递归路径"><span class="nav-number">2.3.</span> <span class="nav-text">扩展：构造递归路径</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Oracle-递归查询"><span class="nav-number">3.</span> <span class="nav-text">Oracle 递归查询</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#基本概念-1"><span class="nav-number">3.1.</span> <span class="nav-text">基本概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#动手实践-1"><span class="nav-number">3.2.</span> <span class="nav-text">动手实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#扩展：构造递归路径-1"><span class="nav-number">3.3.</span> <span class="nav-text">扩展：构造递归路径</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#显示当前节点的根节点"><span class="nav-number">3.4.</span> <span class="nav-text">显示当前节点的根节点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Oracle中的with…as语句"><span class="nav-number">3.5.</span> <span class="nav-text">Oracle中的with…as语句</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
