@@ -1,128 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>MediatR 知多少</title>
-    <url>/how-much-you-know-about-the-MediatR/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
-<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
-<p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
-<blockquote>
-<p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
-</blockquote>
-<p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
-<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
-<blockquote>
-<p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
-</blockquote>
-<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
-<p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
-<p>那其优缺点也在图中很容易看出：</p>
-<blockquote>
-<p><strong>优点</strong>：中介者模式的优点就是减少类间的依赖，把原有的一对多的依赖变成了一对一的依赖，同事类只依赖中介者，减少了依赖，当然同时也降低了类间的耦合<br><strong>缺点</strong>：中介者模式的缺点就是中介者会膨胀得很大，而且逻辑复杂，原本N个对象直接的相互依赖关系转换为中介者和同事类的依赖关系，同事类越多，中介者的逻辑就越复杂。</p>
-</blockquote>
-<h1 id="Hello-MeidatR"><a href="#Hello-MeidatR" class="headerlink" title="Hello MeidatR"></a>Hello MeidatR</h1><p>在开始之前，我们先来了解下其基本用法。</p>
-<h2 id="单播消息传输"><a href="#单播消息传输" class="headerlink" title="单播消息传输"></a>单播消息传输</h2><p>单播消息传输，也就是一对一的消息传递，一个消息对应一个消息处理。其通过<code>IRequest</code>来抽象单播消息，用<code>IRequestHandler</code>进行消息处理。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 消息请求</span><br><span class="line">public class Ping : IRequest&lt;string&gt; &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理</span><br><span class="line">public class PingHandler : IRequestHandler&lt;Ping, string&gt; &#123;</span><br><span class="line">    public Task&lt;string&gt; Handle(Ping request, CancellationToken cancellationToken) &#123;</span><br><span class="line">        return Task.FromResult(&quot;Pong&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;发送 请求</span><br><span class="line">var response &#x3D; await mediator.Send(new Ping());</span><br><span class="line">Debug.WriteLine(response); &#x2F;&#x2F; &quot;Pong&quot;</span><br></pre></td></tr></table></figure>
-
-<h2 id="多播消息传输"><a href="#多播消息传输" class="headerlink" title="多播消息传输"></a>多播消息传输</h2><p>多播消息传输，也就是一对多的消息传递，一个消息对应多个消息处理。其通过<code>INotification</code>来抽象多播消息，对应的消息处理类型为<code>INotificationHandler</code>。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
-
-<h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
-<p>从代码图中我们可以看到其核心的对象主要包括：</p>
-<ol>
-<li>IRequest Vs IRequestHandler</li>
-<li>INotification Vs INoticifaitonHandler</li>
-<li>IMediator Vs Mediator</li>
-<li>Unit</li>
-<li>IPipelineBehavior</li>
-</ol>
-<h2 id="IRequest-Vs-IRequestHandler"><a href="#IRequest-Vs-IRequestHandler" class="headerlink" title="IRequest Vs IRequestHandler"></a>IRequest Vs IRequestHandler</h2><p>其中<code>IRequest</code>和<code>INotification</code>分别对应单播和多播消息的抽象。<br>对于单播消息可以决定是否需要返回值选用不同的接口：</p>
-<ul>
-<li>IRequest<T> - 有返回值</li>
-<li>IRequest - 无返回值</li>
-</ul>
-<p>这里就不得不提到其中巧妙的设计，通过引入结构类型<code>Unit</code>来代表无返回的情况。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表无需返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IRequest : IRequest&lt;Unit&gt; &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表有返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TResponse&quot;&gt;Response type&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IRequest&lt;out TResponse&gt; : IBaseRequest &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Allows for generic type constraints of objects implementing IRequest or IRequest&#123;TResponse&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IBaseRequest &#123; &#125;</span><br></pre></td></tr></table></figure>
-
-<p>同样对于<code>IRequestHandler</code>也是通过结构类型<code>Unit</code>来处理不需要返回值的情况。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IRequestHandler&lt;in TRequest, TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Task&lt;TResponse&gt; Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IRequestHandler&lt;in TRequest&gt; : IRequestHandler&lt;TRequest, Unit&gt;</span><br><span class="line">    where TRequest : IRequest&lt;Unit&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从上面我们可以看出定义了一个方法名为<code>Handle</code>返回值为<code>Task</code>的包装类型，而因此赋予了其具有以同步和异步的方式进行消息处理的能力。我们再看一下其以异步方式进行消息处理（无返回值）的默认实现<code>AsyncRequestHandler</code>：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class AsyncRequestHandler&lt;TRequest&gt; : IRequestHandler&lt;TRequest&gt;</span><br><span class="line">    where TRequest : IRequest</span><br><span class="line">&#123;</span><br><span class="line">    async Task&lt;Unit&gt; IRequestHandler&lt;TRequest, Unit&gt;.Handle(TRequest request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        await Handle(request, cancellationToken).ConfigureAwait(false);</span><br><span class="line">        return Unit.Value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    protected abstract Task Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>从上面的代码来看，我们很容易看出这是装饰模式的实现方式，是不是很巧妙的解决了无需返回值的场景。</p>
-<p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
-<p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
-<p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
-<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
-<p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
-<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
-<p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
-<ul>
-<li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
-<li>IRequestPostProcessor&lt;in TRequest, in TResponse&gt; 请求处理后接口</li>
-</ul>
-<p>其中<code>IPipelineBehavior</code>的默认实现：<code>RequestPreProcessorBehavior</code>和<code>RequestPostProcessorBehavior</code>分别用来处理所有实现<code>IRequestPreProcessor</code>和<code>IRequestPostProcessor</code>接口定义的管道行为。</p>
-<p>而处理管道是如何构建的呢？我们来看下<code>RequestHandlerWrapperImpl</code>的具体实现：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">internal class RequestHandlerWrapperImpl&lt;TRequest, TResponse&gt; : RequestHandlerWrapper&lt;TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public override Task&lt;TResponse&gt; Handle(IRequest&lt;TResponse&gt; request, CancellationToken cancellationToken,</span><br><span class="line">        ServiceFactory serviceFactory)</span><br><span class="line">    &#123;</span><br><span class="line">        Task&lt;TResponse&gt; Handler() &#x3D;&gt; GetHandler&lt;IRequestHandler&lt;TRequest, TResponse&gt;&gt;(serviceFactory).Handle((TRequest) request, cancellationToken);</span><br><span class="line"></span><br><span class="line">        return serviceFactory</span><br><span class="line">            .GetInstances&lt;IPipelineBehavior&lt;TRequest, TResponse&gt;&gt;()</span><br><span class="line">            .Reverse()</span><br><span class="line">            .Aggregate((RequestHandlerDelegate&lt;TResponse&gt;) Handler, (next, pipeline) &#x3D;&gt; () &#x3D;&gt; pipeline.Handle((TRequest)request, cancellationToken, next))();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>就这样一个简单的函数，涉及的知识点还真不少，说实话我花了不少时间来理清这个逻辑。<br>那都涉及到哪些知识点呢？我们一个一个的来理一理。</p>
-<ol>
-<li>C# 7.0的新特性 - 局部函数</li>
-<li>C# 6.0的新特性 - 表达式形式的成员函数</li>
-<li>Linq高阶函数 - <code>Aggregate</code></li>
-<li>匿名委托</li>
-<li>构造委托函数链</li>
-</ol>
-<p>关于第1、2个知识点，请看下面这段代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();&#x2F;&#x2F;定义委托</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;局部函数(在函数内部定义函数)</span><br><span class="line">    &#x2F;&#x2F;表达式形式的成员函数， 相当于 int Sum() &#123; return 1 + 2;&#125;</span><br><span class="line">    int Sum() &#x3D;&gt; 1 + 2;</span><br><span class="line"></span><br><span class="line">    var sumDelegate &#x3D; (SumDelegate)Sum;&#x2F;&#x2F;转换为委托</span><br><span class="line">    Console.WriteLine(sumDelegate());&#x2F;&#x2F;委托调用，输出：3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>再看第4个知识点，匿名委托：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();</span><br><span class="line"></span><br><span class="line">SumDelegate delegater1 &#x3D; delegate()&#123; return 1+2; &#125;</span><br><span class="line">&#x2F;&#x2F;也相当于</span><br><span class="line">SumDelegate delegater2 &#x3D;&gt; 1+2;</span><br></pre></td></tr></table></figure>
-
-<p>下面再来介绍一下<code>Aggregate</code>这个Linq高阶函数。<code>Aggregate</code>是对一个集合序列进行累加操作，通过指定初始值，累加函数，以及结果处理函数完成计算。</p>
-<p>函数定义：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static TResult Aggregate&lt;TSource,TAccumulate,TResult&gt;</span><br><span class="line">(this IEnumerable&lt;TSource&gt; source, </span><br><span class="line">TAccumulate seed, </span><br><span class="line">Func&lt;TAccumulate,TSource,TAccumulate&gt; func, </span><br><span class="line">Func&lt;TAccumulate,TResult&gt; resultSelector);</span><br></pre></td></tr></table></figure>
-
-<p>根据函数定义我们来写个简单的demo：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; Enumerable.Range(2, 3);&#x2F;&#x2F;[2,3,4]</span><br><span class="line">&#x2F;&#x2F; 计算1到5的累加之和，再将结果乘以2</span><br><span class="line">var sum &#x3D; nums.Aggregate(1, (total, next) &#x3D;&gt; total + next, result &#x3D;&gt; result * 2);&#x2F;&#x2F; 相当于 (((1+2)+3)+4)*2&#x3D;20</span><br><span class="line">Console.WriteLine(sum);&#x2F;&#x2F;20</span><br></pre></td></tr></table></figure>
-<p>和函数参数进行一一对应：</p>
-<ol>
-<li>seed : 1</li>
-<li>Func&lt;TAccumulate,TSource,TAccumulate&gt; func : (total, next) =&gt; total + next</li>
-<li>Func&lt;TAccumulate,TResult&gt; resultSelector : result =&gt; result * 2</li>
-</ol>
-<p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
-<p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
-<p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
-<p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
-<p>至此，MediatR的实现思路算是理清了。</p>
-<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>如文章开头提到：MediatR是一种进程内消息传递机制。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</p>
-<p>那么我们就应该明白，其核心是<strong>消息的解耦</strong>。因为我们几乎都是在与消息打交道，那因此它的应用场景就很广泛，比如我们可以基于MediatR实现CQRS、EventBus等。</p>
-<p>另外，还有一种应用场景：我们知道借助依赖注入的好处是，就是解除依赖，但我们又不得不思考一个问题，随着业务逻辑复杂度的增加，构造函数可能要注入更多的服务，当注入的依赖太多时，其会导致构造函数膨胀。比如：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(</span><br><span class="line">    ICustomerRepository customerRepository,</span><br><span class="line">    IOrderService orderService,</span><br><span class="line">    ICustomerHistoryRepository historyRepository,</span><br><span class="line">    IOrderRepository orderRepository,</span><br><span class="line">    IProductRespoitory productRespoitory,</span><br><span class="line">    IRelatedProductsRepository relatedProductsRepository,</span><br><span class="line">    ISupportService supportService,</span><br><span class="line">    ILog logger</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
-<p>如果借助<code>MediatR</code>进行改造，也许仅需注入<code>IMediatR</code>就可以了。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(IMediatR mediatr)</span><br></pre></td></tr></table></figure>
-
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>看到这里，也许你应该明白MediatR实质上并不是严格意义上的中介者模式实现，我更倾向于其是基于Ioc容器的一层抽象，根据请求定位相应的请求处理器进行消息处理，也就是服务定位。<br>那到这里似乎也恍然大悟MediatR这个笔误可能是有意为之了。序员，你怎么看？</p>
-<blockquote>
-<p>参考资料：<br><a href="https://lostechies.com/jimmybogard/2016/10/27/cqrsmediatr-implementation-patterns/" target="_blank" rel="noopener">CQRS/MediatR implementation patterns</a><br><a href="https://stackoverflow.com/questions/50663501/mediatr-when-and-why-i-should-use-it-vs-2017-webapi" target="_blank" rel="noopener">MediatR when and why I should use it? vs 2017 webapi</a><br><a href="https://www.jianshu.com/p/c28500ec9439?tdsourcetag=s_pctim_aiomsg" target="_blank" rel="noopener">ABP CQRS 实现案例:基于 MediatR 实现</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET Core</tag>
-        <tag>中介者模式</tag>
-        <tag>发布订阅模式</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>事件总线知多少(1)</title>
     <url>/how-much-you-know-about-the-eventbus-1/</url>
     <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线这个概念对你来说可能很陌生，但提到观察者（发布-订阅）模式，你也许就很熟悉。事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。</p>
@@ -242,325 +120,8 @@
       </categories>
       <tags>
         <tag>.NET Core</tag>
-        <tag>发布订阅模式</tag>
         <tag>EventBus</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>事件总线知多少(2)</title>
-    <url>/how-much-you-know-about-the-eventbus-2/</url>
-    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
-<h1 id="2-回顾事件总线"><a href="#2-回顾事件总线" class="headerlink" title="2.回顾事件总线"></a>2.回顾事件总线</h1><p>在进行具体分析之前，我们还是先对我们实现的事件总线进行一个简单的回顾：</p>
-<ol>
-<li>针对事件源，抽象<code>IEventData</code>接口；</li>
-<li>针对事件处理，抽象<code>IEventHandler&lt;TEventData&gt;</code>接口，定义唯一事件处理方法<code>void HandleEvent(IEventData eventData)</code>；</li>
-<li>事件总线维护一个事件源和事件处理的类型映射字典<code>ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping</code>；</li>
-<li>通过单例模式，确保事件总线的唯一入口；</li>
-<li>利用反射完成事件源与事件处理的动态初始化绑定；</li>
-<li>提供入口支持事件的手动注册/取消注册；</li>
-<li>提供统一的事件触发接口，通过反射动态创建<code>IEventHandler</code>实例完成具体事件处理逻辑的调用。</li>
-</ol>
-<h1 id="3-发现反射问题"><a href="#3-发现反射问题" class="headerlink" title="3.发现反射问题"></a>3.发现反射问题</h1><p>基于以上的简单回顾，我们可以发现Alpha版本事件总线的成功离不开反射的支持。从动态绑定到动态触发，都是反射在默默的处理着业务逻辑。如果我们只是简单学习了解事件总线，使用反射无可厚非。但如果在实际的项目中，使用反射却不是一个很明智的行为，因为其性能问题。尤其是事件总线要集中处理整个应用程序的所有事件，更易导致程序性能瓶颈。<br>既然说到了反射性能，那就顺便解释下为什么反射性能差？</p>
-<ol>
-<li>类型绑定（元数据字符串匹配）</li>
-<li>参数校验</li>
-<li>安全校验</li>
-<li>基于运行时</li>
-<li>反射产生大量临时对象，增加GC负担</li>
-</ol>
-<p>那既然反射有性能瓶颈，我们该如何是好呢？<br>你可能会说，既然反射有问题，那就对反射进行性能优化，比如增加缓存机制。出发点是好的，但最终还是在反射问题的阴影之下。对于反射我们应该持以这样一种态度：能不用反射，则不用反射。</p>
-<p>那既然要推翻反射这条路，那如何解决动态绑定和动态触发的问题呢？<br>办法总比问题多。额，啊，嗯。就不饶圈子了，咱们上IOC。</p>
-<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
-<p>下面我们就以<a href="https://github.com/castleproject/Windsor" target="_blank" rel="noopener">Castle Windsor</a>作为我们的IOC容器为例，来讲解下如何解除依赖。</p>
-<h2 id="4-1-了解Castle-Windsor"><a href="#4-1-了解Castle-Windsor" class="headerlink" title="4.1. 了解Castle Windsor"></a>4.1. 了解Castle Windsor</h2><p>使用Castle Windsor主要包含以下几步：</p>
-<ol>
-<li>初始化容器：<code>var container = new WindsorContainer();</code></li>
-<li>使用WindsorInstallers从执行程序集添加和配置所有组件：<code>container.Install(FromAssembly.This());</code></li>
-<li>实现<code>IWindsorInstaller</code>自定义安装器：<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class RepositoriesInstaller : IWindsorInstaller</span><br><span class="line">&#123;</span><br><span class="line">	public void Install(IWindsorContainer container, IConfigurationStore store)</span><br><span class="line">	&#123;</span><br><span class="line">		container.Register(Classes.FromThisAssembly()</span><br><span class="line">			                .Where(Component.IsInSameNamespaceAs&lt;King&gt;())</span><br><span class="line">			                .WithService.DefaultInterfaces()</span><br><span class="line">			                .LifestyleTransient());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
-<li>注册和解析依赖</li>
-<li>程序退出时，释放容器</li>
-</ol>
-<h2 id="4-2-使用Castle-Windsor"><a href="#4-2-使用Castle-Windsor" class="headerlink" title="4.2. 使用Castle Windsor"></a>4.2. 使用Castle Windsor</h2><p>使用IOC容器的目的很明确，一个是在注册事件时完成依赖的注入，一个是在触发事件时完成依赖的解析。从而完成事件的动态绑定和触发。</p>
-<h3 id="4-2-1-初始化容器"><a href="#4-2-1-初始化容器" class="headerlink" title="4.2.1. 初始化容器"></a>4.2.1. 初始化容器</h3><p>要在<code>EventBus</code>这个类中完成事件依赖的注入和解析，就需要在本类中持有一个对<code>IWindsorContainer</code>的引用。<br>可以直接定义一个只读属性，并在构造函数中进行初始化即可。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public IWindsorContainer IocContainer &#123; get; private set; &#125;&#x2F;&#x2F;定义IOC容器</span><br><span class="line">private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br><span class="line">public EventBus()</span><br><span class="line">&#123;</span><br><span class="line">      IocContainer &#x3D; new WindsorContainer();</span><br><span class="line">      _eventAndHandlerMapping &#x3D; new ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="4-2-2-注册和取消注册依赖"><a href="#4-2-2-注册和取消注册依赖" class="headerlink" title="4.2.2.注册和取消注册依赖"></a>4.2.2.注册和取消注册依赖</h3><p>初始化完容器，我们需要在手动注册和取消注册事件API上分别完成依赖的注册和取消注册。因为Castle Windsor在3.0版本取消了UnRegister方法，所以在进行事件注册时，就不再手动卸载IOC容器中已注册的依赖。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 手动绑定事件源与事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;handlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line"> public void Register(Type eventType, Type handlerType)</span><br><span class="line"> &#123;</span><br><span class="line">     &#x2F;&#x2F;注册IEventHandler&lt;T&gt;到IOC容器</span><br><span class="line">     var handlerInterface &#x3D; handlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line">     if (!IocContainer.Kernel.HasComponent(handlerInterface))</span><br><span class="line">     &#123;</span><br><span class="line">         IocContainer.Register(Component.For(handlerInterface, handlerType));</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     &#x2F;&#x2F;注册到事件总线</span><br><span class="line">     &#x2F;&#x2F;省略其他代码</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 手动解除事件源与事件处理的绑定</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;handlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    _eventAndHandlerMapping.GetOrAdd(typeof(TEventData), (type) &#x3D;&gt; new List&lt;Type&gt;())</span><br><span class="line">        .RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="4-2-3-动态事件绑定"><a href="#4-2-3-动态事件绑定" class="headerlink" title="4.2.3. 动态事件绑定"></a>4.2.3. 动态事件绑定</h3><p>要实现事件的动态绑定，我们要拿到所有<code>IEventHandler&lt;T&gt;</code>的实现。而遍历所有类型最好的办法就是拿到程序集（Assembly）。拿到程序集后就可以将所有<code>IEventHandler&lt;T&gt;</code>的实现注册到IOC容器，然后再基于IOC容器注册的<code>IEventHandler&lt;T&gt;</code>动态映射事件源和事件处理。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 提供入口支持注册其它程序集中实现的IEventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;assembly&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void RegisterAllEventHandlerFromAssembly(Assembly assembly)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.将IEventHandler注册到Ioc容器</span><br><span class="line">    IocContainer.Register(Classes.FromAssembly(assembly)</span><br><span class="line">        .BasedOn(typeof(IEventHandler&lt;&gt;))</span><br><span class="line">        .WithService.AllInterfaces()</span><br><span class="line">        .LifestyleSingleton());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;2.从IOC容器中获取注册的所有IEventHandler</span><br><span class="line">    var handlers &#x3D; IocContainer.Kernel.GetHandlers(typeof(IEventHandler));</span><br><span class="line">    foreach (var handler in handlers)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;循环遍历所有的IEventHandler&lt;T&gt;</span><br><span class="line">        var interfaces &#x3D; handler.ComponentModel.Implementation.GetInterfaces();</span><br><span class="line">        foreach (var @interface in interfaces)</span><br><span class="line">        &#123;</span><br><span class="line">            if (!typeof(IEventHandler).IsAssignableFrom(@interface))</span><br><span class="line">            &#123;</span><br><span class="line">                continue;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;获取泛型参数类型</span><br><span class="line">            var genericArgs &#x3D; @interface.GetGenericArguments();</span><br><span class="line">            if (genericArgs.Length &#x3D;&#x3D; 1)</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;注册到事件源与事件处理的映射字典中</span><br><span class="line">                Register(genericArgs[0], handler.ComponentModel.Implementation);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>通过这种方式，我们就可以再其他需要使用事件总线的项目中，添加引用后，通过调用以下代码，来完成程序集中<code>IEventHandler&lt;T&gt;</code>的动态绑定。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;注册当前程序集中实现的所有IEventHandler&lt;T&gt;</span><br><span class="line">EventBus.Default.RegisterAllEventHandlerFromAssembly(Assembly.GetExecutingAssembly());</span><br></pre></td></tr></table></figure>
-
-<h3 id="4-2-4-动态事件触发"><a href="#4-2-4-动态事件触发" class="headerlink" title="4.2.4. 动态事件触发"></a>4.2.4. 动态事件触发</h3><p>触发事件时主要分三步，第一步从事件源与事件处理的字典中取出映射的<code>IEventHandler</code>集合，第二步使用IOC容器解析依赖，第三步调用<code>HandleEvent</code>方法。代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 根据事件源触发绑定的事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void Trigger&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;获取所有映射的EventHandler</span><br><span class="line">    List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line"></span><br><span class="line">    if (handlerTypes !&#x3D; null &amp;&amp; handlerTypes.Count &gt; 0)</span><br><span class="line">    &#123;</span><br><span class="line">        foreach (var handlerType in handlerTypes)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;从Ioc容器中获取所有的实例</span><br><span class="line">            var handlerInterface &#x3D; handlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line">            var eventHandlers &#x3D; IocContainer.ResolveAll(handlerInterface);</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;循环遍历，仅当解析的实例类型与映射字典中事件处理类型一致时，才触发事件</span><br><span class="line">            foreach (var eventHandler in eventHandlers)</span><br><span class="line">            &#123;</span><br><span class="line">                if (eventHandler.GetType() &#x3D;&#x3D; handlerType)</span><br><span class="line">                &#123;</span><br><span class="line">                    var handler &#x3D; eventHandler as IEventHandler&lt;TEventData&gt;;</span><br><span class="line">                    handler.HandleEvent(eventData);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="5-用例完善"><a href="#5-用例完善" class="headerlink" title="5.用例完善"></a>5.用例完善</h1><p>我们上面使用IOC容器替换了反射，在程序的易用性和性能上都有所提升。但很显然，用例不够完善且存在一些潜在问题，比如：</p>
-<ol>
-<li>支持Action EventHandler的绑定和触发</li>
-<li>异步触发</li>
-<li>触发指定的EventHandler</li>
-<li>线程安全</li>
-<li>等等等</li>
-</ol>
-<p>下面我们就来先一一完善以上几个问题。</p>
-<h2 id="5-1-支持Action事件处理器"><a href="#5-1-支持Action事件处理器" class="headerlink" title="5.1.支持Action事件处理器"></a>5.1.支持Action事件处理器</h2><p>如果每一个事件处理都要定义一个类去实现<code>IEventHandler&lt;T&gt;</code>接口，很显然会造成类急剧膨胀。且在一些简单场景，定义一个类又大才小用。这时我们应该立刻想到Action。<br>使用Action，第一步我们要对其进行封装，提供一个公共的<code>ActionEventHandler</code>来统一处理所有的Action事件处理器。代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 支持Action的事件处理器</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">internal class ActionEventHandler&lt;TEventData&gt; : IEventHandler&lt;TEventData&gt; where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 定义Action的引用，并通过构造函数传参初始化</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public Action&lt;TEventData&gt; Action &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public ActionEventHandler(Action&lt;TEventData&gt; handler)</span><br><span class="line">    &#123;</span><br><span class="line">        Action &#x3D; handler;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 调用具体的Action来处理事件逻辑</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void HandleEvent(TEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        Action(eventData);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>有了<code>ActionEventHandler</code>做封装，下一步就是注入IOC容器并注册到事件总线了。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 注册Action事件处理器</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;action&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void Register&lt;TEventData&gt;(Action&lt;TEventData&gt; action) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.构造ActionEventHandler</span><br><span class="line">    var actionHandler &#x3D; new ActionEventHandler&lt;TEventData&gt;(action);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;2.将ActionEventHandler的实例注入到Ioc容器</span><br><span class="line">    IocContainer.Register(</span><br><span class="line">        Component.For&lt;IEventHandler&lt;TEventData&gt;&gt;()</span><br><span class="line">        .UsingFactoryMethod(() &#x3D;&gt; actionHandler)</span><br><span class="line">        .LifestyleSingleton());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;3.注册到事件总线</span><br><span class="line">    Register&lt;TEventData&gt;(actionHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>使用起来就很简单：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;注册Action事件处理器</span><br><span class="line">EventBus.Default.Register&lt;EventData&gt;(</span><br><span class="line">    actionEventData &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        Trace.TraceInformation(actionEventData.EventTime.ToLongDateString());</span><br><span class="line">    &#125;);</span><br><span class="line">&#x2F;&#x2F;触发</span><br><span class="line">EventBus.Default.Trigger(new EventData());</span><br></pre></td></tr></table></figure>
-
-<h2 id="5-2-支持异步触发"><a href="#5-2-支持异步触发" class="headerlink" title="5.2. 支持异步触发"></a>5.2. 支持异步触发</h2><p>异步触发很简单直接使用<code>Task.Run</code>包装一下就ok了。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 异步触发</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">public Task TriggerAsync&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    return Task.Run(() &#x3D;&gt; Trigger&lt;TEventData&gt;(eventData));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="5-3-触发指定EventHandler"><a href="#5-3-触发指定EventHandler" class="headerlink" title="5.3.触发指定EventHandler"></a>5.3.触发指定EventHandler</h2><p>在我们的<code>Trigger</code>方法中我们会将某一个事件源绑定的事件处理全部触发。但在某些场景下，我们可能并不需要全部触发，仅需要触发指定的EventHandler。这个需求很实际，我们来实现一下。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 触发指定EventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line"></span><br><span class="line">public void Trigger&lt;TEventData&gt;(Type eventHandlerType, TEventData eventData) </span><br><span class="line">    where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;获取类型实现的泛型接口</span><br><span class="line">    var handlerInterface &#x3D; eventHandlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line"></span><br><span class="line">    var eventHandlers &#x3D; IocContainer.ResolveAll(handlerInterface);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;循环遍历，仅当解析的实例类型与映射字典中事件处理类型一致时，才触发事件</span><br><span class="line">    foreach (var eventHandler in eventHandlers)</span><br><span class="line">    &#123;</span><br><span class="line">        if (eventHandler.GetType() &#x3D;&#x3D; eventHandlerType)</span><br><span class="line">        &#123;</span><br><span class="line">            var handler &#x3D; eventHandler as IEventHandler&lt;TEventData&gt;;</span><br><span class="line">            handler?.HandleEvent(eventData);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 异步触发指定EventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">public Task TriggerAsycn&lt;TEventData&gt;(Type eventHandlerType, TEventData eventData)</span><br><span class="line">    where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    return Task.Run(() &#x3D;&gt; Trigger(eventHandlerType, eventData));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>上个测试用例：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"> [Fact]</span><br><span class="line">public async void Should_Call_Specified_Handler_Async()</span><br><span class="line">&#123;</span><br><span class="line">    TestEventBus.Register&lt;TestEventData&gt;(new TestEventHandler());</span><br><span class="line"></span><br><span class="line">    var count &#x3D; 0;</span><br><span class="line">    TestEventBus.Register&lt;TestEventData&gt;(</span><br><span class="line">        actionEventData &#x3D;&gt; &#123; count++; &#125;</span><br><span class="line">    );</span><br><span class="line">    await TestEventBus.TriggerAsycn&lt;TestEventData&gt;</span><br><span class="line">        (typeof(TestEventHandler), new TestEventData(999));</span><br><span class="line"></span><br><span class="line">    TestEventHandler.TestValue.ShouldBe(999);</span><br><span class="line">    count.ShouldBe(0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="5-4-线程安全问题"><a href="#5-4-线程安全问题" class="headerlink" title="5.4.线程安全问题"></a>5.4.线程安全问题</h2><p>在事件总线中，维护的事件源和事件处理的映射字典是整个程序中的重中之重。我们选择了使用<code>ConcurrentDictionary</code>线程安全字典来规避线程安全问题。但实际我们真正做到线程安全了吗？我们看下映射字典申明：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义线程安全集合</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br></pre></td></tr></table></figure>
-<p>聪慧如你，我们的事件源支持绑定多个事件处理，<code>ConcurrentDictionary</code>确保了对key值（事件源）修改的线程安全，但无法确保事件处理的列表<code>List&lt;Type&gt;</code>的线程安全。那我们就来动手改造吧。同样代码很简单：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义锁对象</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private static object lockObj&#x3D; new object();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 获取事件总线映射字典中指定事件源的事件列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若有，返回列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若无，构造空列表返回</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">private List&lt;Type&gt; GetOrCreateHandlers(Type eventType)</span><br><span class="line">&#123;</span><br><span class="line">    return _eventAndHandlerMapping.GetOrAdd(eventType, (type) &#x3D;&gt; new List&lt;Type&gt;());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void Register(Type eventType, Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    &#x2F;&#x2F;注册到事件总线</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(eventType).Add(handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(typeof(TEventData)).RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="6-单元测试"><a href="#6-单元测试" class="headerlink" title="6.单元测试"></a>6.单元测试</h1><p>为了确保重构的正确性和业务的完整性，以上的改进都是基于单元测试进行改进的，使用的是Xunit+Shouldly。虽然不能保证单元测试的覆盖度，但至少确保了正常业务的流转。</p>
-<p><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
-<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
-<hr>
-<blockquote>
-<p>参考资料：<br><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lwhkdash/archive/2012/09/28/2707549.html" target="_blank" rel="noopener">[c#] 反射真的很可怕吗？</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET Core</tag>
         <tag>发布订阅模式</tag>
-        <tag>EventBus</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>IdentityServer4 知多少</title>
-    <url>/how-much-you-know-about-the-identityserver4/</url>
-    <content><![CDATA[<h1 id=""><a href="#" class="headerlink" title=""></a><img src="../images/how-much-you-know-about-the-identityserver4/2799767-c17b64e06a2d4f71-1588585455631.png" alt=""></h1><h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>现在的应用开发层出不穷，基于浏览器的网页应用，基于微信的公众号、小程序，基于IOS、Android的App，基于Windows系统的桌面应用和UWP应用等等，这么多种类的应用，就给应用的开发带来的挑战，我们除了分别实现各个应用外，我们还要考虑各个应用之间的交互，通用模块的提炼，其中身份的认证和授权就是每个应用必不可少的的一部分。而现在的互联网，对于信息安全要求又十分苛刻，所以一套统一的身份认证和授权就至关重要。</p>
-<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-edb5904a988bb3a6.png" alt="IdentityServer 4"></p>
-<blockquote>
-<p>IdentityServer4就是这样一个框架，IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。</p>
-</blockquote>
-<p>下面我们就来介绍一下相关概念，并梳理下如何集成IdentityServer4。<br>也可浏览自行整理的<strong><a href="http://naotu.baidu.com/file/75b251257ce27cfa62e0ad7f47b75576?token=e2db617be22b6274" target="_blank" rel="noopener">IdentityServer4 百度脑图</a></strong>快速了解。</p>
-<h1 id="2-OAuth2-0-amp-amp-OpenId-Connect"><a href="#2-OAuth2-0-amp-amp-OpenId-Connect" class="headerlink" title="2.OAuth2.0 &amp;&amp; OpenId Connect"></a>2.OAuth2.0 &amp;&amp; OpenId Connect</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-4cd2e40d9b5d84b5.png" alt=""></p>
-<h2 id="2-1-OpenId"><a href="#2-1-OpenId" class="headerlink" title="2.1. OpenId"></a>2.1. OpenId</h2><blockquote>
-<p>OpenID 是一个<strong>以用户为中心的数字身份识别框架</strong>，它具有开放、分散性。OpenID 的创建基于这样一个概念：我们可以通过 URI （又叫 URL 或网站地址）来认证一个网站的唯一身份，同理，我们也可以通过这种方式来作为用户的身份认证。</p>
-</blockquote>
-<p>简而言之：<strong>OpenId用于身份认证（Authentication）</strong>。</p>
-<h2 id="2-2-OAuth-2-0"><a href="#2-2-OAuth-2-0" class="headerlink" title="2.2. OAuth 2.0"></a>2.2. OAuth 2.0</h2><blockquote>
-<p>OAuth（<strong>开放授权</strong>）是一个开放标准，目前的版本是2.0。允许用户授权第三方移动应用访问他们存储在其他服务商上存储的私密的资源（如照片，视频，联系人列表），而无需将用户名和密码提供给第三方应用。<br>OAuth允许用户提供一个<strong>令牌</strong>而不是用户名和密码来访问他们存放在特定服务商上的数据。每一个令牌授权一个特定的网站内访问特定的资源（例如仅仅是某一相册中的视频）。这样，OAuth可以允许用户授权第三方网站访问他们存储在另外服务提供者的某些特定信息，而非所有内容。<br>OAuth是OpenID的一个补充，但是完全不同的服务。</p>
-</blockquote>
-<p>简而言之：<strong>OAuth2.0 用于授权（Authorization）</strong>。<br>关于OAuth2.0也可参考我的另一篇博文<a href="https://www.cnblogs.com/sheng-jie/p/6564520.html" target="_blank" rel="noopener">OAuth2.0 知多少</a>。</p>
-<h2 id="2-3-OpenId-Connect"><a href="#2-3-OpenId-Connect" class="headerlink" title="2.3. OpenId Connect"></a>2.3. OpenId Connect</h2><blockquote>
-<p>OpenID Connect 1.0 是基于OAuth 2.0协议之上的简单身份层，它允许客户端根据授权服务器的认证结果最终确认终端用户的身份，以及获取基本的用户信息；它支持包括Web、移动、JavaScript在内的所有客户端类型去请求和接收终端用户信息和身份认证会话信息；它是可扩展的协议，允许你使用某些可选功能，如身份数据加密、OpenID提供商发现、会话管理等。</p>
-</blockquote>
-<p>简而言之：<strong>OpenId Connect = OIDC = Authentication + Authorization + OAuth2.0</strong>。</p>
-<p>比如，Facebook、Google、QQ、微博都是比较知名的OpenId  Connect提供商。</p>
-<h1 id="3-术语解释"><a href="#3-术语解释" class="headerlink" title="3. 术语解释"></a>3. 术语解释</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-00eec4bc3482dd66.png" alt=""></p>
-<p>了解完OpenId Connect和OAuth2.0的基本概念，我们再来梳理下涉及到的相关术语：</p>
-<ol>
-<li>User：用户</li>
-<li>Client：客户端</li>
-<li>Resources：Identity Data（身份数据）、Apis</li>
-<li>Identity Server：认证授权服务器</li>
-<li>Token：Access Token（访问令牌）和 Identity Token（身份令牌）</li>
-</ol>
-<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-3f778baddaf58043.png" alt=""></p>
-<h1 id="4-JwtBearer-认证"><a href="#4-JwtBearer-认证" class="headerlink" title="4. JwtBearer 认证"></a>4. JwtBearer 认证</h1><h2 id="4-1-HTTP身份验证流程"><a href="#4-1-HTTP身份验证流程" class="headerlink" title="4.1. HTTP身份验证流程"></a>4.1. HTTP身份验证流程</h2><blockquote>
-<p>HTTP提供了一套标准的身份验证框架：服务器可以用来针对客户端的请求发送质询(challenge)，客户端根据质询提供身份验证凭证。质询与应答的工作流程如下：服务器端向客户端返回401（Unauthorized，未授权）状态码，并在WWW-Authenticate头中添加如何进行验证的信息，其中至少包含有一种质询方式。然后客户端可以在请求中添加Authorization头进行验证，其Value为身份验证的凭证信息。</p>
-</blockquote>
-<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-6d9e1014fd3bca72.png" alt="HTTP身份验证流程"></p>
-<p>Bearer认证（也叫做令牌认证）是一种HTTP认证方案，其中包含的安全令牌的叫做Bearer Token。因此Bearer认证的核心是Token。那如何确保Token的安全是重中之重。一种方式是使用Https，另一种方式就是对Token进行加密签名。而JWT就是一种比较流行的Token编码方式。</p>
-<h2 id="4-2-JWT（Json-Web-Token"><a href="#4-2-JWT（Json-Web-Token" class="headerlink" title="4.2. JWT（Json Web Token)"></a>4.2. JWT（Json Web Token)</h2><blockquote>
-<p>Json web token (JWT), 是为了在网络应用环境间传递声明而执行的一种基于JSON的开放标准（<a href="https://tools.ietf.org/html/rfc7519" target="_blank" rel="noopener">RFC 7519</a>）。该token被设计为紧凑且安全的，特别适用于分布式站点的单点登录（SSO）场景。JWT的声明一般被用来在身份提供者和服务提供者间传递被认证的用户身份信息，以便于从资源服务器获取资源，也可以增加一些额外的其它业务逻辑所必须的声明信息，该token也可直接被用于认证，也可被加密。</p>
-</blockquote>
-<p>JWT有三部分组成：</p>
-<blockquote>
-<header>.<payload>.<signature>
-</blockquote>
-<ol>
-<li>Header：由<code>alg</code>和<code>typ</code>组成，<code>alg</code>是algorithm的缩写，<code>typ</code>是type的缩写，指定token的类型。该部分使用<code>Base64Url</code>编码。</li>
-<li>Payload：主要用来存储信息，包含各种声明，同样该部分也由<code>BaseURL</code>编码。</li>
-<li>Signature：签名，使用服务器端的密钥进行签名。以确保Token未被篡改。</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">HMACSHA256(</span><br><span class="line">  base64UrlEncode(header) + &quot;.&quot; +</span><br><span class="line">  base64UrlEncode(payload),</span><br><span class="line">  secret)</span><br></pre></td></tr></table></figure>
-
-<h1 id="5-授权模式"><a href="#5-授权模式" class="headerlink" title="5. 授权模式"></a>5. 授权模式</h1><p>OAuth2.0 定义了四种授权模式：</p>
-<ol>
-<li>Implicit：简化模式；直接通过浏览器的链接跳转申请令牌。</li>
-<li>Client Credentials：客户端凭证模式；该方法通常用于服务器之间的通讯；该模式仅发生在Client与Identity Server之间。</li>
-<li>Resource Owner Password Credentials：密码模式</li>
-<li>Authorization Code：授权码模式； </li>
-</ol>
-<h2 id="5-1-Client-Credentials"><a href="#5-1-Client-Credentials" class="headerlink" title="5.1. Client Credentials"></a>5.1. Client Credentials</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-b8f1275cda8b204d.png" alt="客户端凭证模式"></p>
-<p>客户端凭证模式，是最简单的授权模式，因为授权的流程仅发生在Client与Identity Server之间。</p>
-<p>该模式的适用场景为服务器与服务器之间的通信。比如对于一个电子商务网站，将订单和物流系统分拆为两个服务分别部署。订单系统需要访问物流系统进行物流信息的跟踪，物流系统需要访问订单系统的快递单号信息进行物流信息的定时刷新。而这两个系统之间服务的授权就可以通过这种模式来实现。</p>
-<h2 id="5-2-Resource-Owner-Password-Credentials"><a href="#5-2-Resource-Owner-Password-Credentials" class="headerlink" title="5.2. Resource Owner Password Credentials"></a>5.2. Resource Owner Password Credentials</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-934f091397d7234b.png" alt="密码模式"></p>
-<p>Resource Owner其实就是User，所以可以直译为用户名密码模式。密码模式相较于客户端凭证模式，多了一个参与者，就是User。通过User的用户名和密码向Identity Server申请访问令牌。这种模式下要求客户端不得储存密码。但我们并不能确保客户端是否储存了密码，所以该模式仅适用于受信任的客户端。否则会发生密码泄露的危险。<strong>该模式不推荐使用</strong>。</p>
-<h2 id="5-3-Authorization-Code"><a href="#5-3-Authorization-Code" class="headerlink" title="5.3. Authorization Code"></a>5.3. Authorization Code</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-15e218058b896231.png" alt="image.png"></p>
-<p>授权码模式是一种混合模式，是目前功能最完整、流程最严密的授权模式。它主要分为两大步骤：认证和授权。<br>其流程为：</p>
-<ol>
-<li>用户访问客户端，客户端将用户导向Identity Server。</li>
-<li>用户填写凭证信息向客户端授权，认证服务器根据客户端指定的重定向URI，并返回一个【Authorization Code】给客户端。</li>
-<li>客户端根据【Authorization Code】向Identity Server申请【Access Token】</li>
-</ol>
-<h2 id="5-4-Implicit"><a href="#5-4-Implicit" class="headerlink" title="5.4. Implicit"></a>5.4. Implicit</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-890a555d2a3922d3.png" alt="简化模式"></p>
-<p>简化模式是相对于授权码模式而言的。其不再需要【Client】的参与，所有的认证和授权都是通过浏览器来完成的。</p>
-<h1 id="6-IdentityServer4-集成"><a href="#6-IdentityServer4-集成" class="headerlink" title="6. IdentityServer4 集成"></a>6. IdentityServer4 集成</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-6708925e096c8510.png" alt="如何集成Identity Server"></p>
-<p>通过以上知识点的梳理，我们对OpenId Connect 和OAuth2.0的一些相关概念有了大致认识。而IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。<br>所以自然而然我们对IdentityServer4有了基础的认识。下面就来介绍如何集成IdentityServer4。其主要分为三步：</p>
-<ol>
-<li>IdentityServer如何配置和启用IdentityServer中间件</li>
-<li>Resources如何配置和启用认证授权中间件</li>
-<li>Client如何认证和授权</li>
-</ol>
-<h2 id="6-1-Identity-Server-中间件的配置和启用"><a href="#6-1-Identity-Server-中间件的配置和启用" class="headerlink" title="6.1. Identity Server 中间件的配置和启用"></a>6.1. Identity Server 中间件的配置和启用</h2><p>作为一个独立的Identity Server，它必须知道哪些资源需要保护，必须知道哪些客户端能够允许访问，这是配置的基础。<br>所以IdentityServer中间件的配置的核心就是：</p>
-<ol>
-<li>配置受保护的资源列表</li>
-<li>配置允许验证的Client</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Startup</span><br><span class="line">&#123;</span><br><span class="line">    public void ConfigureServices(IServiceCollection services)</span><br><span class="line">    &#123;</span><br><span class="line">        services.AddMvc();</span><br><span class="line">        &#x2F;&#x2F; configure identity server with in-memory stores, keys, clients and scopes</span><br><span class="line">        services.AddIdentityServer()</span><br><span class="line">            .AddDeveloperSigningCredential()</span><br><span class="line">             &#x2F;&#x2F;配置身份资源</span><br><span class="line">            .AddInMemoryIdentityResources(Config.GetIdentityResources())</span><br><span class="line">              &#x2F;&#x2F;配置API资源</span><br><span class="line">            .AddInMemoryApiResources(Config.GetApiResources())</span><br><span class="line">             &#x2F;&#x2F;预置允许验证的Client</span><br><span class="line">            .AddInMemoryClients(Config.GetClients())</span><br><span class="line">            .AddTestUsers(Config.GetUsers());</span><br><span class="line">        services.AddAuthentication()</span><br><span class="line">              &#x2F;&#x2F;添加Google第三方身份认证服务（按需添加）</span><br><span class="line">            .AddGoogle(&quot;Google&quot;, options &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                options.SignInScheme &#x3D; IdentityServerConstants.ExternalCookieAuthenticationScheme;</span><br><span class="line">                options.ClientId &#x3D; &quot;434483408261-55tc8n0cs4ff1fe21ea8df2o443v2iuc.apps.googleusercontent.com&quot;;</span><br><span class="line">                options.ClientSecret &#x3D; &quot;3gcoTrEDPPJ0ukn_aYYT6PWo&quot;;</span><br><span class="line">            &#125;)</span><br><span class="line">            &#x2F;&#x2F;如果当前IdentityServer不提供身份认证服务，还可以添加其他身份认证服                务提供商</span><br><span class="line">            .AddOpenIdConnect(&quot;oidc&quot;, &quot;OpenID Connect&quot;, options &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                options.SignInScheme &#x3D; IdentityServerConstants.ExternalCookieAuthenticationScheme;</span><br><span class="line">                options.SignOutScheme &#x3D; IdentityServerConstants.SignoutScheme;</span><br><span class="line">                options.Authority &#x3D; &quot;https:&#x2F;&#x2F;demo.identityserver.io&#x2F;&quot;;</span><br><span class="line">                options.ClientId &#x3D; &quot;implicit&quot;;</span><br><span class="line">                options.TokenValidationParameters &#x3D; new TokenValidationParameters</span><br><span class="line">                &#123;</span><br><span class="line">                    NameClaimType &#x3D; &quot;name&quot;,</span><br><span class="line">                    RoleClaimType &#x3D; &quot;role&quot;</span><br><span class="line">                &#125;;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void Configure(IApplicationBuilder app, IHostingEnvironment env)</span><br><span class="line">    &#123;</span><br><span class="line">        if (env.IsDevelopment())</span><br><span class="line">        &#123;</span><br><span class="line">            app.UseDeveloperExceptionPage();</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F;添加IdentityServer中间件到Pipeline</span><br><span class="line">        app.UseIdentityServer();</span><br><span class="line">        app.UseStaticFiles();</span><br><span class="line">        app.UseMvcWithDefaultRoute();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>配置完，添加IdentityServer到Pipeline即可。</p>
-<p>如果要支持第三方登录服务或自己实现的OpenId Connect服务，则需要额外配置下身份认证中间件。</p>
-<h2 id="6-2-Resources的保护配置"><a href="#6-2-Resources的保护配置" class="headerlink" title="6.2. Resources的保护配置"></a>6.2. Resources的保护配置</h2><p>配置完Identity Server，接下来我们该思考如何来保护Resources，以及如何将所有的认证和授权请求导流到Identity Server呢？<br>在此之前，我们还是要梳理下Client访问Resources的请求顺序：</p>
-<ol>
-<li>Client请求资源，资源如果需要进行身份认证和授权，则将请求导流到Identity Server。</li>
-<li>Identity Server根据Client配置的授权类型，返回【Token】。</li>
-<li>Client携带【Token】请求资源。</li>
-<li>受保护的资源服务器要能够验证【Token】的正确性。</li>
-</ol>
-<p>所以针对要保护的资源，我们需要以下配置：</p>
-<ol>
-<li>指定资源是否需要保护；</li>
-<li>指定IdentityServer用来进行认证和授权跳转；</li>
-<li>指定Token验证；</li>
-</ol>
-<p>代码示例：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;使用[Authorize]特性，来显式指定受保护的资源</span><br><span class="line">[Route(&quot;[controller]&quot;)]</span><br><span class="line">[Authorize]</span><br><span class="line">public class IdentityController : ControllerBase</span><br><span class="line">&#123;</span><br><span class="line">    [HttpGet]</span><br><span class="line">    public IActionResult Get()</span><br><span class="line">    &#123;</span><br><span class="line">        return new JsonResult(from c in User.Claims select new &#123; c.Type, c.Value &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Startup</span><br><span class="line">&#123;</span><br><span class="line">    public void ConfigureServices(IServiceCollection services)</span><br><span class="line">    &#123;</span><br><span class="line">        services.AddMvcCore()</span><br><span class="line">            .AddAuthorization()</span><br><span class="line">            .AddJsonFormatters();</span><br><span class="line">        &#x2F;&#x2F;指定认证方案</span><br><span class="line">        services.AddAuthentication(&quot;Bearer&quot;)</span><br><span class="line">              &#x2F;&#x2F;添加Token验证服务到DI</span><br><span class="line">            .AddIdentityServerAuthentication(options &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;指定授权地址</span><br><span class="line">                options.Authority &#x3D; &quot;http:&#x2F;&#x2F;localhost:5000&quot;;</span><br><span class="line">                options.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">                options.ApiName &#x3D; &quot;api1&quot;;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void Configure(IApplicationBuilder app)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;添加认证中间件到Pipeline</span><br><span class="line">        app.UseAuthentication();</span><br><span class="line">        app.UseMvc();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="6-3-Client的请求配置"><a href="#6-3-Client的请求配置" class="headerlink" title="6.3. Client的请求配置"></a>6.3. Client的请求配置</h2><p>资源和认证服务器都配置完毕，接下来客户端就可以直接访问了。<br>如果针对控制台客户端应用，三步走就可以访问Api：</p>
-<ol>
-<li>使用DiscoverClient发现Token Endpoint</li>
-<li>使用TokenClient请求Access Token</li>
-<li>使用HttpClient访问Api<br>代码示例如下：</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; discover endpoints from metadata</span><br><span class="line">var disco &#x3D; await DiscoveryClient.GetAsync(&quot;http:&#x2F;&#x2F;localhost:5000&quot;);</span><br><span class="line">&#x2F;&#x2F; request token（使用的是ClientCredentials授权类型）</span><br><span class="line">var tokenClient &#x3D; new TokenClient(disco.TokenEndpoint, &quot;client&quot;, &quot;secret&quot;);</span><br><span class="line">var tokenResponse &#x3D; await tokenClient.RequestClientCredentialsAsync(&quot;api1&quot;)</span><br><span class="line">if (tokenResponse.IsError)</span><br><span class="line">&#123;</span><br><span class="line">    Console.WriteLine(tokenResponse.Error);</span><br><span class="line">    return;</span><br><span class="line">&#125;</span><br><span class="line">Console.WriteLine(tokenResponse.Json);</span><br><span class="line">Console.WriteLine(&quot;\n\n&quot;);</span><br><span class="line">&#x2F;&#x2F; call api</span><br><span class="line">var client &#x3D; new HttpClient();</span><br><span class="line">client.SetBearerToken(tokenResponse.AccessToken);</span><br></pre></td></tr></table></figure>
-
-<p>如果针对ASP.NET Web控制台客户端，我们先来回答一个问题：</p>
-<ol>
-<li>如果Web应用是否需要登录？</li>
-<li>如果需要登录，就需要进行身份认证。</li>
-<li>身份认证成功后，也就需要会话状态的维持。</li>
-</ol>
-<p>回答完上面的问题，我们也就梳理出了配置要点：</p>
-<ol>
-<li>添加身份认证中间件</li>
-<li>启用Cookie进行会话保持</li>
-<li>添加OIDC，使用我们自己定义的IdentityServer提供的认证服务</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void ConfigureServices(IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line">    services.AddMvc();</span><br><span class="line">    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();</span><br><span class="line">    services.AddAuthentication(options &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            options.DefaultScheme &#x3D; &quot;Cookies&quot;;</span><br><span class="line">            options.DefaultChallengeScheme &#x3D; &quot;oidc&quot;;</span><br><span class="line">        &#125;)</span><br><span class="line">        .AddCookie(&quot;Cookies&quot;)</span><br><span class="line">        .AddOpenIdConnect(&quot;oidc&quot;, options &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            options.SignInScheme &#x3D; &quot;Cookies&quot;;</span><br><span class="line">            options.Authority &#x3D; &quot;http:&#x2F;&#x2F;localhost:5000&quot;;</span><br><span class="line">            options.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">            options.ClientId &#x3D; &quot;mvc&quot;;</span><br><span class="line">            options.SaveTokens &#x3D; true;</span><br><span class="line">        &#125;);</span><br><span class="line">&#125;</span><br><span class="line">public void Configure(IApplicationBuilder app, IHostingEnvironment env</span><br><span class="line">&#123;</span><br><span class="line">    if (env.IsDevelopment())</span><br><span class="line">    &#123;</span><br><span class="line">        app.UseDeveloperExceptionPage();</span><br><span class="line">    &#125;</span><br><span class="line">    else</span><br><span class="line">    &#123;</span><br><span class="line">        app.UseExceptionHandler(&quot;&#x2F;Home&#x2F;Error&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    app.UseAuthentication();</span><br><span class="line">    app.UseStaticFiles();</span><br><span class="line">    app.UseMvcWithDefaultRoute();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="7-最后"><a href="#7-最后" class="headerlink" title="7. 最后"></a>7. 最后</h1><p>本文通过介绍IdentityServer4涉及到的术语和相关概念，再结合官方实例，梳理了集成IdentityServer4的大致思路。而关于如何与ASP.NET Identity、EF Core集成，本文并未涉及，详参官方文档。</p>
-<blockquote>
-<p><a href="http://docs.identityserver.io/en/release/index.html" target="_blank" rel="noopener">Identity Server 官方文档</a><br><a href="https://www.cnblogs.com/stulzq/p/8119928.html" target="_blank" rel="noopener">dentityServer4 中文文档与实战</a></p>
-<p><a href="https://www.cnblogs.com/RainingNight/p/jwtbearer-authentication-in-asp-net-core.html" target="_blank" rel="noopener">JwtBearer认证</a></p>
-<p><a href="https://swagger.io/docs/specification/authentication/bearer-authentication/" target="_blank" rel="noopener">Bearer Authentication</a><br><a href="https://jwt.io/introduction/" target="_blank" rel="noopener">JSON Web Token</a><br><a href="http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html" target="_blank" rel="noopener">理解OAuth 2.0</a><br><a href="http://docs.identityserver.io/en/release/topics/grant_types.html" target="_blank" rel="noopener">Identity Server 授权类型</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>id4</tag>
-        <tag>OAuth2.0</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>IO模型知多少</title>
-    <url>/how-much-you-know-about-the-io-models/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
-<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</p>
-<p>简而言之，对于I/O的认知，不能仅仅停留在字面上认识，了解内部玄机，才能深刻理解I/O，才能看清I/O相关问题的本质。</p>
-<h1 id="2-I-O-的定义"><a href="#2-I-O-的定义" class="headerlink" title="2. I/O 的定义"></a>2. I/O 的定义</h1><p>I/O 的全称是Input/Output。虽常谈及I/O，但想必你也一时不能给出一个完整的定义。搜索了谷歌，发现也尽是些冗长的论述。要想厘清I/O这个概念，我们需要从不同的视角去理解它。</p>
-<h2 id="2-1-计算机视角"><a href="#2-1-计算机视角" class="headerlink" title="2.1. 计算机视角"></a>2.1. 计算机视角</h2><p> 冯•诺伊曼计算机的基本思想中有提到计算机硬件组成应为五大部分：控制器，运算器，存储器，输入和输出。其中输入是指将数据输入到计算机的设备，比如键盘鼠标；输出是指从计算机中获取数据的设备，比如显示器；以及既是输入又是输出设备，硬盘，网卡等。</p>
-<p>用户通过操作系统才能完成对计算机的操作。计算机启动时，第一个启动的程序是操作系统的内核，它将负责计算机的资源管理和进程的调度。换句话说：操作系统负责从输入设备读取数据并将数据写入到输出设备。</p>
-<p>所以I/O之于计算机，有两层意思：</p>
-<ol>
-<li>I/O设备</li>
-<li>对I/O设备的数据读写</li>
-</ol>
-<p><em>对于一次I/O操作，必然涉及2个参与方，一个输入端，一个输出端，而又根据参与双方的设备类型，我们又可以分为磁盘I/O，网络I/O（一次网络的请求响应，网卡）等。</em></p>
-<h2 id="2-2-程序视角"><a href="#2-2-程序视角" class="headerlink" title="2.2. 程序视角"></a>2.2. 程序视角</h2><p>应用程序作为一个文件保存在磁盘中，只有加载到内存到成为一个进程才能运行。应用程序运行在计算机内存中，必然会涉及到数据交换，比如读写磁盘文件，访问数据库，调用远程API等等。但我们编写的程序并不能像操作系统内核一样直接进行I/O操作。</p>
-<p>因为为了确保操作系统的安全稳定运行，操作系统启动后，将会开启保护模式：将内存分为内核空间（内核对应进程所在内存空间）和用户空间，进行内存隔离。我们构建的程序将运行在用户空间，用户空间无法操作内核空间，也就意味着用户空间的程序不能直接访问由内核管理的I/O，比如：硬盘、网卡等。</p>
-<p>但操作系统向外提供API，其由各种类型的系统调用（System Call）组成，以提供安全的访问控制。<br>所以应用程序要想访问内核管理的I/O，必须通过调用内核提供的系统调用(system call）进行间接访问。</p>
-<p>所以I/O之于应用程序来说，强调的通过<strong>向内核发起系统调用完成对I/O的间接访问</strong>。换句话说应用程序发起的一次IO操作实际包含两个阶段：</p>
-<ol>
-<li>IO调用阶段：应用程序进程向内核发起系统调用</li>
-<li>IO执行阶段：内核执行IO操作并返回<br>2.1. 准备数据阶段：内核等待I/O设备准备好数据<br>  2.2. 拷贝数据阶段：将数据从内核缓冲区拷贝到用户空间缓冲区</li>
-</ol>
-<p>怎么理解准备数据阶段呢？<br>对于写请求：等待系统调用的完整请求数据，并写入内核缓冲区；<br>对于读请求：等待系统调用的完整请求数据；（若请求数据不存在于内核缓冲区）则将外围设备的数据读入到内核缓冲区。</p>
-<p> <img src="../images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
-<p>而应用程序进程在发起IO调用至内核执行IO返回之前，应用程序进程/线程所处状态，就是我们下面要讨论的第二个话题阻塞IO与非阻塞IO。</p>
-<h1 id="3-IO-模型之阻塞I-O-BIO"><a href="#3-IO-模型之阻塞I-O-BIO" class="headerlink" title="3. IO 模型之阻塞I/O(BIO)"></a>3. IO 模型之阻塞I/O(BIO)</h1><p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。阻塞IO简称BIO，Blocking IO。其处理流程如下图所示：</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
-<p>从上图可知当用户进程发起IO系统调用后，内核从准备数据到拷贝数据到用户空间的两个阶段期间<strong>用户调用线程选择阻塞等待</strong>数据返回。</p>
-<p>因此BIO带来了一个问题：如果内核数据需要耗时很久才能准备好，那么用户进程将被阻塞，浪费性能。为了提升应用的性能，虽然可以通过多线程来提升性能，但线程的创建依然会借助系统调用，同时多线程会导致频繁的线程上下文的切换，同样会影响性能。所以要想解决BIO带来的问题，我们就得看到问题的本质，那就是<strong>阻塞</strong>二字。</p>
-<h1 id="4-IO-模型之非阻塞I-O-NIO"><a href="#4-IO-模型之非阻塞I-O-NIO" class="headerlink" title="4. IO 模型之非阻塞I/O(NIO)"></a>4. IO 模型之非阻塞I/O(NIO)</h1><p>那解决方案自然也容易想到，将阻塞变为非阻塞，那就是用户进程在发起系统调用时指定为非阻塞，内核接收到请求后，就会立即返回，然后用户进程通过轮询的方式来拉取处理结果。也就是如下图所示：</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
-<p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程不会等待而是立即返回，则此次IO操作为非阻塞IO模型。非阻塞IO简称NIO，Non-Blocking IO。</p>
-<p>然而，非阻塞IO虽然相对于阻塞IO大幅提升了性能，但依旧不是完美的解决方案，其依然存在性能问题，也就是频繁的轮询导致频繁的系统调用，会耗费大量的CPU资源。比如当并发很高时，假设有1000个并发，那么单位时间循环内将会有1000次系统调用去轮询执行结果，而实际上可能只有2个请求结果执行完毕，这就会有998次无效的系统调用，造成严重的性能浪费。有问题就要解决，那<strong>NIO问题的本质就是频繁轮询导致的无效系统调用</strong>。</p>
-<h1 id="5-IO模型之IO多路复用"><a href="#5-IO模型之IO多路复用" class="headerlink" title="5. IO模型之IO多路复用"></a>5. IO模型之IO多路复用</h1><p>解决NIO的思路就是降解无效的系统调用，如何降解呢？我们一起来看看以下几种IO多路复用的解决思路。</p>
-<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
-<p>但是，select有一个限制，就是存在连接数限制，针对于此，又提出了poll。其与select相比，主要是解决了连接限制。</p>
-<p>select/epoll 虽然解决了NIO重复无效系统调用用的问题，但同时又引入了新的问题。问题是：</p>
-<ol>
-<li>用户空间和内核空间之间，大量的数据拷贝</li>
-<li>内核循环遍历IO状态，浪费CPU时间</li>
-</ol>
-<p>换句话说，select/poll虽然减少了用户进程的发起的系统调用，但内核的工作量只增不减。在高并发的情况下，内核的性能问题依旧。所以select/poll的问题本质是：内核存在无效的循环遍历。</p>
-<h2 id="5-2-IO多路复用之epoll"><a href="#5-2-IO多路复用之epoll" class="headerlink" title="5.2. IO多路复用之epoll"></a>5.2. IO多路复用之epoll</h2><p>针对select/pool引入的问题，我们把解决问题的思路转回到内核上，如何减少内核重复无效的循环遍历呢？变主动为被动，基于事件驱动来实现。其流程图如下所示：</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
-<p>epoll相较于select/poll，多了两次系统调用，其中epoll_create建立与内核的连接，epoll_ctl注册事件，epoll_wait阻塞用户进程，等待IO事件。</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
-<p>epoll，已经大大优化了IO的执行效率，但在IO执行的第一阶段：数据准备阶段都还是被阻塞的。所以这是一个可以继续优化的点。</p>
-<h1 id="6-IO-模型之信号驱动IO-SIGIO"><a href="#6-IO-模型之信号驱动IO-SIGIO" class="headerlink" title="6. IO 模型之信号驱动IO(SIGIO)"></a>6. IO 模型之信号驱动IO(SIGIO)</h1><p>信号驱动IO与BIO和NIO最大的区别就在于，在IO执行的数据准备阶段，不会阻塞用户进程。<br>如下图所示：当用户进程需要等待数据的时候，会向内核发送一个信号，告诉内核我要什么数据，然后用户进程就继续做别的事情去了，而当内核中的数据准备好之后，内核立马发给用户进程一个信号，说”数据准备好了，快来查收“，用户进程收到信号之后，立马调用recvfrom，去查收数据。</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
-<p>乍一看，信号驱动式I/O模型有种异步操作的感觉，但是在IO执行的第二阶段，也就是将数据从内核空间复制到用户空间这个阶段，用户进程还是被阻塞的。</p>
-<p>综上，你会发现，不管是BIO还是NIO还是SIGIO，它们最终都会被阻塞在IO执行的第二阶段。<br>那如果能将IO执行的第二阶段变成非阻塞，那就完美了。</p>
-<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
-<p>所以，之所以称为异步IO，取决于IO执行的第二阶段是否阻塞。因此前面讲的BIO，NIO和SIGIO均为同步IO。</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
-<h1 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h1><p>梳理完这些IO模型后，之前一直处于懵懂状态的阻塞，非阻塞，同步异步IO，终于算是有个概念了。同时也纠正了自己一直以来的误解，所以一路走来，愈发觉得返璞归真的重要性，只有如此，才能在快速更迭的技术演进中，以不变应万变。</p>
-<p><em>本片综合多方资料写就，难免纰漏，但只有写下来，才能得以指正。所以，烦请各位看官不吝赐教。</em></p>
-<blockquote>
-<p>参考资料：</p>
-<ol>
-<li><a href="https://www.jianshu.com/p/fa7bdc4f3de7" target="_blank" rel="noopener">程序员应该这样理解IO</a></li>
-<li><a href="https://www.jianshu.com/p/511b9cffbdac" target="_blank" rel="noopener">IO复用模型同步，异步，阻塞，非阻塞及实例详解</a></li>
-<li><a href="https://juejin.im/post/5ca4c044e51d4565372e47cf" target="_blank" rel="noopener">服务器网络编程之 IO 模型</a></li>
-<li><a href="http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html" target="_blank" rel="noopener">http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html</a></li>
-<li><a href="https://cllc.fun/2019/03/07/synchronous-asynchronous-io/" target="_blank" rel="noopener">同步I/O(阻塞I/O，非阻塞I/O)，异步I/O</a></li>
-<li><a href="https://www.bilibili.com/video/BV11K4y1C7rm?p=2" target="_blank" rel="noopener">马士兵：权威讲解nio,epoll,多路复用</a></li>
-<li><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/9050467" target="_blank" rel="noopener">Linux 内核详解以及内核缓冲区技术</a></li>
-</ol>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>I/O</tag>
-        <tag>EPOLL</tag>
       </tags>
   </entry>
   <entry>
@@ -680,6 +241,128 @@
       </categories>
       <tags>
         <tag>OAuth2.0</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MediatR 知多少</title>
+    <url>/how-much-you-know-about-the-MediatR/</url>
+    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
+<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
+<p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
+<blockquote>
+<p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
+</blockquote>
+<p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
+<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
+<blockquote>
+<p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
+</blockquote>
+<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
+<p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
+<p>那其优缺点也在图中很容易看出：</p>
+<blockquote>
+<p><strong>优点</strong>：中介者模式的优点就是减少类间的依赖，把原有的一对多的依赖变成了一对一的依赖，同事类只依赖中介者，减少了依赖，当然同时也降低了类间的耦合<br><strong>缺点</strong>：中介者模式的缺点就是中介者会膨胀得很大，而且逻辑复杂，原本N个对象直接的相互依赖关系转换为中介者和同事类的依赖关系，同事类越多，中介者的逻辑就越复杂。</p>
+</blockquote>
+<h1 id="Hello-MeidatR"><a href="#Hello-MeidatR" class="headerlink" title="Hello MeidatR"></a>Hello MeidatR</h1><p>在开始之前，我们先来了解下其基本用法。</p>
+<h2 id="单播消息传输"><a href="#单播消息传输" class="headerlink" title="单播消息传输"></a>单播消息传输</h2><p>单播消息传输，也就是一对一的消息传递，一个消息对应一个消息处理。其通过<code>IRequest</code>来抽象单播消息，用<code>IRequestHandler</code>进行消息处理。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 消息请求</span><br><span class="line">public class Ping : IRequest&lt;string&gt; &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理</span><br><span class="line">public class PingHandler : IRequestHandler&lt;Ping, string&gt; &#123;</span><br><span class="line">    public Task&lt;string&gt; Handle(Ping request, CancellationToken cancellationToken) &#123;</span><br><span class="line">        return Task.FromResult(&quot;Pong&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;发送 请求</span><br><span class="line">var response &#x3D; await mediator.Send(new Ping());</span><br><span class="line">Debug.WriteLine(response); &#x2F;&#x2F; &quot;Pong&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="多播消息传输"><a href="#多播消息传输" class="headerlink" title="多播消息传输"></a>多播消息传输</h2><p>多播消息传输，也就是一对多的消息传递，一个消息对应多个消息处理。其通过<code>INotification</code>来抽象多播消息，对应的消息处理类型为<code>INotificationHandler</code>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
+
+<h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
+<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
+<p>从代码图中我们可以看到其核心的对象主要包括：</p>
+<ol>
+<li>IRequest Vs IRequestHandler</li>
+<li>INotification Vs INoticifaitonHandler</li>
+<li>IMediator Vs Mediator</li>
+<li>Unit</li>
+<li>IPipelineBehavior</li>
+</ol>
+<h2 id="IRequest-Vs-IRequestHandler"><a href="#IRequest-Vs-IRequestHandler" class="headerlink" title="IRequest Vs IRequestHandler"></a>IRequest Vs IRequestHandler</h2><p>其中<code>IRequest</code>和<code>INotification</code>分别对应单播和多播消息的抽象。<br>对于单播消息可以决定是否需要返回值选用不同的接口：</p>
+<ul>
+<li>IRequest<T> - 有返回值</li>
+<li>IRequest - 无返回值</li>
+</ul>
+<p>这里就不得不提到其中巧妙的设计，通过引入结构类型<code>Unit</code>来代表无返回的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表无需返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IRequest : IRequest&lt;Unit&gt; &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表有返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TResponse&quot;&gt;Response type&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IRequest&lt;out TResponse&gt; : IBaseRequest &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Allows for generic type constraints of objects implementing IRequest or IRequest&#123;TResponse&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IBaseRequest &#123; &#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样对于<code>IRequestHandler</code>也是通过结构类型<code>Unit</code>来处理不需要返回值的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IRequestHandler&lt;in TRequest, TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Task&lt;TResponse&gt; Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IRequestHandler&lt;in TRequest&gt; : IRequestHandler&lt;TRequest, Unit&gt;</span><br><span class="line">    where TRequest : IRequest&lt;Unit&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面我们可以看出定义了一个方法名为<code>Handle</code>返回值为<code>Task</code>的包装类型，而因此赋予了其具有以同步和异步的方式进行消息处理的能力。我们再看一下其以异步方式进行消息处理（无返回值）的默认实现<code>AsyncRequestHandler</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class AsyncRequestHandler&lt;TRequest&gt; : IRequestHandler&lt;TRequest&gt;</span><br><span class="line">    where TRequest : IRequest</span><br><span class="line">&#123;</span><br><span class="line">    async Task&lt;Unit&gt; IRequestHandler&lt;TRequest, Unit&gt;.Handle(TRequest request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        await Handle(request, cancellationToken).ConfigureAwait(false);</span><br><span class="line">        return Unit.Value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    protected abstract Task Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面的代码来看，我们很容易看出这是装饰模式的实现方式，是不是很巧妙的解决了无需返回值的场景。</p>
+<p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
+<p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
+<p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
+<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
+<p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
+<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
+<p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
+<ul>
+<li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
+<li>IRequestPostProcessor&lt;in TRequest, in TResponse&gt; 请求处理后接口</li>
+</ul>
+<p>其中<code>IPipelineBehavior</code>的默认实现：<code>RequestPreProcessorBehavior</code>和<code>RequestPostProcessorBehavior</code>分别用来处理所有实现<code>IRequestPreProcessor</code>和<code>IRequestPostProcessor</code>接口定义的管道行为。</p>
+<p>而处理管道是如何构建的呢？我们来看下<code>RequestHandlerWrapperImpl</code>的具体实现：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">internal class RequestHandlerWrapperImpl&lt;TRequest, TResponse&gt; : RequestHandlerWrapper&lt;TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public override Task&lt;TResponse&gt; Handle(IRequest&lt;TResponse&gt; request, CancellationToken cancellationToken,</span><br><span class="line">        ServiceFactory serviceFactory)</span><br><span class="line">    &#123;</span><br><span class="line">        Task&lt;TResponse&gt; Handler() &#x3D;&gt; GetHandler&lt;IRequestHandler&lt;TRequest, TResponse&gt;&gt;(serviceFactory).Handle((TRequest) request, cancellationToken);</span><br><span class="line"></span><br><span class="line">        return serviceFactory</span><br><span class="line">            .GetInstances&lt;IPipelineBehavior&lt;TRequest, TResponse&gt;&gt;()</span><br><span class="line">            .Reverse()</span><br><span class="line">            .Aggregate((RequestHandlerDelegate&lt;TResponse&gt;) Handler, (next, pipeline) &#x3D;&gt; () &#x3D;&gt; pipeline.Handle((TRequest)request, cancellationToken, next))();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>就这样一个简单的函数，涉及的知识点还真不少，说实话我花了不少时间来理清这个逻辑。<br>那都涉及到哪些知识点呢？我们一个一个的来理一理。</p>
+<ol>
+<li>C# 7.0的新特性 - 局部函数</li>
+<li>C# 6.0的新特性 - 表达式形式的成员函数</li>
+<li>Linq高阶函数 - <code>Aggregate</code></li>
+<li>匿名委托</li>
+<li>构造委托函数链</li>
+</ol>
+<p>关于第1、2个知识点，请看下面这段代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();&#x2F;&#x2F;定义委托</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;局部函数(在函数内部定义函数)</span><br><span class="line">    &#x2F;&#x2F;表达式形式的成员函数， 相当于 int Sum() &#123; return 1 + 2;&#125;</span><br><span class="line">    int Sum() &#x3D;&gt; 1 + 2;</span><br><span class="line"></span><br><span class="line">    var sumDelegate &#x3D; (SumDelegate)Sum;&#x2F;&#x2F;转换为委托</span><br><span class="line">    Console.WriteLine(sumDelegate());&#x2F;&#x2F;委托调用，输出：3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再看第4个知识点，匿名委托：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();</span><br><span class="line"></span><br><span class="line">SumDelegate delegater1 &#x3D; delegate()&#123; return 1+2; &#125;</span><br><span class="line">&#x2F;&#x2F;也相当于</span><br><span class="line">SumDelegate delegater2 &#x3D;&gt; 1+2;</span><br></pre></td></tr></table></figure>
+
+<p>下面再来介绍一下<code>Aggregate</code>这个Linq高阶函数。<code>Aggregate</code>是对一个集合序列进行累加操作，通过指定初始值，累加函数，以及结果处理函数完成计算。</p>
+<p>函数定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static TResult Aggregate&lt;TSource,TAccumulate,TResult&gt;</span><br><span class="line">(this IEnumerable&lt;TSource&gt; source, </span><br><span class="line">TAccumulate seed, </span><br><span class="line">Func&lt;TAccumulate,TSource,TAccumulate&gt; func, </span><br><span class="line">Func&lt;TAccumulate,TResult&gt; resultSelector);</span><br></pre></td></tr></table></figure>
+
+<p>根据函数定义我们来写个简单的demo：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; Enumerable.Range(2, 3);&#x2F;&#x2F;[2,3,4]</span><br><span class="line">&#x2F;&#x2F; 计算1到5的累加之和，再将结果乘以2</span><br><span class="line">var sum &#x3D; nums.Aggregate(1, (total, next) &#x3D;&gt; total + next, result &#x3D;&gt; result * 2);&#x2F;&#x2F; 相当于 (((1+2)+3)+4)*2&#x3D;20</span><br><span class="line">Console.WriteLine(sum);&#x2F;&#x2F;20</span><br></pre></td></tr></table></figure>
+<p>和函数参数进行一一对应：</p>
+<ol>
+<li>seed : 1</li>
+<li>Func&lt;TAccumulate,TSource,TAccumulate&gt; func : (total, next) =&gt; total + next</li>
+<li>Func&lt;TAccumulate,TResult&gt; resultSelector : result =&gt; result * 2</li>
+</ol>
+<p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
+<p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
+<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
+<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
+<p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
+<p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
+<p>至此，MediatR的实现思路算是理清了。</p>
+<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>如文章开头提到：MediatR是一种进程内消息传递机制。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</p>
+<p>那么我们就应该明白，其核心是<strong>消息的解耦</strong>。因为我们几乎都是在与消息打交道，那因此它的应用场景就很广泛，比如我们可以基于MediatR实现CQRS、EventBus等。</p>
+<p>另外，还有一种应用场景：我们知道借助依赖注入的好处是，就是解除依赖，但我们又不得不思考一个问题，随着业务逻辑复杂度的增加，构造函数可能要注入更多的服务，当注入的依赖太多时，其会导致构造函数膨胀。比如：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(</span><br><span class="line">    ICustomerRepository customerRepository,</span><br><span class="line">    IOrderService orderService,</span><br><span class="line">    ICustomerHistoryRepository historyRepository,</span><br><span class="line">    IOrderRepository orderRepository,</span><br><span class="line">    IProductRespoitory productRespoitory,</span><br><span class="line">    IRelatedProductsRepository relatedProductsRepository,</span><br><span class="line">    ISupportService supportService,</span><br><span class="line">    ILog logger</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+<p>如果借助<code>MediatR</code>进行改造，也许仅需注入<code>IMediatR</code>就可以了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(IMediatR mediatr)</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>看到这里，也许你应该明白MediatR实质上并不是严格意义上的中介者模式实现，我更倾向于其是基于Ioc容器的一层抽象，根据请求定位相应的请求处理器进行消息处理，也就是服务定位。<br>那到这里似乎也恍然大悟MediatR这个笔误可能是有意为之了。序员，你怎么看？</p>
+<blockquote>
+<p>参考资料：<br><a href="https://lostechies.com/jimmybogard/2016/10/27/cqrsmediatr-implementation-patterns/" target="_blank" rel="noopener">CQRS/MediatR implementation patterns</a><br><a href="https://stackoverflow.com/questions/50663501/mediatr-when-and-why-i-should-use-it-vs-2017-webapi" target="_blank" rel="noopener">MediatR when and why I should use it? vs 2017 webapi</a><br><a href="https://www.jianshu.com/p/c28500ec9439?tdsourcetag=s_pctim_aiomsg" target="_blank" rel="noopener">ABP CQRS 实现案例:基于 MediatR 实现</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET Core</tag>
+        <tag>发布订阅模式</tag>
+        <tag>中介者模式</tag>
       </tags>
   </entry>
   <entry>
@@ -1335,6 +1018,323 @@
       </categories>
       <tags>
         <tag>WinDbg</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>事件总线知多少(2)</title>
+    <url>/how-much-you-know-about-the-eventbus-2/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
+<h1 id="2-回顾事件总线"><a href="#2-回顾事件总线" class="headerlink" title="2.回顾事件总线"></a>2.回顾事件总线</h1><p>在进行具体分析之前，我们还是先对我们实现的事件总线进行一个简单的回顾：</p>
+<ol>
+<li>针对事件源，抽象<code>IEventData</code>接口；</li>
+<li>针对事件处理，抽象<code>IEventHandler&lt;TEventData&gt;</code>接口，定义唯一事件处理方法<code>void HandleEvent(IEventData eventData)</code>；</li>
+<li>事件总线维护一个事件源和事件处理的类型映射字典<code>ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping</code>；</li>
+<li>通过单例模式，确保事件总线的唯一入口；</li>
+<li>利用反射完成事件源与事件处理的动态初始化绑定；</li>
+<li>提供入口支持事件的手动注册/取消注册；</li>
+<li>提供统一的事件触发接口，通过反射动态创建<code>IEventHandler</code>实例完成具体事件处理逻辑的调用。</li>
+</ol>
+<h1 id="3-发现反射问题"><a href="#3-发现反射问题" class="headerlink" title="3.发现反射问题"></a>3.发现反射问题</h1><p>基于以上的简单回顾，我们可以发现Alpha版本事件总线的成功离不开反射的支持。从动态绑定到动态触发，都是反射在默默的处理着业务逻辑。如果我们只是简单学习了解事件总线，使用反射无可厚非。但如果在实际的项目中，使用反射却不是一个很明智的行为，因为其性能问题。尤其是事件总线要集中处理整个应用程序的所有事件，更易导致程序性能瓶颈。<br>既然说到了反射性能，那就顺便解释下为什么反射性能差？</p>
+<ol>
+<li>类型绑定（元数据字符串匹配）</li>
+<li>参数校验</li>
+<li>安全校验</li>
+<li>基于运行时</li>
+<li>反射产生大量临时对象，增加GC负担</li>
+</ol>
+<p>那既然反射有性能瓶颈，我们该如何是好呢？<br>你可能会说，既然反射有问题，那就对反射进行性能优化，比如增加缓存机制。出发点是好的，但最终还是在反射问题的阴影之下。对于反射我们应该持以这样一种态度：能不用反射，则不用反射。</p>
+<p>那既然要推翻反射这条路，那如何解决动态绑定和动态触发的问题呢？<br>办法总比问题多。额，啊，嗯。就不饶圈子了，咱们上IOC。</p>
+<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
+<p>下面我们就以<a href="https://github.com/castleproject/Windsor" target="_blank" rel="noopener">Castle Windsor</a>作为我们的IOC容器为例，来讲解下如何解除依赖。</p>
+<h2 id="4-1-了解Castle-Windsor"><a href="#4-1-了解Castle-Windsor" class="headerlink" title="4.1. 了解Castle Windsor"></a>4.1. 了解Castle Windsor</h2><p>使用Castle Windsor主要包含以下几步：</p>
+<ol>
+<li>初始化容器：<code>var container = new WindsorContainer();</code></li>
+<li>使用WindsorInstallers从执行程序集添加和配置所有组件：<code>container.Install(FromAssembly.This());</code></li>
+<li>实现<code>IWindsorInstaller</code>自定义安装器：<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class RepositoriesInstaller : IWindsorInstaller</span><br><span class="line">&#123;</span><br><span class="line">	public void Install(IWindsorContainer container, IConfigurationStore store)</span><br><span class="line">	&#123;</span><br><span class="line">		container.Register(Classes.FromThisAssembly()</span><br><span class="line">			                .Where(Component.IsInSameNamespaceAs&lt;King&gt;())</span><br><span class="line">			                .WithService.DefaultInterfaces()</span><br><span class="line">			                .LifestyleTransient());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>注册和解析依赖</li>
+<li>程序退出时，释放容器</li>
+</ol>
+<h2 id="4-2-使用Castle-Windsor"><a href="#4-2-使用Castle-Windsor" class="headerlink" title="4.2. 使用Castle Windsor"></a>4.2. 使用Castle Windsor</h2><p>使用IOC容器的目的很明确，一个是在注册事件时完成依赖的注入，一个是在触发事件时完成依赖的解析。从而完成事件的动态绑定和触发。</p>
+<h3 id="4-2-1-初始化容器"><a href="#4-2-1-初始化容器" class="headerlink" title="4.2.1. 初始化容器"></a>4.2.1. 初始化容器</h3><p>要在<code>EventBus</code>这个类中完成事件依赖的注入和解析，就需要在本类中持有一个对<code>IWindsorContainer</code>的引用。<br>可以直接定义一个只读属性，并在构造函数中进行初始化即可。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public IWindsorContainer IocContainer &#123; get; private set; &#125;&#x2F;&#x2F;定义IOC容器</span><br><span class="line">private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br><span class="line">public EventBus()</span><br><span class="line">&#123;</span><br><span class="line">      IocContainer &#x3D; new WindsorContainer();</span><br><span class="line">      _eventAndHandlerMapping &#x3D; new ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-2-注册和取消注册依赖"><a href="#4-2-2-注册和取消注册依赖" class="headerlink" title="4.2.2.注册和取消注册依赖"></a>4.2.2.注册和取消注册依赖</h3><p>初始化完容器，我们需要在手动注册和取消注册事件API上分别完成依赖的注册和取消注册。因为Castle Windsor在3.0版本取消了UnRegister方法，所以在进行事件注册时，就不再手动卸载IOC容器中已注册的依赖。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 手动绑定事件源与事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;handlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line"> public void Register(Type eventType, Type handlerType)</span><br><span class="line"> &#123;</span><br><span class="line">     &#x2F;&#x2F;注册IEventHandler&lt;T&gt;到IOC容器</span><br><span class="line">     var handlerInterface &#x3D; handlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line">     if (!IocContainer.Kernel.HasComponent(handlerInterface))</span><br><span class="line">     &#123;</span><br><span class="line">         IocContainer.Register(Component.For(handlerInterface, handlerType));</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     &#x2F;&#x2F;注册到事件总线</span><br><span class="line">     &#x2F;&#x2F;省略其他代码</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 手动解除事件源与事件处理的绑定</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;handlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    _eventAndHandlerMapping.GetOrAdd(typeof(TEventData), (type) &#x3D;&gt; new List&lt;Type&gt;())</span><br><span class="line">        .RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-3-动态事件绑定"><a href="#4-2-3-动态事件绑定" class="headerlink" title="4.2.3. 动态事件绑定"></a>4.2.3. 动态事件绑定</h3><p>要实现事件的动态绑定，我们要拿到所有<code>IEventHandler&lt;T&gt;</code>的实现。而遍历所有类型最好的办法就是拿到程序集（Assembly）。拿到程序集后就可以将所有<code>IEventHandler&lt;T&gt;</code>的实现注册到IOC容器，然后再基于IOC容器注册的<code>IEventHandler&lt;T&gt;</code>动态映射事件源和事件处理。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 提供入口支持注册其它程序集中实现的IEventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;assembly&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void RegisterAllEventHandlerFromAssembly(Assembly assembly)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.将IEventHandler注册到Ioc容器</span><br><span class="line">    IocContainer.Register(Classes.FromAssembly(assembly)</span><br><span class="line">        .BasedOn(typeof(IEventHandler&lt;&gt;))</span><br><span class="line">        .WithService.AllInterfaces()</span><br><span class="line">        .LifestyleSingleton());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;2.从IOC容器中获取注册的所有IEventHandler</span><br><span class="line">    var handlers &#x3D; IocContainer.Kernel.GetHandlers(typeof(IEventHandler));</span><br><span class="line">    foreach (var handler in handlers)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;循环遍历所有的IEventHandler&lt;T&gt;</span><br><span class="line">        var interfaces &#x3D; handler.ComponentModel.Implementation.GetInterfaces();</span><br><span class="line">        foreach (var @interface in interfaces)</span><br><span class="line">        &#123;</span><br><span class="line">            if (!typeof(IEventHandler).IsAssignableFrom(@interface))</span><br><span class="line">            &#123;</span><br><span class="line">                continue;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;获取泛型参数类型</span><br><span class="line">            var genericArgs &#x3D; @interface.GetGenericArguments();</span><br><span class="line">            if (genericArgs.Length &#x3D;&#x3D; 1)</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;注册到事件源与事件处理的映射字典中</span><br><span class="line">                Register(genericArgs[0], handler.ComponentModel.Implementation);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过这种方式，我们就可以再其他需要使用事件总线的项目中，添加引用后，通过调用以下代码，来完成程序集中<code>IEventHandler&lt;T&gt;</code>的动态绑定。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;注册当前程序集中实现的所有IEventHandler&lt;T&gt;</span><br><span class="line">EventBus.Default.RegisterAllEventHandlerFromAssembly(Assembly.GetExecutingAssembly());</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-4-动态事件触发"><a href="#4-2-4-动态事件触发" class="headerlink" title="4.2.4. 动态事件触发"></a>4.2.4. 动态事件触发</h3><p>触发事件时主要分三步，第一步从事件源与事件处理的字典中取出映射的<code>IEventHandler</code>集合，第二步使用IOC容器解析依赖，第三步调用<code>HandleEvent</code>方法。代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 根据事件源触发绑定的事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void Trigger&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;获取所有映射的EventHandler</span><br><span class="line">    List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line"></span><br><span class="line">    if (handlerTypes !&#x3D; null &amp;&amp; handlerTypes.Count &gt; 0)</span><br><span class="line">    &#123;</span><br><span class="line">        foreach (var handlerType in handlerTypes)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;从Ioc容器中获取所有的实例</span><br><span class="line">            var handlerInterface &#x3D; handlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line">            var eventHandlers &#x3D; IocContainer.ResolveAll(handlerInterface);</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;循环遍历，仅当解析的实例类型与映射字典中事件处理类型一致时，才触发事件</span><br><span class="line">            foreach (var eventHandler in eventHandlers)</span><br><span class="line">            &#123;</span><br><span class="line">                if (eventHandler.GetType() &#x3D;&#x3D; handlerType)</span><br><span class="line">                &#123;</span><br><span class="line">                    var handler &#x3D; eventHandler as IEventHandler&lt;TEventData&gt;;</span><br><span class="line">                    handler.HandleEvent(eventData);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="5-用例完善"><a href="#5-用例完善" class="headerlink" title="5.用例完善"></a>5.用例完善</h1><p>我们上面使用IOC容器替换了反射，在程序的易用性和性能上都有所提升。但很显然，用例不够完善且存在一些潜在问题，比如：</p>
+<ol>
+<li>支持Action EventHandler的绑定和触发</li>
+<li>异步触发</li>
+<li>触发指定的EventHandler</li>
+<li>线程安全</li>
+<li>等等等</li>
+</ol>
+<p>下面我们就来先一一完善以上几个问题。</p>
+<h2 id="5-1-支持Action事件处理器"><a href="#5-1-支持Action事件处理器" class="headerlink" title="5.1.支持Action事件处理器"></a>5.1.支持Action事件处理器</h2><p>如果每一个事件处理都要定义一个类去实现<code>IEventHandler&lt;T&gt;</code>接口，很显然会造成类急剧膨胀。且在一些简单场景，定义一个类又大才小用。这时我们应该立刻想到Action。<br>使用Action，第一步我们要对其进行封装，提供一个公共的<code>ActionEventHandler</code>来统一处理所有的Action事件处理器。代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 支持Action的事件处理器</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">internal class ActionEventHandler&lt;TEventData&gt; : IEventHandler&lt;TEventData&gt; where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 定义Action的引用，并通过构造函数传参初始化</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public Action&lt;TEventData&gt; Action &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public ActionEventHandler(Action&lt;TEventData&gt; handler)</span><br><span class="line">    &#123;</span><br><span class="line">        Action &#x3D; handler;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 调用具体的Action来处理事件逻辑</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void HandleEvent(TEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        Action(eventData);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有了<code>ActionEventHandler</code>做封装，下一步就是注入IOC容器并注册到事件总线了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 注册Action事件处理器</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;action&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">public void Register&lt;TEventData&gt;(Action&lt;TEventData&gt; action) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.构造ActionEventHandler</span><br><span class="line">    var actionHandler &#x3D; new ActionEventHandler&lt;TEventData&gt;(action);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;2.将ActionEventHandler的实例注入到Ioc容器</span><br><span class="line">    IocContainer.Register(</span><br><span class="line">        Component.For&lt;IEventHandler&lt;TEventData&gt;&gt;()</span><br><span class="line">        .UsingFactoryMethod(() &#x3D;&gt; actionHandler)</span><br><span class="line">        .LifestyleSingleton());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;3.注册到事件总线</span><br><span class="line">    Register&lt;TEventData&gt;(actionHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用起来就很简单：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;注册Action事件处理器</span><br><span class="line">EventBus.Default.Register&lt;EventData&gt;(</span><br><span class="line">    actionEventData &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        Trace.TraceInformation(actionEventData.EventTime.ToLongDateString());</span><br><span class="line">    &#125;);</span><br><span class="line">&#x2F;&#x2F;触发</span><br><span class="line">EventBus.Default.Trigger(new EventData());</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-2-支持异步触发"><a href="#5-2-支持异步触发" class="headerlink" title="5.2. 支持异步触发"></a>5.2. 支持异步触发</h2><p>异步触发很简单直接使用<code>Task.Run</code>包装一下就ok了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 异步触发</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">public Task TriggerAsync&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    return Task.Run(() &#x3D;&gt; Trigger&lt;TEventData&gt;(eventData));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-3-触发指定EventHandler"><a href="#5-3-触发指定EventHandler" class="headerlink" title="5.3.触发指定EventHandler"></a>5.3.触发指定EventHandler</h2><p>在我们的<code>Trigger</code>方法中我们会将某一个事件源绑定的事件处理全部触发。但在某些场景下，我们可能并不需要全部触发，仅需要触发指定的EventHandler。这个需求很实际，我们来实现一下。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 触发指定EventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line"></span><br><span class="line">public void Trigger&lt;TEventData&gt;(Type eventHandlerType, TEventData eventData) </span><br><span class="line">    where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;获取类型实现的泛型接口</span><br><span class="line">    var handlerInterface &#x3D; eventHandlerType.GetInterface(&quot;IEventHandler&#96;1&quot;);</span><br><span class="line"></span><br><span class="line">    var eventHandlers &#x3D; IocContainer.ResolveAll(handlerInterface);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;循环遍历，仅当解析的实例类型与映射字典中事件处理类型一致时，才触发事件</span><br><span class="line">    foreach (var eventHandler in eventHandlers)</span><br><span class="line">    &#123;</span><br><span class="line">        if (eventHandler.GetType() &#x3D;&#x3D; eventHandlerType)</span><br><span class="line">        &#123;</span><br><span class="line">            var handler &#x3D; eventHandler as IEventHandler&lt;TEventData&gt;;</span><br><span class="line">            handler?.HandleEvent(eventData);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 异步触发指定EventHandler</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandlerType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">public Task TriggerAsycn&lt;TEventData&gt;(Type eventHandlerType, TEventData eventData)</span><br><span class="line">    where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    return Task.Run(() &#x3D;&gt; Trigger(eventHandlerType, eventData));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上个测试用例：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"> [Fact]</span><br><span class="line">public async void Should_Call_Specified_Handler_Async()</span><br><span class="line">&#123;</span><br><span class="line">    TestEventBus.Register&lt;TestEventData&gt;(new TestEventHandler());</span><br><span class="line"></span><br><span class="line">    var count &#x3D; 0;</span><br><span class="line">    TestEventBus.Register&lt;TestEventData&gt;(</span><br><span class="line">        actionEventData &#x3D;&gt; &#123; count++; &#125;</span><br><span class="line">    );</span><br><span class="line">    await TestEventBus.TriggerAsycn&lt;TestEventData&gt;</span><br><span class="line">        (typeof(TestEventHandler), new TestEventData(999));</span><br><span class="line"></span><br><span class="line">    TestEventHandler.TestValue.ShouldBe(999);</span><br><span class="line">    count.ShouldBe(0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-4-线程安全问题"><a href="#5-4-线程安全问题" class="headerlink" title="5.4.线程安全问题"></a>5.4.线程安全问题</h2><p>在事件总线中，维护的事件源和事件处理的映射字典是整个程序中的重中之重。我们选择了使用<code>ConcurrentDictionary</code>线程安全字典来规避线程安全问题。但实际我们真正做到线程安全了吗？我们看下映射字典申明：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义线程安全集合</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br></pre></td></tr></table></figure>
+<p>聪慧如你，我们的事件源支持绑定多个事件处理，<code>ConcurrentDictionary</code>确保了对key值（事件源）修改的线程安全，但无法确保事件处理的列表<code>List&lt;Type&gt;</code>的线程安全。那我们就来动手改造吧。同样代码很简单：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义锁对象</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private static object lockObj&#x3D; new object();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 获取事件总线映射字典中指定事件源的事件列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若有，返回列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若无，构造空列表返回</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">private List&lt;Type&gt; GetOrCreateHandlers(Type eventType)</span><br><span class="line">&#123;</span><br><span class="line">    return _eventAndHandlerMapping.GetOrAdd(eventType, (type) &#x3D;&gt; new List&lt;Type&gt;());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void Register(Type eventType, Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    &#x2F;&#x2F;注册到事件总线</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(eventType).Add(handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(typeof(TEventData)).RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="6-单元测试"><a href="#6-单元测试" class="headerlink" title="6.单元测试"></a>6.单元测试</h1><p>为了确保重构的正确性和业务的完整性，以上的改进都是基于单元测试进行改进的，使用的是Xunit+Shouldly。虽然不能保证单元测试的覆盖度，但至少确保了正常业务的流转。</p>
+<p><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
+<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
+<hr>
+<blockquote>
+<p>参考资料：<br><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lwhkdash/archive/2012/09/28/2707549.html" target="_blank" rel="noopener">[c#] 反射真的很可怕吗？</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET Core</tag>
+        <tag>EventBus</tag>
+        <tag>发布订阅模式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IdentityServer4 知多少</title>
+    <url>/how-much-you-know-about-the-identityserver4/</url>
+    <content><![CDATA[<h1 id=""><a href="#" class="headerlink" title=""></a><img src="../images/how-much-you-know-about-the-identityserver4/2799767-c17b64e06a2d4f71-1588585455631.png" alt=""></h1><h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>现在的应用开发层出不穷，基于浏览器的网页应用，基于微信的公众号、小程序，基于IOS、Android的App，基于Windows系统的桌面应用和UWP应用等等，这么多种类的应用，就给应用的开发带来的挑战，我们除了分别实现各个应用外，我们还要考虑各个应用之间的交互，通用模块的提炼，其中身份的认证和授权就是每个应用必不可少的的一部分。而现在的互联网，对于信息安全要求又十分苛刻，所以一套统一的身份认证和授权就至关重要。</p>
+<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-edb5904a988bb3a6.png" alt="IdentityServer 4"></p>
+<blockquote>
+<p>IdentityServer4就是这样一个框架，IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。</p>
+</blockquote>
+<p>下面我们就来介绍一下相关概念，并梳理下如何集成IdentityServer4。<br>也可浏览自行整理的<strong><a href="http://naotu.baidu.com/file/75b251257ce27cfa62e0ad7f47b75576?token=e2db617be22b6274" target="_blank" rel="noopener">IdentityServer4 百度脑图</a></strong>快速了解。</p>
+<h1 id="2-OAuth2-0-amp-amp-OpenId-Connect"><a href="#2-OAuth2-0-amp-amp-OpenId-Connect" class="headerlink" title="2.OAuth2.0 &amp;&amp; OpenId Connect"></a>2.OAuth2.0 &amp;&amp; OpenId Connect</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-4cd2e40d9b5d84b5.png" alt=""></p>
+<h2 id="2-1-OpenId"><a href="#2-1-OpenId" class="headerlink" title="2.1. OpenId"></a>2.1. OpenId</h2><blockquote>
+<p>OpenID 是一个<strong>以用户为中心的数字身份识别框架</strong>，它具有开放、分散性。OpenID 的创建基于这样一个概念：我们可以通过 URI （又叫 URL 或网站地址）来认证一个网站的唯一身份，同理，我们也可以通过这种方式来作为用户的身份认证。</p>
+</blockquote>
+<p>简而言之：<strong>OpenId用于身份认证（Authentication）</strong>。</p>
+<h2 id="2-2-OAuth-2-0"><a href="#2-2-OAuth-2-0" class="headerlink" title="2.2. OAuth 2.0"></a>2.2. OAuth 2.0</h2><blockquote>
+<p>OAuth（<strong>开放授权</strong>）是一个开放标准，目前的版本是2.0。允许用户授权第三方移动应用访问他们存储在其他服务商上存储的私密的资源（如照片，视频，联系人列表），而无需将用户名和密码提供给第三方应用。<br>OAuth允许用户提供一个<strong>令牌</strong>而不是用户名和密码来访问他们存放在特定服务商上的数据。每一个令牌授权一个特定的网站内访问特定的资源（例如仅仅是某一相册中的视频）。这样，OAuth可以允许用户授权第三方网站访问他们存储在另外服务提供者的某些特定信息，而非所有内容。<br>OAuth是OpenID的一个补充，但是完全不同的服务。</p>
+</blockquote>
+<p>简而言之：<strong>OAuth2.0 用于授权（Authorization）</strong>。<br>关于OAuth2.0也可参考我的另一篇博文<a href="https://www.cnblogs.com/sheng-jie/p/6564520.html" target="_blank" rel="noopener">OAuth2.0 知多少</a>。</p>
+<h2 id="2-3-OpenId-Connect"><a href="#2-3-OpenId-Connect" class="headerlink" title="2.3. OpenId Connect"></a>2.3. OpenId Connect</h2><blockquote>
+<p>OpenID Connect 1.0 是基于OAuth 2.0协议之上的简单身份层，它允许客户端根据授权服务器的认证结果最终确认终端用户的身份，以及获取基本的用户信息；它支持包括Web、移动、JavaScript在内的所有客户端类型去请求和接收终端用户信息和身份认证会话信息；它是可扩展的协议，允许你使用某些可选功能，如身份数据加密、OpenID提供商发现、会话管理等。</p>
+</blockquote>
+<p>简而言之：<strong>OpenId Connect = OIDC = Authentication + Authorization + OAuth2.0</strong>。</p>
+<p>比如，Facebook、Google、QQ、微博都是比较知名的OpenId  Connect提供商。</p>
+<h1 id="3-术语解释"><a href="#3-术语解释" class="headerlink" title="3. 术语解释"></a>3. 术语解释</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-00eec4bc3482dd66.png" alt=""></p>
+<p>了解完OpenId Connect和OAuth2.0的基本概念，我们再来梳理下涉及到的相关术语：</p>
+<ol>
+<li>User：用户</li>
+<li>Client：客户端</li>
+<li>Resources：Identity Data（身份数据）、Apis</li>
+<li>Identity Server：认证授权服务器</li>
+<li>Token：Access Token（访问令牌）和 Identity Token（身份令牌）</li>
+</ol>
+<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-3f778baddaf58043.png" alt=""></p>
+<h1 id="4-JwtBearer-认证"><a href="#4-JwtBearer-认证" class="headerlink" title="4. JwtBearer 认证"></a>4. JwtBearer 认证</h1><h2 id="4-1-HTTP身份验证流程"><a href="#4-1-HTTP身份验证流程" class="headerlink" title="4.1. HTTP身份验证流程"></a>4.1. HTTP身份验证流程</h2><blockquote>
+<p>HTTP提供了一套标准的身份验证框架：服务器可以用来针对客户端的请求发送质询(challenge)，客户端根据质询提供身份验证凭证。质询与应答的工作流程如下：服务器端向客户端返回401（Unauthorized，未授权）状态码，并在WWW-Authenticate头中添加如何进行验证的信息，其中至少包含有一种质询方式。然后客户端可以在请求中添加Authorization头进行验证，其Value为身份验证的凭证信息。</p>
+</blockquote>
+<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-6d9e1014fd3bca72.png" alt="HTTP身份验证流程"></p>
+<p>Bearer认证（也叫做令牌认证）是一种HTTP认证方案，其中包含的安全令牌的叫做Bearer Token。因此Bearer认证的核心是Token。那如何确保Token的安全是重中之重。一种方式是使用Https，另一种方式就是对Token进行加密签名。而JWT就是一种比较流行的Token编码方式。</p>
+<h2 id="4-2-JWT（Json-Web-Token"><a href="#4-2-JWT（Json-Web-Token" class="headerlink" title="4.2. JWT（Json Web Token)"></a>4.2. JWT（Json Web Token)</h2><blockquote>
+<p>Json web token (JWT), 是为了在网络应用环境间传递声明而执行的一种基于JSON的开放标准（<a href="https://tools.ietf.org/html/rfc7519" target="_blank" rel="noopener">RFC 7519</a>）。该token被设计为紧凑且安全的，特别适用于分布式站点的单点登录（SSO）场景。JWT的声明一般被用来在身份提供者和服务提供者间传递被认证的用户身份信息，以便于从资源服务器获取资源，也可以增加一些额外的其它业务逻辑所必须的声明信息，该token也可直接被用于认证，也可被加密。</p>
+</blockquote>
+<p>JWT有三部分组成：</p>
+<blockquote>
+<header>.<payload>.<signature>
+</blockquote>
+<ol>
+<li>Header：由<code>alg</code>和<code>typ</code>组成，<code>alg</code>是algorithm的缩写，<code>typ</code>是type的缩写，指定token的类型。该部分使用<code>Base64Url</code>编码。</li>
+<li>Payload：主要用来存储信息，包含各种声明，同样该部分也由<code>BaseURL</code>编码。</li>
+<li>Signature：签名，使用服务器端的密钥进行签名。以确保Token未被篡改。</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">HMACSHA256(</span><br><span class="line">  base64UrlEncode(header) + &quot;.&quot; +</span><br><span class="line">  base64UrlEncode(payload),</span><br><span class="line">  secret)</span><br></pre></td></tr></table></figure>
+
+<h1 id="5-授权模式"><a href="#5-授权模式" class="headerlink" title="5. 授权模式"></a>5. 授权模式</h1><p>OAuth2.0 定义了四种授权模式：</p>
+<ol>
+<li>Implicit：简化模式；直接通过浏览器的链接跳转申请令牌。</li>
+<li>Client Credentials：客户端凭证模式；该方法通常用于服务器之间的通讯；该模式仅发生在Client与Identity Server之间。</li>
+<li>Resource Owner Password Credentials：密码模式</li>
+<li>Authorization Code：授权码模式； </li>
+</ol>
+<h2 id="5-1-Client-Credentials"><a href="#5-1-Client-Credentials" class="headerlink" title="5.1. Client Credentials"></a>5.1. Client Credentials</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-b8f1275cda8b204d.png" alt="客户端凭证模式"></p>
+<p>客户端凭证模式，是最简单的授权模式，因为授权的流程仅发生在Client与Identity Server之间。</p>
+<p>该模式的适用场景为服务器与服务器之间的通信。比如对于一个电子商务网站，将订单和物流系统分拆为两个服务分别部署。订单系统需要访问物流系统进行物流信息的跟踪，物流系统需要访问订单系统的快递单号信息进行物流信息的定时刷新。而这两个系统之间服务的授权就可以通过这种模式来实现。</p>
+<h2 id="5-2-Resource-Owner-Password-Credentials"><a href="#5-2-Resource-Owner-Password-Credentials" class="headerlink" title="5.2. Resource Owner Password Credentials"></a>5.2. Resource Owner Password Credentials</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-934f091397d7234b.png" alt="密码模式"></p>
+<p>Resource Owner其实就是User，所以可以直译为用户名密码模式。密码模式相较于客户端凭证模式，多了一个参与者，就是User。通过User的用户名和密码向Identity Server申请访问令牌。这种模式下要求客户端不得储存密码。但我们并不能确保客户端是否储存了密码，所以该模式仅适用于受信任的客户端。否则会发生密码泄露的危险。<strong>该模式不推荐使用</strong>。</p>
+<h2 id="5-3-Authorization-Code"><a href="#5-3-Authorization-Code" class="headerlink" title="5.3. Authorization Code"></a>5.3. Authorization Code</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-15e218058b896231.png" alt="image.png"></p>
+<p>授权码模式是一种混合模式，是目前功能最完整、流程最严密的授权模式。它主要分为两大步骤：认证和授权。<br>其流程为：</p>
+<ol>
+<li>用户访问客户端，客户端将用户导向Identity Server。</li>
+<li>用户填写凭证信息向客户端授权，认证服务器根据客户端指定的重定向URI，并返回一个【Authorization Code】给客户端。</li>
+<li>客户端根据【Authorization Code】向Identity Server申请【Access Token】</li>
+</ol>
+<h2 id="5-4-Implicit"><a href="#5-4-Implicit" class="headerlink" title="5.4. Implicit"></a>5.4. Implicit</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-890a555d2a3922d3.png" alt="简化模式"></p>
+<p>简化模式是相对于授权码模式而言的。其不再需要【Client】的参与，所有的认证和授权都是通过浏览器来完成的。</p>
+<h1 id="6-IdentityServer4-集成"><a href="#6-IdentityServer4-集成" class="headerlink" title="6. IdentityServer4 集成"></a>6. IdentityServer4 集成</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-6708925e096c8510.png" alt="如何集成Identity Server"></p>
+<p>通过以上知识点的梳理，我们对OpenId Connect 和OAuth2.0的一些相关概念有了大致认识。而IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。<br>所以自然而然我们对IdentityServer4有了基础的认识。下面就来介绍如何集成IdentityServer4。其主要分为三步：</p>
+<ol>
+<li>IdentityServer如何配置和启用IdentityServer中间件</li>
+<li>Resources如何配置和启用认证授权中间件</li>
+<li>Client如何认证和授权</li>
+</ol>
+<h2 id="6-1-Identity-Server-中间件的配置和启用"><a href="#6-1-Identity-Server-中间件的配置和启用" class="headerlink" title="6.1. Identity Server 中间件的配置和启用"></a>6.1. Identity Server 中间件的配置和启用</h2><p>作为一个独立的Identity Server，它必须知道哪些资源需要保护，必须知道哪些客户端能够允许访问，这是配置的基础。<br>所以IdentityServer中间件的配置的核心就是：</p>
+<ol>
+<li>配置受保护的资源列表</li>
+<li>配置允许验证的Client</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Startup</span><br><span class="line">&#123;</span><br><span class="line">    public void ConfigureServices(IServiceCollection services)</span><br><span class="line">    &#123;</span><br><span class="line">        services.AddMvc();</span><br><span class="line">        &#x2F;&#x2F; configure identity server with in-memory stores, keys, clients and scopes</span><br><span class="line">        services.AddIdentityServer()</span><br><span class="line">            .AddDeveloperSigningCredential()</span><br><span class="line">             &#x2F;&#x2F;配置身份资源</span><br><span class="line">            .AddInMemoryIdentityResources(Config.GetIdentityResources())</span><br><span class="line">              &#x2F;&#x2F;配置API资源</span><br><span class="line">            .AddInMemoryApiResources(Config.GetApiResources())</span><br><span class="line">             &#x2F;&#x2F;预置允许验证的Client</span><br><span class="line">            .AddInMemoryClients(Config.GetClients())</span><br><span class="line">            .AddTestUsers(Config.GetUsers());</span><br><span class="line">        services.AddAuthentication()</span><br><span class="line">              &#x2F;&#x2F;添加Google第三方身份认证服务（按需添加）</span><br><span class="line">            .AddGoogle(&quot;Google&quot;, options &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                options.SignInScheme &#x3D; IdentityServerConstants.ExternalCookieAuthenticationScheme;</span><br><span class="line">                options.ClientId &#x3D; &quot;434483408261-55tc8n0cs4ff1fe21ea8df2o443v2iuc.apps.googleusercontent.com&quot;;</span><br><span class="line">                options.ClientSecret &#x3D; &quot;3gcoTrEDPPJ0ukn_aYYT6PWo&quot;;</span><br><span class="line">            &#125;)</span><br><span class="line">            &#x2F;&#x2F;如果当前IdentityServer不提供身份认证服务，还可以添加其他身份认证服                务提供商</span><br><span class="line">            .AddOpenIdConnect(&quot;oidc&quot;, &quot;OpenID Connect&quot;, options &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                options.SignInScheme &#x3D; IdentityServerConstants.ExternalCookieAuthenticationScheme;</span><br><span class="line">                options.SignOutScheme &#x3D; IdentityServerConstants.SignoutScheme;</span><br><span class="line">                options.Authority &#x3D; &quot;https:&#x2F;&#x2F;demo.identityserver.io&#x2F;&quot;;</span><br><span class="line">                options.ClientId &#x3D; &quot;implicit&quot;;</span><br><span class="line">                options.TokenValidationParameters &#x3D; new TokenValidationParameters</span><br><span class="line">                &#123;</span><br><span class="line">                    NameClaimType &#x3D; &quot;name&quot;,</span><br><span class="line">                    RoleClaimType &#x3D; &quot;role&quot;</span><br><span class="line">                &#125;;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void Configure(IApplicationBuilder app, IHostingEnvironment env)</span><br><span class="line">    &#123;</span><br><span class="line">        if (env.IsDevelopment())</span><br><span class="line">        &#123;</span><br><span class="line">            app.UseDeveloperExceptionPage();</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F;添加IdentityServer中间件到Pipeline</span><br><span class="line">        app.UseIdentityServer();</span><br><span class="line">        app.UseStaticFiles();</span><br><span class="line">        app.UseMvcWithDefaultRoute();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>配置完，添加IdentityServer到Pipeline即可。</p>
+<p>如果要支持第三方登录服务或自己实现的OpenId Connect服务，则需要额外配置下身份认证中间件。</p>
+<h2 id="6-2-Resources的保护配置"><a href="#6-2-Resources的保护配置" class="headerlink" title="6.2. Resources的保护配置"></a>6.2. Resources的保护配置</h2><p>配置完Identity Server，接下来我们该思考如何来保护Resources，以及如何将所有的认证和授权请求导流到Identity Server呢？<br>在此之前，我们还是要梳理下Client访问Resources的请求顺序：</p>
+<ol>
+<li>Client请求资源，资源如果需要进行身份认证和授权，则将请求导流到Identity Server。</li>
+<li>Identity Server根据Client配置的授权类型，返回【Token】。</li>
+<li>Client携带【Token】请求资源。</li>
+<li>受保护的资源服务器要能够验证【Token】的正确性。</li>
+</ol>
+<p>所以针对要保护的资源，我们需要以下配置：</p>
+<ol>
+<li>指定资源是否需要保护；</li>
+<li>指定IdentityServer用来进行认证和授权跳转；</li>
+<li>指定Token验证；</li>
+</ol>
+<p>代码示例：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;使用[Authorize]特性，来显式指定受保护的资源</span><br><span class="line">[Route(&quot;[controller]&quot;)]</span><br><span class="line">[Authorize]</span><br><span class="line">public class IdentityController : ControllerBase</span><br><span class="line">&#123;</span><br><span class="line">    [HttpGet]</span><br><span class="line">    public IActionResult Get()</span><br><span class="line">    &#123;</span><br><span class="line">        return new JsonResult(from c in User.Claims select new &#123; c.Type, c.Value &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Startup</span><br><span class="line">&#123;</span><br><span class="line">    public void ConfigureServices(IServiceCollection services)</span><br><span class="line">    &#123;</span><br><span class="line">        services.AddMvcCore()</span><br><span class="line">            .AddAuthorization()</span><br><span class="line">            .AddJsonFormatters();</span><br><span class="line">        &#x2F;&#x2F;指定认证方案</span><br><span class="line">        services.AddAuthentication(&quot;Bearer&quot;)</span><br><span class="line">              &#x2F;&#x2F;添加Token验证服务到DI</span><br><span class="line">            .AddIdentityServerAuthentication(options &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;指定授权地址</span><br><span class="line">                options.Authority &#x3D; &quot;http:&#x2F;&#x2F;localhost:5000&quot;;</span><br><span class="line">                options.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">                options.ApiName &#x3D; &quot;api1&quot;;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void Configure(IApplicationBuilder app)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;添加认证中间件到Pipeline</span><br><span class="line">        app.UseAuthentication();</span><br><span class="line">        app.UseMvc();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="6-3-Client的请求配置"><a href="#6-3-Client的请求配置" class="headerlink" title="6.3. Client的请求配置"></a>6.3. Client的请求配置</h2><p>资源和认证服务器都配置完毕，接下来客户端就可以直接访问了。<br>如果针对控制台客户端应用，三步走就可以访问Api：</p>
+<ol>
+<li>使用DiscoverClient发现Token Endpoint</li>
+<li>使用TokenClient请求Access Token</li>
+<li>使用HttpClient访问Api<br>代码示例如下：</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; discover endpoints from metadata</span><br><span class="line">var disco &#x3D; await DiscoveryClient.GetAsync(&quot;http:&#x2F;&#x2F;localhost:5000&quot;);</span><br><span class="line">&#x2F;&#x2F; request token（使用的是ClientCredentials授权类型）</span><br><span class="line">var tokenClient &#x3D; new TokenClient(disco.TokenEndpoint, &quot;client&quot;, &quot;secret&quot;);</span><br><span class="line">var tokenResponse &#x3D; await tokenClient.RequestClientCredentialsAsync(&quot;api1&quot;)</span><br><span class="line">if (tokenResponse.IsError)</span><br><span class="line">&#123;</span><br><span class="line">    Console.WriteLine(tokenResponse.Error);</span><br><span class="line">    return;</span><br><span class="line">&#125;</span><br><span class="line">Console.WriteLine(tokenResponse.Json);</span><br><span class="line">Console.WriteLine(&quot;\n\n&quot;);</span><br><span class="line">&#x2F;&#x2F; call api</span><br><span class="line">var client &#x3D; new HttpClient();</span><br><span class="line">client.SetBearerToken(tokenResponse.AccessToken);</span><br></pre></td></tr></table></figure>
+
+<p>如果针对ASP.NET Web控制台客户端，我们先来回答一个问题：</p>
+<ol>
+<li>如果Web应用是否需要登录？</li>
+<li>如果需要登录，就需要进行身份认证。</li>
+<li>身份认证成功后，也就需要会话状态的维持。</li>
+</ol>
+<p>回答完上面的问题，我们也就梳理出了配置要点：</p>
+<ol>
+<li>添加身份认证中间件</li>
+<li>启用Cookie进行会话保持</li>
+<li>添加OIDC，使用我们自己定义的IdentityServer提供的认证服务</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void ConfigureServices(IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line">    services.AddMvc();</span><br><span class="line">    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();</span><br><span class="line">    services.AddAuthentication(options &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            options.DefaultScheme &#x3D; &quot;Cookies&quot;;</span><br><span class="line">            options.DefaultChallengeScheme &#x3D; &quot;oidc&quot;;</span><br><span class="line">        &#125;)</span><br><span class="line">        .AddCookie(&quot;Cookies&quot;)</span><br><span class="line">        .AddOpenIdConnect(&quot;oidc&quot;, options &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            options.SignInScheme &#x3D; &quot;Cookies&quot;;</span><br><span class="line">            options.Authority &#x3D; &quot;http:&#x2F;&#x2F;localhost:5000&quot;;</span><br><span class="line">            options.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">            options.ClientId &#x3D; &quot;mvc&quot;;</span><br><span class="line">            options.SaveTokens &#x3D; true;</span><br><span class="line">        &#125;);</span><br><span class="line">&#125;</span><br><span class="line">public void Configure(IApplicationBuilder app, IHostingEnvironment env</span><br><span class="line">&#123;</span><br><span class="line">    if (env.IsDevelopment())</span><br><span class="line">    &#123;</span><br><span class="line">        app.UseDeveloperExceptionPage();</span><br><span class="line">    &#125;</span><br><span class="line">    else</span><br><span class="line">    &#123;</span><br><span class="line">        app.UseExceptionHandler(&quot;&#x2F;Home&#x2F;Error&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    app.UseAuthentication();</span><br><span class="line">    app.UseStaticFiles();</span><br><span class="line">    app.UseMvcWithDefaultRoute();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="7-最后"><a href="#7-最后" class="headerlink" title="7. 最后"></a>7. 最后</h1><p>本文通过介绍IdentityServer4涉及到的术语和相关概念，再结合官方实例，梳理了集成IdentityServer4的大致思路。而关于如何与ASP.NET Identity、EF Core集成，本文并未涉及，详参官方文档。</p>
+<blockquote>
+<p><a href="http://docs.identityserver.io/en/release/index.html" target="_blank" rel="noopener">Identity Server 官方文档</a><br><a href="https://www.cnblogs.com/stulzq/p/8119928.html" target="_blank" rel="noopener">dentityServer4 中文文档与实战</a></p>
+<p><a href="https://www.cnblogs.com/RainingNight/p/jwtbearer-authentication-in-asp-net-core.html" target="_blank" rel="noopener">JwtBearer认证</a></p>
+<p><a href="https://swagger.io/docs/specification/authentication/bearer-authentication/" target="_blank" rel="noopener">Bearer Authentication</a><br><a href="https://jwt.io/introduction/" target="_blank" rel="noopener">JSON Web Token</a><br><a href="http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html" target="_blank" rel="noopener">理解OAuth 2.0</a><br><a href="http://docs.identityserver.io/en/release/topics/grant_types.html" target="_blank" rel="noopener">Identity Server 授权类型</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>OAuth2.0</tag>
+        <tag>id4</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IO模型知多少</title>
+    <url>/how-much-you-know-about-the-io-models/</url>
+    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</p>
+<p>简而言之，对于I/O的认知，不能仅仅停留在字面上认识，了解内部玄机，才能深刻理解I/O，才能看清I/O相关问题的本质。</p>
+<h1 id="2-I-O-的定义"><a href="#2-I-O-的定义" class="headerlink" title="2. I/O 的定义"></a>2. I/O 的定义</h1><p>I/O 的全称是Input/Output。虽常谈及I/O，但想必你也一时不能给出一个完整的定义。搜索了谷歌，发现也尽是些冗长的论述。要想厘清I/O这个概念，我们需要从不同的视角去理解它。</p>
+<h2 id="2-1-计算机视角"><a href="#2-1-计算机视角" class="headerlink" title="2.1. 计算机视角"></a>2.1. 计算机视角</h2><p> 冯•诺伊曼计算机的基本思想中有提到计算机硬件组成应为五大部分：控制器，运算器，存储器，输入和输出。其中输入是指将数据输入到计算机的设备，比如键盘鼠标；输出是指从计算机中获取数据的设备，比如显示器；以及既是输入又是输出设备，硬盘，网卡等。</p>
+<p>用户通过操作系统才能完成对计算机的操作。计算机启动时，第一个启动的程序是操作系统的内核，它将负责计算机的资源管理和进程的调度。换句话说：操作系统负责从输入设备读取数据并将数据写入到输出设备。</p>
+<p>所以I/O之于计算机，有两层意思：</p>
+<ol>
+<li>I/O设备</li>
+<li>对I/O设备的数据读写</li>
+</ol>
+<p><em>对于一次I/O操作，必然涉及2个参与方，一个输入端，一个输出端，而又根据参与双方的设备类型，我们又可以分为磁盘I/O，网络I/O（一次网络的请求响应，网卡）等。</em></p>
+<h2 id="2-2-程序视角"><a href="#2-2-程序视角" class="headerlink" title="2.2. 程序视角"></a>2.2. 程序视角</h2><p>应用程序作为一个文件保存在磁盘中，只有加载到内存到成为一个进程才能运行。应用程序运行在计算机内存中，必然会涉及到数据交换，比如读写磁盘文件，访问数据库，调用远程API等等。但我们编写的程序并不能像操作系统内核一样直接进行I/O操作。</p>
+<p>因为为了确保操作系统的安全稳定运行，操作系统启动后，将会开启保护模式：将内存分为内核空间（内核对应进程所在内存空间）和用户空间，进行内存隔离。我们构建的程序将运行在用户空间，用户空间无法操作内核空间，也就意味着用户空间的程序不能直接访问由内核管理的I/O，比如：硬盘、网卡等。</p>
+<p>但操作系统向外提供API，其由各种类型的系统调用（System Call）组成，以提供安全的访问控制。<br>所以应用程序要想访问内核管理的I/O，必须通过调用内核提供的系统调用(system call）进行间接访问。</p>
+<p>所以I/O之于应用程序来说，强调的通过<strong>向内核发起系统调用完成对I/O的间接访问</strong>。换句话说应用程序发起的一次IO操作实际包含两个阶段：</p>
+<ol>
+<li>IO调用阶段：应用程序进程向内核发起系统调用</li>
+<li>IO执行阶段：内核执行IO操作并返回<br>2.1. 准备数据阶段：内核等待I/O设备准备好数据<br>  2.2. 拷贝数据阶段：将数据从内核缓冲区拷贝到用户空间缓冲区</li>
+</ol>
+<p>怎么理解准备数据阶段呢？<br>对于写请求：等待系统调用的完整请求数据，并写入内核缓冲区；<br>对于读请求：等待系统调用的完整请求数据；（若请求数据不存在于内核缓冲区）则将外围设备的数据读入到内核缓冲区。</p>
+<p> <img src="../images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
+<p>而应用程序进程在发起IO调用至内核执行IO返回之前，应用程序进程/线程所处状态，就是我们下面要讨论的第二个话题阻塞IO与非阻塞IO。</p>
+<h1 id="3-IO-模型之阻塞I-O-BIO"><a href="#3-IO-模型之阻塞I-O-BIO" class="headerlink" title="3. IO 模型之阻塞I/O(BIO)"></a>3. IO 模型之阻塞I/O(BIO)</h1><p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。阻塞IO简称BIO，Blocking IO。其处理流程如下图所示：</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
+<p>从上图可知当用户进程发起IO系统调用后，内核从准备数据到拷贝数据到用户空间的两个阶段期间<strong>用户调用线程选择阻塞等待</strong>数据返回。</p>
+<p>因此BIO带来了一个问题：如果内核数据需要耗时很久才能准备好，那么用户进程将被阻塞，浪费性能。为了提升应用的性能，虽然可以通过多线程来提升性能，但线程的创建依然会借助系统调用，同时多线程会导致频繁的线程上下文的切换，同样会影响性能。所以要想解决BIO带来的问题，我们就得看到问题的本质，那就是<strong>阻塞</strong>二字。</p>
+<h1 id="4-IO-模型之非阻塞I-O-NIO"><a href="#4-IO-模型之非阻塞I-O-NIO" class="headerlink" title="4. IO 模型之非阻塞I/O(NIO)"></a>4. IO 模型之非阻塞I/O(NIO)</h1><p>那解决方案自然也容易想到，将阻塞变为非阻塞，那就是用户进程在发起系统调用时指定为非阻塞，内核接收到请求后，就会立即返回，然后用户进程通过轮询的方式来拉取处理结果。也就是如下图所示：</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
+<p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程不会等待而是立即返回，则此次IO操作为非阻塞IO模型。非阻塞IO简称NIO，Non-Blocking IO。</p>
+<p>然而，非阻塞IO虽然相对于阻塞IO大幅提升了性能，但依旧不是完美的解决方案，其依然存在性能问题，也就是频繁的轮询导致频繁的系统调用，会耗费大量的CPU资源。比如当并发很高时，假设有1000个并发，那么单位时间循环内将会有1000次系统调用去轮询执行结果，而实际上可能只有2个请求结果执行完毕，这就会有998次无效的系统调用，造成严重的性能浪费。有问题就要解决，那<strong>NIO问题的本质就是频繁轮询导致的无效系统调用</strong>。</p>
+<h1 id="5-IO模型之IO多路复用"><a href="#5-IO模型之IO多路复用" class="headerlink" title="5. IO模型之IO多路复用"></a>5. IO模型之IO多路复用</h1><p>解决NIO的思路就是降解无效的系统调用，如何降解呢？我们一起来看看以下几种IO多路复用的解决思路。</p>
+<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
+<p>但是，select有一个限制，就是存在连接数限制，针对于此，又提出了poll。其与select相比，主要是解决了连接限制。</p>
+<p>select/epoll 虽然解决了NIO重复无效系统调用用的问题，但同时又引入了新的问题。问题是：</p>
+<ol>
+<li>用户空间和内核空间之间，大量的数据拷贝</li>
+<li>内核循环遍历IO状态，浪费CPU时间</li>
+</ol>
+<p>换句话说，select/poll虽然减少了用户进程的发起的系统调用，但内核的工作量只增不减。在高并发的情况下，内核的性能问题依旧。所以select/poll的问题本质是：内核存在无效的循环遍历。</p>
+<h2 id="5-2-IO多路复用之epoll"><a href="#5-2-IO多路复用之epoll" class="headerlink" title="5.2. IO多路复用之epoll"></a>5.2. IO多路复用之epoll</h2><p>针对select/pool引入的问题，我们把解决问题的思路转回到内核上，如何减少内核重复无效的循环遍历呢？变主动为被动，基于事件驱动来实现。其流程图如下所示：</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
+<p>epoll相较于select/poll，多了两次系统调用，其中epoll_create建立与内核的连接，epoll_ctl注册事件，epoll_wait阻塞用户进程，等待IO事件。</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
+<p>epoll，已经大大优化了IO的执行效率，但在IO执行的第一阶段：数据准备阶段都还是被阻塞的。所以这是一个可以继续优化的点。</p>
+<h1 id="6-IO-模型之信号驱动IO-SIGIO"><a href="#6-IO-模型之信号驱动IO-SIGIO" class="headerlink" title="6. IO 模型之信号驱动IO(SIGIO)"></a>6. IO 模型之信号驱动IO(SIGIO)</h1><p>信号驱动IO与BIO和NIO最大的区别就在于，在IO执行的数据准备阶段，不会阻塞用户进程。<br>如下图所示：当用户进程需要等待数据的时候，会向内核发送一个信号，告诉内核我要什么数据，然后用户进程就继续做别的事情去了，而当内核中的数据准备好之后，内核立马发给用户进程一个信号，说”数据准备好了，快来查收“，用户进程收到信号之后，立马调用recvfrom，去查收数据。</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
+<p>乍一看，信号驱动式I/O模型有种异步操作的感觉，但是在IO执行的第二阶段，也就是将数据从内核空间复制到用户空间这个阶段，用户进程还是被阻塞的。</p>
+<p>综上，你会发现，不管是BIO还是NIO还是SIGIO，它们最终都会被阻塞在IO执行的第二阶段。<br>那如果能将IO执行的第二阶段变成非阻塞，那就完美了。</p>
+<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
+<p>所以，之所以称为异步IO，取决于IO执行的第二阶段是否阻塞。因此前面讲的BIO，NIO和SIGIO均为同步IO。</p>
+<p><img src="../images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
+<h1 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h1><p>梳理完这些IO模型后，之前一直处于懵懂状态的阻塞，非阻塞，同步异步IO，终于算是有个概念了。同时也纠正了自己一直以来的误解，所以一路走来，愈发觉得返璞归真的重要性，只有如此，才能在快速更迭的技术演进中，以不变应万变。</p>
+<p><em>本片综合多方资料写就，难免纰漏，但只有写下来，才能得以指正。所以，烦请各位看官不吝赐教。</em></p>
+<blockquote>
+<p>参考资料：</p>
+<ol>
+<li><a href="https://www.jianshu.com/p/fa7bdc4f3de7" target="_blank" rel="noopener">程序员应该这样理解IO</a></li>
+<li><a href="https://www.jianshu.com/p/511b9cffbdac" target="_blank" rel="noopener">IO复用模型同步，异步，阻塞，非阻塞及实例详解</a></li>
+<li><a href="https://juejin.im/post/5ca4c044e51d4565372e47cf" target="_blank" rel="noopener">服务器网络编程之 IO 模型</a></li>
+<li><a href="http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html" target="_blank" rel="noopener">http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html</a></li>
+<li><a href="https://cllc.fun/2019/03/07/synchronous-asynchronous-io/" target="_blank" rel="noopener">同步I/O(阻塞I/O，非阻塞I/O)，异步I/O</a></li>
+<li><a href="https://www.bilibili.com/video/BV11K4y1C7rm?p=2" target="_blank" rel="noopener">马士兵：权威讲解nio,epoll,多路复用</a></li>
+<li><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/9050467" target="_blank" rel="noopener">Linux 内核详解以及内核缓冲区技术</a></li>
+</ol>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>I/O</tag>
+        <tag>EPOLL</tag>
       </tags>
   </entry>
 </search>
