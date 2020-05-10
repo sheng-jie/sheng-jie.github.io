@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4">
+  <meta name="baidu-site-verification" content="Ih8zdGWlLG">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="同步异步I&#x2F;O，阻塞非阻塞I&#x2F;O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I&#x2F;O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IO模型知多少 | 代码篇">
+<meta property="og:url" content="https://blog.shengjie.dev/how-much-you-know-about-the-io-model-demo/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="同步异步I&#x2F;O，阻塞非阻塞I&#x2F;O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I&#x2F;O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-model-demo/2799767-5f95e14aac563bce.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-model-demo/2799767-c4034c0af2e3b32f.gif">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-model-demo/2799767-12046ce197b2f2b3.gif">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-model-demo/2799767-bf36d3ea3c3ec980.gif">
+<meta property="article:published_time" content="2020-05-10T15:37:14.000Z">
+<meta property="article:modified_time" content="2020-05-10T15:28:34.269Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content="I&#x2F;O">
+<meta property="article:tag" content="EPOLL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-model-demo/2799767-5f95e14aac563bce.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/how-much-you-know-about-the-io-model-demo/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>IO模型知多少 | 代码篇 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">17</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">2</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">14</span></a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/how-much-you-know-about-the-io-model-demo/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          IO模型知多少 | 代码篇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-05-10 23:37:14 / 修改时间：23:28:34" itemprop="dateCreated datePublished" datetime="2020-05-10T23:37:14+08:00">2020-05-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/how-much-you-know-about-the-io-model-demo/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/how-much-you-know-about-the-io-model-demo/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>28k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>26 分钟</span>
+            </span>
+            <div class="post-description">同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>之前的一篇介绍IO 模型的文章比较偏理论，很多同学反应不是很好理解。这一篇咱们换一个角度，从代码角度来分析一下。</p>
+<h1 id="socket-编程基础"><a href="#socket-编程基础" class="headerlink" title="socket 编程基础"></a>socket 编程基础</h1><p>开始之前，我们先来梳理一下，需要提前了解的几个概念：</p>
+<blockquote>
+<p>socket: 直译为“插座”，在计算机通信领域，socket 被翻译为“套接字”，它是计算机之间进行通信的一种约定或一种方式。通过 socket 这种约定，一台计算机可以接收其他计算机的数据，也可以向其他计算机发送数据。我们把插头插到插座上就能从电网获得电力供应，同样，应用程序为了与远程计算机进行数据传输，需要连接到因特网，而 socket 就是用来连接到因特网的工具。</p>
+</blockquote>
+<p>另外还需要知道的是，socket 编程的基本流程。<br><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-5f95e14aac563bce.png" alt="Socket 编程流程"></p>
+<h1 id="2-同步阻塞IO"><a href="#2-同步阻塞IO" class="headerlink" title="2. 同步阻塞IO"></a>2. 同步阻塞IO</h1><p>先回顾下概念：阻塞IO是指，应用进程中线程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">public static void Start()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">    var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">    var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">    &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">    serverSocket.Bind(ipEndpoint);</span><br><span class="line">    &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">    serverSocket.Listen(10);</span><br><span class="line">    Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;4. 等待客户端连接</span><br><span class="line">        var clientSocket &#x3D; serverSocket.Accept();&#x2F;&#x2F;阻塞</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">        Span&lt;byte&gt; buffer &#x3D; new Span&lt;byte&gt;(new byte[512]);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-开始接收数据...&quot;);</span><br><span class="line">        int readLength &#x3D; clientSocket.Receive(buffer);&#x2F;&#x2F;阻塞</span><br><span class="line">        var msg &#x3D; Encoding.UTF8.GetString(buffer.ToArray(), 0, readLength);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line">        var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">        clientSocket.Send(sendBuffer);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-c4034c0af2e3b32f.gif" alt=""></p>
+<p>代码很简单，直接看注释就OK了，运行结果如上图所示，但有几个问题点需要着重说明下：</p>
+<ol>
+<li>等待连接处<code>serverSocket.Accept()</code>，线程阻塞！</li>
+<li>接收数据处<code>clientSocket.Receive(buffer)</code>，线程阻塞！</li>
+</ol>
+<p>会导致什么问题呢：</p>
+<ol>
+<li>只有一次数据读取完成后，才可以接受下一个连接请求</li>
+<li>一个连接，只能接收一次数据</li>
+</ol>
+<h1 id="同步非阻塞IO"><a href="#同步非阻塞IO" class="headerlink" title="同步非阻塞IO"></a>同步非阻塞IO</h1><p>看完，你可能会说，这两个问题很好解决啊，创建一个新线程去接收数据就是了。于是就有了下面的代码改进。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">public static void Start2()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">    var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">    var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">    &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">    serverSocket.Bind(ipEndpoint);</span><br><span class="line">    &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">    serverSocket.Listen(10);</span><br><span class="line">    Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;4. 等待客户端连接</span><br><span class="line">        var clientSocket &#x3D; serverSocket.Accept();&#x2F;&#x2F;阻塞</span><br><span class="line">        Task.Run(() &#x3D;&gt; ReceiveData(clientSocket));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private static void ReceiveData(Socket clientSocket)</span><br><span class="line">&#123;</span><br><span class="line">    Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">    Span&lt;byte&gt; buffer &#x3D; new Span&lt;byte&gt;(new byte[512]);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        if (clientSocket.Available &#x3D;&#x3D; 0) continue;</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-开始接收数据...&quot;);</span><br><span class="line">        int readLength &#x3D; clientSocket.Receive(buffer);&#x2F;&#x2F;阻塞</span><br><span class="line">        var msg &#x3D; Encoding.UTF8.GetString(buffer.ToArray(), 0, readLength);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line">        var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">        clientSocket.Send(sendBuffer);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-12046ce197b2f2b3.gif" alt="多线程"></p>
+<p>是的，多线程解决了上述的问题，但如果你观察以上动图后，你应该能发现个问题：<strong>才建立4个客户端连接，CPU的占用率就开始直线上升了。</strong></p>
+<p>而这个问题的本质就是，服务端的IO模型为阻塞IO模型，为了解决阻塞导致的问题，采用重复轮询，导致无效的系统调用，从而导致CPU持续走高。</p>
+<h1 id="3-IO多路复用"><a href="#3-IO多路复用" class="headerlink" title="3. IO多路复用"></a>3. IO多路复用</h1><p>既然知道原因所在，咱们就来予以改造。适用异步方式来处理连接、接收和发送数据。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line">public static class NioServer</span><br><span class="line">&#123;</span><br><span class="line">    private static ManualResetEvent _acceptEvent &#x3D; new ManualResetEvent(true);</span><br><span class="line">    private static ManualResetEvent _readEvent &#x3D; new ManualResetEvent(true);</span><br><span class="line">    public static void Start()</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">        var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">        &#x2F;&#x2F; serverSocket.Blocking &#x3D; false;&#x2F;&#x2F;设置为非阻塞</span><br><span class="line">        var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">        &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">        serverSocket.Bind(ipEndpoint);</span><br><span class="line">        &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">        serverSocket.Listen(10);</span><br><span class="line">        Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            _acceptEvent.Reset();&#x2F;&#x2F;重置信号量</span><br><span class="line">            serverSocket.BeginAccept(OnClientConnected, serverSocket);</span><br><span class="line">            _acceptEvent.WaitOne();&#x2F;&#x2F;阻塞</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void OnClientConnected(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        _acceptEvent.Set();&#x2F;&#x2F;当有客户端连接进来后，则释放信号量</span><br><span class="line">        var serverSocket &#x3D; ar.AsyncState as Socket;</span><br><span class="line">        Debug.Assert(serverSocket !&#x3D; null, nameof(serverSocket) + &quot; !&#x3D; null&quot;);</span><br><span class="line"></span><br><span class="line">        var clientSocket &#x3D; serverSocket.EndAccept(ar);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">        </span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            _readEvent.Reset();&#x2F;&#x2F;重置信号量</span><br><span class="line">            var stateObj &#x3D; new StateObject &#123; ClientSocket &#x3D; clientSocket &#125;;</span><br><span class="line">            clientSocket.BeginReceive(stateObj.Buffer, 0, stateObj.Buffer.Length, SocketFlags.None, OnMessageReceived, stateObj);</span><br><span class="line">            _readEvent.WaitOne();&#x2F;&#x2F;阻塞等待</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void OnMessageReceived(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        var state &#x3D; ar.AsyncState as StateObject;</span><br><span class="line">        Debug.Assert(state !&#x3D; null, nameof(state) + &quot; !&#x3D; null&quot;);</span><br><span class="line">        var receiveLength &#x3D; state.ClientSocket.EndReceive(ar);</span><br><span class="line"></span><br><span class="line">        if (receiveLength &gt; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            var msg &#x3D; Encoding.UTF8.GetString(state.Buffer, 0, receiveLength);</span><br><span class="line">            Console.WriteLine($&quot;&#123;state.ClientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line"></span><br><span class="line">            var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">            state.ClientSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None,</span><br><span class="line">                SendMessage, state.ClientSocket);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void SendMessage(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        var clientSocket &#x3D; ar.AsyncState as Socket;</span><br><span class="line">        Debug.Assert(clientSocket !&#x3D; null, nameof(clientSocket) + &quot; !&#x3D; null&quot;);</span><br><span class="line">        clientSocket.EndSend(ar);</span><br><span class="line">        _readEvent.Set(); &#x2F;&#x2F;发送完毕后，释放信号量</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class StateObject</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; Client  socket.  </span><br><span class="line">    public Socket ClientSocket &#x3D; null;</span><br><span class="line">    &#x2F;&#x2F; Size of receive buffer.  </span><br><span class="line">    public const int BufferSize &#x3D; 1024;</span><br><span class="line">    &#x2F;&#x2F; Receive buffer.  </span><br><span class="line">    public byte[] Buffer &#x3D; new byte[BufferSize];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先来看运行结果，从下图可以看到，除了建立连接时CPU出现抖动外，在消息接收和发送阶段，CPU占有率趋于平缓，且占用率低。</p>
+<p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-bf36d3ea3c3ec980.gif" alt=""></p>
+<p>分析代码后我们发现：</p>
+<ol>
+<li>CPU使用率是下来了，但代码复杂度上升了。</li>
+<li>使用异步接口处理客户端连接：<code>BeginAccept</code>和<code>EndAccept</code></li>
+<li>使用异步接口接收数据：<code>BeginReceive</code>和<code>EndReceive</code></li>
+<li>使用异步接口发送数据：<code>BeginSend</code>和<code>EndSend</code></li>
+<li>使用<code>ManualResetEvent</code>进行线程同步，避免线程空转</li>
+</ol>
+<p>那你可能好奇，以上模型是何种IO多路复用模型呢？<br>好问题，我们来一探究竟。</p>
+<h1 id="验证I-O模型"><a href="#验证I-O模型" class="headerlink" title="验证I/O模型"></a>验证I/O模型</h1><p>要想验证应用使用的何种IO模型，只需要确定应用运行时发起了哪些系统调用即可。对于Linux系统来说，我们可以借助<code>strace</code>命令来跟踪指定应用发起的系统调用和信号。</p>
+<h2 id="验证同步阻塞I-O发起的系统调用"><a href="#验证同步阻塞I-O发起的系统调用" class="headerlink" title="验证同步阻塞I/O发起的系统调用"></a>验证同步阻塞I/O发起的系统调用</h2><p>可以使用VSCode Remote 连接到自己的Linux系统上，然后新建项目<code>Io.Demo</code>，以上面非阻塞IO的代码进行测试，执行以下启动跟踪命令：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet$ ls</span><br><span class="line">Io.Demo</span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet$ strace -ff -o Io.Demo&#x2F;strace&#x2F;io dotnet run --project Io.Demo&#x2F;</span><br><span class="line">Press any key to start!</span><br><span class="line">服务端已启动(127.0.0.1:5001)-等待连接...</span><br><span class="line">127.0.0.1:36876-已连接</span><br><span class="line">127.0.0.1:36876-开始接收数据...</span><br><span class="line">127.0.0.1:36876-接收数据：1</span><br></pre></td></tr></table></figure>
+
+<p>另起命令行，执行’nc localhost 5001`模拟客户端连接。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ nc localhost 5001</span><br><span class="line">1</span><br><span class="line">received:1</span><br></pre></td></tr></table></figure>
+
+<p>使用<code>netstat</code>命令查看建立的连接。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;3763$ netstat -natp | grep 5001</span><br><span class="line">(Not all processes could be identified, non-owned process info</span><br><span class="line"> will not be shown, you would have to be root to see it all.)</span><br><span class="line">tcp        0      0 127.0.0.1:5001          0.0.0.0:*               LISTEN      3763&#x2F;Io.Demo        </span><br><span class="line">tcp        0      0 127.0.0.1:36920         127.0.0.1:5001          ESTABLISHED 3798&#x2F;nc             </span><br><span class="line">tcp        0      0 127.0.0.1:5001          127.0.0.1:36920         ESTABLISHED 3763&#x2F;Io.Demo </span><br><span class="line">&#96;</span><br></pre></td></tr></table></figure>
+
+<p>另起命令行，执行<code>ps -h | grep dotnet</code>  抓取进程Id。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ ps -h | grep dotnet</span><br><span class="line"> 3694 pts&#x2F;1    S+     0:11 strace -ff -o Io.Demo&#x2F;strace&#x2F;io dotnet run --project Io.Demo&#x2F;</span><br><span class="line"> 3696 pts&#x2F;1    Sl+    0:01 dotnet run --project Io.Demo&#x2F;</span><br><span class="line"> 3763 pts&#x2F;1    Sl+    0:00 &#x2F;home&#x2F;shengjie&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;bin&#x2F;Debug&#x2F;netcoreapp3.0&#x2F;Io.Demo</span><br><span class="line"> 3779 pts&#x2F;2    S+     0:00 grep --color&#x3D;auto dotnet</span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet$ ls Io.Demo&#x2F;strace&#x2F; # 查看生成的系统调用文件</span><br><span class="line">io.3696  io.3702  io.3708  io.3714  io.3720  io.3726  io.3732  io.3738  io.3744  io.3750  io.3766  io.3772  io.3782  io.3827</span><br><span class="line">io.3697  io.3703  io.3709  io.3715  io.3721  io.3727  io.3733  io.3739  io.3745  io.3751  io.3767  io.3773  io.3786  io.3828</span><br><span class="line">io.3698  io.3704  io.3710  io.3716  io.3722  io.3728  io.3734  io.3740  io.3746  io.3752  io.3768  io.3774  io.3787</span><br><span class="line">io.3699  io.3705  io.3711  io.3717  io.3723  io.3729  io.3735  io.3741  io.3747  io.3763  io.3769  io.3777  io.3797</span><br><span class="line">io.3700  io.3706  io.3712  io.3718  io.3724  io.3730  io.3736  io.3742  io.3748  io.3764  io.3770  io.3780  io.3799</span><br><span class="line">io.3701  io.3707  io.3713  io.3719  io.3725  io.3731  io.3737  io.3743  io.3749  io.3765  io.3771  io.3781  io.3800</span><br></pre></td></tr></table></figure>
+<p>有上可知，进程Id为3763，依次执行以下命令可以查看该进程的线程和产生的文件描述符：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ cd &#x2F;proc&#x2F;3763 # 进入进程目录</span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;3763$ ls</span><br><span class="line">attr        cmdline          environ  io         mem         ns             pagemap      sched      smaps_rollup  syscall        wchan</span><br><span class="line">autogroup   comm             exe      limits     mountinfo   numa_maps      patch_state  schedstat  stack         task</span><br><span class="line">auxv        coredump_filter  fd       loginuid   mounts      oom_adj        personality  sessionid  stat          timers</span><br><span class="line">cgroup      cpuset           fdinfo   map_files  mountstats  oom_score      projid_map   setgroups  statm         timerslack_ns</span><br><span class="line">clear_refs  cwd              gid_map  maps       net         oom_score_adj  root         smaps      status        uid_map</span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;3763$ ll task # 查看当前进程启动的线程</span><br><span class="line">total 0</span><br><span class="line">dr-xr-xr-x 9 shengjie shengjie 0 5月  10 16:36 .&#x2F;</span><br><span class="line">dr-xr-xr-x 9 shengjie shengjie 0 5月  10 16:34 ..&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3763&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3765&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3766&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3767&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3768&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3769&#x2F;</span><br><span class="line">dr-xr-xr-x 7 shengjie shengjie 0 5月  10 16:36 3770&#x2F;</span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;3763$ ll fd 查看当前进程系统调用产生的文件描述符</span><br><span class="line">total 0</span><br><span class="line">dr-x------ 2 shengjie shengjie  0 5月  10 16:36 .&#x2F;</span><br><span class="line">dr-xr-xr-x 9 shengjie shengjie  0 5月  10 16:34 ..&#x2F;</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 0 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 1 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 10 -&gt; &#39;socket:[44292]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 100 -&gt; &#x2F;dev&#x2F;random</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 11 -&gt; &#39;socket:[41675]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 13 -&gt; &#39;pipe:[45206]&#39;</span><br><span class="line">l-wx------ 1 shengjie shengjie 64 5月  10 16:37 14 -&gt; &#39;pipe:[45206]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 15 -&gt; &#x2F;home&#x2F;shengjie&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;bin&#x2F;Debug&#x2F;netcoreapp3.0&#x2F;Io.Demo.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 16 -&gt; &#x2F;home&#x2F;shengjie&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;bin&#x2F;Debug&#x2F;netcoreapp3.0&#x2F;Io.Demo.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 17 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Runtime.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 18 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Console.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 19 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Threading.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 2 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 20 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Runtime.Extensions.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 21 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 22 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Text.Encoding.Extensions.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 23 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 24 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Net.Sockets.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 25 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Net.Primitives.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 26 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;Microsoft.Win32.Primitives.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 27 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Diagnostics.Tracing.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 28 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Threading.Tasks.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 29 -&gt; &#39;socket:[43429]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 3 -&gt; &#39;pipe:[42148]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 30 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Threading.ThreadPool.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 31 -&gt; &#39;socket:[42149]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 32 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Memory.dll</span><br><span class="line">l-wx------ 1 shengjie shengjie 64 5月  10 16:37 4 -&gt; &#39;pipe:[42148]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 42 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 5 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 6 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 16:37 7 -&gt; &#x2F;dev&#x2F;pts&#x2F;1</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 9 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Private.CoreLib.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 16:37 99 -&gt; &#x2F;dev&#x2F;urandom</span><br></pre></td></tr></table></figure>
+<p>从上面的输出来看，.NET Core控制台应用启动时启动了多个线程，并在10、11、29、31号文件描述符启动了socket监听。那哪一个文件描述符监听的是5001端口呢。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ cat &#x2F;proc&#x2F;net&#x2F;tcp | grep 1389 # 查看5001端口号相关的tcp链接（0x1389 为5001十六进制)</span><br><span class="line">   4: 0100007F:1389 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 43429 1 0000000000000000 100 0 0 10 0                     </span><br><span class="line">  12: 0100007F:9038 0100007F:1389 01 00000000:00000000 00:00000000 00000000  1000        0 44343 1 0000000000000000 20 4 30 10 -1                    </span><br><span class="line">  13: 0100007F:1389 0100007F:9038 01 00000000:00000000 00:00000000 00000000  1000        0 42149 1 0000000000000000 20 4 29 10 -1</span><br></pre></td></tr></table></figure>
+<p>从中可以看到inode为[43429]的socket监听在5001端口号，所以可以找到上面的输出行<code>lrwx------ 1 shengjie shengjie 64 5月  10 16:37 29 -&gt; &#39;socket:[43429]&#39;</code>，进而判断监听5001端口号socket对应的文件描述符为29。</p>
+<p>当然，也可以从记录到<code>strace</code>目录的日志文件找到线索。在文中我们已经提及，socket服务端编程的一般流程，都要经过socket-&gt;bind-&gt;accept-&gt;read-&gt;write流程。所以可以通过抓取关键字，查看相关系统调用。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ grep &#39;bind&#39; strace&#x2F; -rn</span><br><span class="line">strace&#x2F;io.3696:4570:bind(10, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-3696-327175-socket&quot;&#125;, 110) &#x3D; 0</span><br><span class="line">strace&#x2F;io.3763:2241:bind(11, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-3763-328365-socket&quot;&#125;, 110) &#x3D; 0</span><br><span class="line">strace&#x2F;io.3763:2949:bind(29, &#123;sa_family&#x3D;AF_INET, sin_port&#x3D;htons(5001), sin_addr&#x3D;inet_addr(&quot;127.0.0.1&quot;)&#125;, 16) &#x3D; 0</span><br><span class="line">strace&#x2F;io.3713:4634:bind(11, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-3713-327405-socket&quot;&#125;, 110) &#x3D; 0</span><br></pre></td></tr></table></figure>
+<p>从上可知，在主线程也就是<code>io.3763</code>线程的系统调用文件中，将29号文件描述符与监听在<code>127.0.0.1:5001</code>的socket进行了绑定。同时也明白了.NET Core自动建立的另外2个socket是与diagnostic相关。<br>接下来咱们重点看下3763号线程产生的系统调用。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ cd strace&#x2F;</span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;strace$ cat io.3763 # 仅截取相关片段</span><br><span class="line">socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_TCP) &#x3D; 29</span><br><span class="line">setsockopt(29, SOL_SOCKET, SO_REUSEADDR, [1], 4) &#x3D; 0</span><br><span class="line">bind(29, &#123;sa_family&#x3D;AF_INET, sin_port&#x3D;htons(5001), sin_addr&#x3D;inet_addr(&quot;127.0.0.1&quot;)&#125;, 16) &#x3D; 0</span><br><span class="line">listen(29, 10)       </span><br><span class="line">write(21, &quot;\346\234\215\345\212\241\347\253\257\345\267\262\345\220\257\345\212\250(127.0.0.1:500&quot;..., 51) &#x3D; 51</span><br><span class="line">accept4(29, &#123;sa_family&#x3D;AF_INET, sin_port&#x3D;htons(36920), sin_addr&#x3D;inet_addr(&quot;127.0.0.1&quot;)&#125;, [16], SOCK_CLOEXEC) &#x3D; 31</span><br><span class="line">write(21, &quot;127.0.0.1:36920-\345\267\262\350\277\236\346\216\245\n&quot;, 26) &#x3D; 26</span><br><span class="line">write(21, &quot;127.0.0.1:36920-\345\274\200\345\247\213\346\216\245\346\224\266\346\225\260\346&quot;..., 38) &#x3D; 38</span><br><span class="line">recvmsg(31, &#123;msg_name&#x3D;NULL, msg_namelen&#x3D;0, msg_iov&#x3D;[&#123;iov_base&#x3D;&quot;1\n&quot;, iov_len&#x3D;512&#125;], msg_iovlen&#x3D;1, msg_controllen&#x3D;0, msg_flags&#x3D;0&#125;, 0) &#x3D; 2</span><br><span class="line">write(21, &quot;127.0.0.1:36920-\346\216\245\346\224\266\346\225\260\346\215\256\357\274\2321&quot;..., 34) &#x3D; 34</span><br><span class="line">sendmsg(31, &#123;msg_name&#x3D;NULL, msg_namelen&#x3D;0, msg_iov&#x3D;[&#123;iov_base&#x3D;&quot;received:1\n&quot;, iov_len&#x3D;11&#125;], msg_iovlen&#x3D;1, msg_controllen&#x3D;0, msg_flags&#x3D;0&#125;, 0) &#x3D; 11</span><br><span class="line">accept4(29, 0x7fecf001c978, [16], SOCK_CLOEXEC) &#x3D; ? ERESTARTSYS (To be restarted if SA_RESTART is set)</span><br><span class="line">--- SIGWINCH &#123;si_signo&#x3D;SIGWINCH, si_code&#x3D;SI_KERNEL&#125; ---</span><br></pre></td></tr></table></figure>
+<p>从中我们可以发现几个关键的系统调用：</p>
+<ol>
+<li>socket</li>
+<li>bind</li>
+<li>listen</li>
+<li>accept4</li>
+<li>recvmsg</li>
+<li>sendmsg<br>通过命令<code>man</code>命令可以查看下<code>accept4</code>和<code>recvmsg</code>系统调用的相关说明：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;strace$ man accept4</span><br><span class="line">If no pending connections are present on the queue, and the socket is not marked as nonblocking, accept() blocks the caller until a</span><br><span class="line">       connection  is  present.</span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;strace$ man recvmsg</span><br><span class="line">If  no  messages are available at the socket, the receive calls wait for a message to arrive, unless the socket is nonblocking (see fcntl(2))</span><br></pre></td></tr></table></figure>
+也就是说<code>accept4</code>和<code>recvmsg</code>是阻塞式系统调用。</li>
+</ol>
+<h2 id="验证I-O多路复用发起的系统调用"><a href="#验证I-O多路复用发起的系统调用" class="headerlink" title="验证I/O多路复用发起的系统调用"></a>验证I/O多路复用发起的系统调用</h2><p>同样以上面I/O多路复用的代码进行验证，验证步骤类似：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet$ strace -ff -o Io.Demo&#x2F;strace2&#x2F;io dotnet run --project Io.Demo&#x2F;</span><br><span class="line">Press any key to start!</span><br><span class="line">服务端已启动(127.0.0.1:5001)-等待连接...</span><br><span class="line">127.0.0.1:37098-已连接</span><br><span class="line">127.0.0.1:37098-接收数据：1</span><br><span class="line"></span><br><span class="line">127.0.0.1:37098-接收数据：2</span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ nc localhost 5001</span><br><span class="line">1</span><br><span class="line">received:1</span><br><span class="line">2</span><br><span class="line">received:2</span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;2449$ netstat -natp | grep 5001</span><br><span class="line">(Not all processes could be identified, non-owned process info</span><br><span class="line"> will not be shown, you would have to be root to see it all.)</span><br><span class="line">tcp        0      0 127.0.0.1:5001          0.0.0.0:*               LISTEN      2449&#x2F;Io.Demo        </span><br><span class="line">tcp        0      0 127.0.0.1:5001          127.0.0.1:56296         ESTABLISHED 2449&#x2F;Io.Demo        </span><br><span class="line">tcp        0      0 127.0.0.1:56296         127.0.0.1:5001          ESTABLISHED 2499&#x2F;nc        </span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ ps -h | grep dotnet</span><br><span class="line"> 2400 pts&#x2F;3    S+     0:10 strace -ff -o .&#x2F;Io.Demo&#x2F;strace2&#x2F;io dotnet run --project Io.Demo&#x2F;</span><br><span class="line"> 2402 pts&#x2F;3    Sl+    0:01 dotnet run --project Io.Demo&#x2F;</span><br><span class="line"> 2449 pts&#x2F;3    Sl+    0:00 &#x2F;home&#x2F;shengjie&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;bin&#x2F;Debug&#x2F;netcoreapp3.0&#x2F;Io.Demo</span><br><span class="line"> 2516 pts&#x2F;5    S+     0:00 grep --color&#x3D;auto dotnet</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ cd &#x2F;proc&#x2F;2449&#x2F;</span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;2449$ ll task</span><br><span class="line">total 0</span><br><span class="line">dr-xr-xr-x 11 shengjie shengjie 0 5月  10 22:15 .&#x2F;</span><br><span class="line">dr-xr-xr-x  9 shengjie shengjie 0 5月  10 22:15 ..&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2449&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2451&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2452&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2453&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2454&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2455&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2456&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2459&#x2F;</span><br><span class="line">dr-xr-xr-x  7 shengjie shengjie 0 5月  10 22:15 2462&#x2F;</span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;2449$ ll fd</span><br><span class="line">total 0</span><br><span class="line">dr-x------ 2 shengjie shengjie  0 5月  10 22:15 .&#x2F;</span><br><span class="line">dr-xr-xr-x 9 shengjie shengjie  0 5月  10 22:15 ..&#x2F;</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 0 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 1 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 10 -&gt; &#39;socket:[35001]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 100 -&gt; &#x2F;dev&#x2F;random</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 11 -&gt; &#39;socket:[34304]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 13 -&gt; &#39;pipe:[31528]&#39;</span><br><span class="line">l-wx------ 1 shengjie shengjie 64 5月  10 22:16 14 -&gt; &#39;pipe:[31528]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 15 -&gt; &#x2F;home&#x2F;shengjie&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;bin&#x2F;Debug&#x2F;netcoreapp3.0&#x2F;Io.Demo.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 16 -&gt; &#x2F;home&#x2F;shengjie&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;bin&#x2F;Debug&#x2F;netcoreapp3.0&#x2F;Io.Demo.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 17 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Runtime.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 18 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Console.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 19 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Threading.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 2 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 20 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Runtime.Extensions.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 21 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 22 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Text.Encoding.Extensions.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 23 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 24 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Net.Sockets.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 25 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Net.Primitives.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 26 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;Microsoft.Win32.Primitives.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 27 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Diagnostics.Tracing.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 28 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Threading.Tasks.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 29 -&gt; &#39;socket:[31529]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 3 -&gt; &#39;pipe:[32055]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 30 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Threading.ThreadPool.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 31 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Collections.Concurrent.dll</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 32 -&gt; &#39;anon_inode:[eventpoll]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 33 -&gt; &#39;pipe:[32059]&#39;</span><br><span class="line">l-wx------ 1 shengjie shengjie 64 5月  10 22:16 34 -&gt; &#39;pipe:[32059]&#39;</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 35 -&gt; &#39;socket:[35017]&#39;</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 36 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Memory.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 37 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 38 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Diagnostics.Debug.dll</span><br><span class="line">l-wx------ 1 shengjie shengjie 64 5月  10 22:16 4 -&gt; &#39;pipe:[32055]&#39;</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 5 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 6 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lrwx------ 1 shengjie shengjie 64 5月  10 22:16 7 -&gt; &#x2F;dev&#x2F;pts&#x2F;3</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 9 -&gt; &#x2F;usr&#x2F;share&#x2F;dotnet&#x2F;shared&#x2F;Microsoft.NETCore.App&#x2F;3.0.0&#x2F;System.Private.CoreLib.dll</span><br><span class="line">lr-x------ 1 shengjie shengjie 64 5月  10 22:16 99 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">shengjie@ubuntu:&#x2F;proc&#x2F;2449$ cat &#x2F;proc&#x2F;net&#x2F;tcp | grep 1389</span><br><span class="line">   0: 0100007F:1389 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 31529 1 0000000000000000 100 0 0 10 0                     </span><br><span class="line">   8: 0100007F:1389 0100007F:DBE8 01 00000000:00000000 00:00000000 00000000  1000        0 35017 1 0000000000000000 20 4 29 10 -1                    </span><br><span class="line">  12: 0100007F:DBE8 0100007F:1389 01 00000000:00000000 00:00000000 00000000  1000        0 28496 1 0000000000000000 20 4 30 10 -1</span><br></pre></td></tr></table></figure>
+<p>过滤<code>strace2</code> 目录日志，抓取监听在<code>localhost:5001</code>socket对应的文件描述符。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ grep &#39;bind&#39; strace2&#x2F; -rn</span><br><span class="line">strace2&#x2F;io.2449:2243:bind(11, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-2449-23147-socket&quot;&#125;, 110) &#x3D; 0</span><br><span class="line">strace2&#x2F;io.2449:2950:bind(29, &#123;sa_family&#x3D;AF_INET, sin_port&#x3D;htons(5001), sin_addr&#x3D;inet_addr(&quot;127.0.0.1&quot;)&#125;, 16) &#x3D; 0</span><br><span class="line">strace2&#x2F;io.2365:4568:bind(10, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-2365-19043-socket&quot;&#125;, 110) &#x3D; 0</span><br><span class="line">strace2&#x2F;io.2420:4634:bind(11, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-2420-22262-socket&quot;&#125;, 110) &#x3D; 0</span><br><span class="line">strace2&#x2F;io.2402:4569:bind(10, &#123;sa_family&#x3D;AF_UNIX, sun_path&#x3D;&quot;&#x2F;tmp&#x2F;dotnet-diagnostic-2402-22042-socket&quot;&#125;, 110) &#x3D; 0</span><br></pre></td></tr></table></figure>
+<p>从中可以看出同样是29号文件描述符，相关系统调用记录中<code>io.2449</code>文件中，打开文件，可以发现相关系统调用如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ cat strace2&#x2F;io.2449 # 截取相关系统调用</span><br><span class="line">socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_TCP) &#x3D; 29</span><br><span class="line">setsockopt(29, SOL_SOCKET, SO_REUSEADDR, [1], 4) &#x3D; 0</span><br><span class="line">bind(29, &#123;sa_family&#x3D;AF_INET, sin_port&#x3D;htons(5001), sin_addr&#x3D;inet_addr(&quot;127.0.0.1&quot;)&#125;, 16) &#x3D; 0</span><br><span class="line">listen(29, 10) </span><br><span class="line">accept4(29, 0x7fa16c01b9e8, [16], SOCK_CLOEXEC) &#x3D; -1 EAGAIN (Resource temporarily unavailable)</span><br><span class="line">epoll_create1(EPOLL_CLOEXEC)            &#x3D; 32</span><br><span class="line">epoll_ctl(32, EPOLL_CTL_ADD, 29, &#123;EPOLLIN|EPOLLOUT|EPOLLET, &#123;u32&#x3D;0, u64&#x3D;0&#125;&#125;) &#x3D; 0</span><br><span class="line">accept4(29, 0x7fa16c01cd60, [16], SOCK_CLOEXEC) &#x3D; -1 EAGAIN (Resource temporarily unavailable)</span><br></pre></td></tr></table></figure>
+<p>从中我们可以发现<code>accept4</code>直接返回-1而不阻塞，监听在<code>127.0.0.1:5001</code>的socket对应的29号文件描述符最终作为<code>epoll_ctl</code>的参数关联到<code>epoll_create1</code>创建的32号文件描述符上。最终32号文件描述符会被<code>epoll_wait</code>阻塞，以等待连接请求。我们可以抓取<code>epoll</code>相关的系统调用来验证：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo$ grep &#39;epoll&#39; strace2&#x2F; -rn</span><br><span class="line">strace2&#x2F;io.2459:364:epoll_ctl(32, EPOLL_CTL_ADD, 35, &#123;EPOLLIN|EPOLLOUT|EPOLLET, &#123;u32&#x3D;1, u64&#x3D;1&#125;&#125;) &#x3D; 0</span><br><span class="line">strace2&#x2F;io.2462:21:epoll_wait(32, [&#123;EPOLLIN, &#123;u32&#x3D;0, u64&#x3D;0&#125;&#125;], 1024, -1) &#x3D; 1</span><br><span class="line">strace2&#x2F;io.2462:42:epoll_wait(32, [&#123;EPOLLOUT, &#123;u32&#x3D;1, u64&#x3D;1&#125;&#125;], 1024, -1) &#x3D; 1</span><br><span class="line">strace2&#x2F;io.2462:43:epoll_wait(32, [&#123;EPOLLIN|EPOLLOUT, &#123;u32&#x3D;1, u64&#x3D;1&#125;&#125;], 1024, -1) &#x3D; 1</span><br><span class="line">strace2&#x2F;io.2462:53:epoll_wait(32, </span><br><span class="line">strace2&#x2F;io.2449:3033:epoll_create1(EPOLL_CLOEXEC)            &#x3D; 32</span><br><span class="line">strace2&#x2F;io.2449:3035:epoll_ctl(32, EPOLL_CTL_ADD, 33, &#123;EPOLLIN|EPOLLET, &#123;u32&#x3D;4294967295, u64&#x3D;18446744073709551615&#125;&#125;) &#x3D; 0</span><br><span class="line">strace2&#x2F;io.2449:3061:epoll_ctl(32, EPOLL_CTL_ADD, 29, &#123;EPOLLIN|EPOLLOUT|EPOLLET, &#123;u32&#x3D;0, u64&#x3D;0&#125;&#125;) &#x3D; 0</span><br></pre></td></tr></table></figure>
+
+<p>因此我们可以断定同步非阻塞I/O的示例使用的时IO多路复用的epoll模型。</p>
+<p>关于epoll相关命令，man命令可以查看下<code>epoll_create1</code>、<code>epoll_ctl</code>和、<code>epoll_wait</code>系统调用的相关说明：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;strace$ man epoll_create</span><br><span class="line">DESCRIPTION</span><br><span class="line">       epoll_create() creates a new epoll(7) instance.  Since Linux 2.6.8, the size argument is ignored, but must be</span><br><span class="line">       greater than zero; see NOTES below.</span><br><span class="line"></span><br><span class="line">       epoll_create() returns a file descriptor referring to the new epoll instance.  This file descriptor  is  used</span><br><span class="line">       for  all  the subsequent calls to the epoll interface.</span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;strace$ man epoll_ctl</span><br><span class="line">DESCRIPTION</span><br><span class="line">       This  system  call  performs  control  operations on the epoll(7) instance referred to by the file descriptor</span><br><span class="line">       epfd.  It requests that the operation op be performed for the target file descriptor, fd.</span><br><span class="line"></span><br><span class="line">       Valid values for the op argument are:</span><br><span class="line"></span><br><span class="line">       EPOLL_CTL_ADD</span><br><span class="line">              Register the target file descriptor fd on the epoll instance referred to by the file  descriptor  epfd</span><br><span class="line">              and associate the event event with the internal file linked to fd.</span><br><span class="line"></span><br><span class="line">       EPOLL_CTL_MOD</span><br><span class="line">              Change the event event associated with the target file descriptor fd.</span><br><span class="line"></span><br><span class="line">       EPOLL_CTL_DEL</span><br><span class="line">              Remove  (deregister)  the  target file descriptor fd from the epoll instance referred to by epfd.  The</span><br><span class="line">              event is ignored and can be NULL (but see BUGS below).</span><br><span class="line"></span><br><span class="line">shengjie@ubuntu:~&#x2F;coding&#x2F;dotnet&#x2F;Io.Demo&#x2F;strace$ man epoll_wait</span><br><span class="line">DESCRIPTION</span><br><span class="line">       The  epoll_wait()  system  call  waits for events on the epoll(7) instance referred to by the file descriptor</span><br><span class="line">       epfd.  The memory area pointed to by events will contain the events that will be available  for  the  caller.</span><br><span class="line">       Up to maxevents are returned by epoll_wait().  The maxevents argument must be greater than zero.</span><br><span class="line"></span><br><span class="line">       The  timeout  argument  specifies  the number of milliseconds that epoll_wait() will block.  Time is measured</span><br><span class="line">       against the CLOCK_MONOTONIC clock.  The call will block until either:</span><br><span class="line"></span><br><span class="line">       *  a file descriptor delivers an event;</span><br><span class="line"></span><br><span class="line">       *  the call is interrupted by a signal handler; or</span><br><span class="line"></span><br><span class="line">       *  the timeout expires.</span><br></pre></td></tr></table></figure>
+<p>简而言之，epoll通过创建一个新的文件描述符来替换旧的文件描述符来完成阻塞工作，当有事件或超时时通知原有文件描述符进行处理，以实现非阻塞的线程模型。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>写完这篇文章，对I/O模型的理解有所加深，但由于对Linux系统的了解不深，所以难免有纰漏之处，大家多多指教。<br>同时也不仅感叹Linux的强大之处，一切皆文件的设计思想，让一切都有迹可循。现在.NET 已经完全实现跨平台了，那么Linux操作系统大家就有必要熟悉起来了。</p>
+
+    </div>
+
+    
+    
+    
+      
+  <div class="popular-posts-header">猜你喜欢</div>
+  <ul class="popular-posts">
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/how-much-you-know-about-the-io-models/" rel="bookmark">IO模型知多少 | 理论篇</a></div>
+    </li>
+  </ul>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/how-much-you-know-about-the-io-model-demo/" title="IO模型知多少 | 代码篇">https://blog.shengjie.dev/how-much-you-know-about-the-io-model-demo/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+        
+
+  <div class="followme">
+    <p>扫码关注我的公众号-「微服务知多少」</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <img src="/images/subscribe-dotnet-microservices.png" alt="">
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/I-O/" rel="tag"><i class="fa fa-tag"></i> I/O</a>
+              <a href="/tags/EPOLL/" rel="tag"><i class="fa fa-tag"></i> EPOLL</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/how-much-you-know-about-the-io-models/" rel="prev" title="IO模型知多少 | 理论篇">
+      <i class="fa fa-chevron-left"></i> IO模型知多少 | 理论篇
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ol class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ol>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#引言"><span class="nav-text">引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#socket-编程基础"><span class="nav-text">socket 编程基础</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-同步阻塞IO"><span class="nav-text">2. 同步阻塞IO</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#同步非阻塞IO"><span class="nav-text">同步非阻塞IO</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-IO多路复用"><span class="nav-text">3. IO多路复用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#验证I-O模型"><span class="nav-text">验证I&#x2F;O模型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#验证同步阻塞I-O发起的系统调用"><span class="nav-text">验证同步阻塞I&#x2F;O发起的系统调用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#验证I-O多路复用发起的系统调用"><span class="nav-text">验证I&#x2F;O多路复用发起的系统调用</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#总结"><span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">14</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/shengjie_yan@live.com" title="E-Mail → shengjie_yan@live.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.jianshu.com/u/39ec0e6b1844" title="简书 → https:&#x2F;&#x2F;www.jianshu.com&#x2F;u&#x2F;39ec0e6b1844" rel="noopener" target="_blank"><i class="fa fa-fw fa-paper-plane"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://sheng-jie.cnblogs.com/" title="博客园 → https:&#x2F;&#x2F;sheng-jie.cnblogs.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-tree"></i>博客园</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">158k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">2:24</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script data-pjax async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/theme-next/theme-next-pjax@0/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+  <script defer src="/lib/three/three.min.js"></script>
+    <script defer src="/lib/three/three-waves.min.js"></script>
+
+
+  
+  <script data-pjax>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="pjax">
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
+      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
+      placeholder: "Code is cheap, show me your mind!",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+    </div>
+</body>
+</html>
