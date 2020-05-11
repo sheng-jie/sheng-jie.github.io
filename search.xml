@@ -1,128 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>MediatR 知多少</title>
-    <url>/how-much-you-know-about-the-MediatR/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
-<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
-<p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
-<blockquote>
-<p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
-</blockquote>
-<p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
-<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
-<blockquote>
-<p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
-</blockquote>
-<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
-<p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
-<p>那其优缺点也在图中很容易看出：</p>
-<blockquote>
-<p><strong>优点</strong>：中介者模式的优点就是减少类间的依赖，把原有的一对多的依赖变成了一对一的依赖，同事类只依赖中介者，减少了依赖，当然同时也降低了类间的耦合<br><strong>缺点</strong>：中介者模式的缺点就是中介者会膨胀得很大，而且逻辑复杂，原本N个对象直接的相互依赖关系转换为中介者和同事类的依赖关系，同事类越多，中介者的逻辑就越复杂。</p>
-</blockquote>
-<h1 id="Hello-MeidatR"><a href="#Hello-MeidatR" class="headerlink" title="Hello MeidatR"></a>Hello MeidatR</h1><p>在开始之前，我们先来了解下其基本用法。</p>
-<h2 id="单播消息传输"><a href="#单播消息传输" class="headerlink" title="单播消息传输"></a>单播消息传输</h2><p>单播消息传输，也就是一对一的消息传递，一个消息对应一个消息处理。其通过<code>IRequest</code>来抽象单播消息，用<code>IRequestHandler</code>进行消息处理。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 消息请求</span><br><span class="line">public class Ping : IRequest&lt;string&gt; &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理</span><br><span class="line">public class PingHandler : IRequestHandler&lt;Ping, string&gt; &#123;</span><br><span class="line">    public Task&lt;string&gt; Handle(Ping request, CancellationToken cancellationToken) &#123;</span><br><span class="line">        return Task.FromResult(&quot;Pong&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;发送 请求</span><br><span class="line">var response &#x3D; await mediator.Send(new Ping());</span><br><span class="line">Debug.WriteLine(response); &#x2F;&#x2F; &quot;Pong&quot;</span><br></pre></td></tr></table></figure>
-
-<h2 id="多播消息传输"><a href="#多播消息传输" class="headerlink" title="多播消息传输"></a>多播消息传输</h2><p>多播消息传输，也就是一对多的消息传递，一个消息对应多个消息处理。其通过<code>INotification</code>来抽象多播消息，对应的消息处理类型为<code>INotificationHandler</code>。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
-
-<h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
-<p>从代码图中我们可以看到其核心的对象主要包括：</p>
-<ol>
-<li>IRequest Vs IRequestHandler</li>
-<li>INotification Vs INoticifaitonHandler</li>
-<li>IMediator Vs Mediator</li>
-<li>Unit</li>
-<li>IPipelineBehavior</li>
-</ol>
-<h2 id="IRequest-Vs-IRequestHandler"><a href="#IRequest-Vs-IRequestHandler" class="headerlink" title="IRequest Vs IRequestHandler"></a>IRequest Vs IRequestHandler</h2><p>其中<code>IRequest</code>和<code>INotification</code>分别对应单播和多播消息的抽象。<br>对于单播消息可以决定是否需要返回值选用不同的接口：</p>
-<ul>
-<li>IRequest<T> - 有返回值</li>
-<li>IRequest - 无返回值</li>
-</ul>
-<p>这里就不得不提到其中巧妙的设计，通过引入结构类型<code>Unit</code>来代表无返回的情况。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表无需返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IRequest : IRequest&lt;Unit&gt; &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表有返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TResponse&quot;&gt;Response type&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IRequest&lt;out TResponse&gt; : IBaseRequest &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Allows for generic type constraints of objects implementing IRequest or IRequest&#123;TResponse&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IBaseRequest &#123; &#125;</span><br></pre></td></tr></table></figure>
-
-<p>同样对于<code>IRequestHandler</code>也是通过结构类型<code>Unit</code>来处理不需要返回值的情况。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IRequestHandler&lt;in TRequest, TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Task&lt;TResponse&gt; Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IRequestHandler&lt;in TRequest&gt; : IRequestHandler&lt;TRequest, Unit&gt;</span><br><span class="line">    where TRequest : IRequest&lt;Unit&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从上面我们可以看出定义了一个方法名为<code>Handle</code>返回值为<code>Task</code>的包装类型，而因此赋予了其具有以同步和异步的方式进行消息处理的能力。我们再看一下其以异步方式进行消息处理（无返回值）的默认实现<code>AsyncRequestHandler</code>：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class AsyncRequestHandler&lt;TRequest&gt; : IRequestHandler&lt;TRequest&gt;</span><br><span class="line">    where TRequest : IRequest</span><br><span class="line">&#123;</span><br><span class="line">    async Task&lt;Unit&gt; IRequestHandler&lt;TRequest, Unit&gt;.Handle(TRequest request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        await Handle(request, cancellationToken).ConfigureAwait(false);</span><br><span class="line">        return Unit.Value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    protected abstract Task Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>从上面的代码来看，我们很容易看出这是装饰模式的实现方式，是不是很巧妙的解决了无需返回值的场景。</p>
-<p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
-<p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
-<p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
-<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
-<p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
-<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
-<p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
-<ul>
-<li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
-<li>IRequestPostProcessor&lt;in TRequest, in TResponse&gt; 请求处理后接口</li>
-</ul>
-<p>其中<code>IPipelineBehavior</code>的默认实现：<code>RequestPreProcessorBehavior</code>和<code>RequestPostProcessorBehavior</code>分别用来处理所有实现<code>IRequestPreProcessor</code>和<code>IRequestPostProcessor</code>接口定义的管道行为。</p>
-<p>而处理管道是如何构建的呢？我们来看下<code>RequestHandlerWrapperImpl</code>的具体实现：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">internal class RequestHandlerWrapperImpl&lt;TRequest, TResponse&gt; : RequestHandlerWrapper&lt;TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public override Task&lt;TResponse&gt; Handle(IRequest&lt;TResponse&gt; request, CancellationToken cancellationToken,</span><br><span class="line">        ServiceFactory serviceFactory)</span><br><span class="line">    &#123;</span><br><span class="line">        Task&lt;TResponse&gt; Handler() &#x3D;&gt; GetHandler&lt;IRequestHandler&lt;TRequest, TResponse&gt;&gt;(serviceFactory).Handle((TRequest) request, cancellationToken);</span><br><span class="line"></span><br><span class="line">        return serviceFactory</span><br><span class="line">            .GetInstances&lt;IPipelineBehavior&lt;TRequest, TResponse&gt;&gt;()</span><br><span class="line">            .Reverse()</span><br><span class="line">            .Aggregate((RequestHandlerDelegate&lt;TResponse&gt;) Handler, (next, pipeline) &#x3D;&gt; () &#x3D;&gt; pipeline.Handle((TRequest)request, cancellationToken, next))();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>就这样一个简单的函数，涉及的知识点还真不少，说实话我花了不少时间来理清这个逻辑。<br>那都涉及到哪些知识点呢？我们一个一个的来理一理。</p>
-<ol>
-<li>C# 7.0的新特性 - 局部函数</li>
-<li>C# 6.0的新特性 - 表达式形式的成员函数</li>
-<li>Linq高阶函数 - <code>Aggregate</code></li>
-<li>匿名委托</li>
-<li>构造委托函数链</li>
-</ol>
-<p>关于第1、2个知识点，请看下面这段代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();&#x2F;&#x2F;定义委托</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;局部函数(在函数内部定义函数)</span><br><span class="line">    &#x2F;&#x2F;表达式形式的成员函数， 相当于 int Sum() &#123; return 1 + 2;&#125;</span><br><span class="line">    int Sum() &#x3D;&gt; 1 + 2;</span><br><span class="line"></span><br><span class="line">    var sumDelegate &#x3D; (SumDelegate)Sum;&#x2F;&#x2F;转换为委托</span><br><span class="line">    Console.WriteLine(sumDelegate());&#x2F;&#x2F;委托调用，输出：3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>再看第4个知识点，匿名委托：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();</span><br><span class="line"></span><br><span class="line">SumDelegate delegater1 &#x3D; delegate()&#123; return 1+2; &#125;</span><br><span class="line">&#x2F;&#x2F;也相当于</span><br><span class="line">SumDelegate delegater2 &#x3D;&gt; 1+2;</span><br></pre></td></tr></table></figure>
-
-<p>下面再来介绍一下<code>Aggregate</code>这个Linq高阶函数。<code>Aggregate</code>是对一个集合序列进行累加操作，通过指定初始值，累加函数，以及结果处理函数完成计算。</p>
-<p>函数定义：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static TResult Aggregate&lt;TSource,TAccumulate,TResult&gt;</span><br><span class="line">(this IEnumerable&lt;TSource&gt; source, </span><br><span class="line">TAccumulate seed, </span><br><span class="line">Func&lt;TAccumulate,TSource,TAccumulate&gt; func, </span><br><span class="line">Func&lt;TAccumulate,TResult&gt; resultSelector);</span><br></pre></td></tr></table></figure>
-
-<p>根据函数定义我们来写个简单的demo：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; Enumerable.Range(2, 3);&#x2F;&#x2F;[2,3,4]</span><br><span class="line">&#x2F;&#x2F; 计算1到5的累加之和，再将结果乘以2</span><br><span class="line">var sum &#x3D; nums.Aggregate(1, (total, next) &#x3D;&gt; total + next, result &#x3D;&gt; result * 2);&#x2F;&#x2F; 相当于 (((1+2)+3)+4)*2&#x3D;20</span><br><span class="line">Console.WriteLine(sum);&#x2F;&#x2F;20</span><br></pre></td></tr></table></figure>
-<p>和函数参数进行一一对应：</p>
-<ol>
-<li>seed : 1</li>
-<li>Func&lt;TAccumulate,TSource,TAccumulate&gt; func : (total, next) =&gt; total + next</li>
-<li>Func&lt;TAccumulate,TResult&gt; resultSelector : result =&gt; result * 2</li>
-</ol>
-<p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
-<p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
-<p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
-<p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
-<p>至此，MediatR的实现思路算是理清了。</p>
-<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>如文章开头提到：MediatR是一种进程内消息传递机制。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</p>
-<p>那么我们就应该明白，其核心是<strong>消息的解耦</strong>。因为我们几乎都是在与消息打交道，那因此它的应用场景就很广泛，比如我们可以基于MediatR实现CQRS、EventBus等。</p>
-<p>另外，还有一种应用场景：我们知道借助依赖注入的好处是，就是解除依赖，但我们又不得不思考一个问题，随着业务逻辑复杂度的增加，构造函数可能要注入更多的服务，当注入的依赖太多时，其会导致构造函数膨胀。比如：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(</span><br><span class="line">    ICustomerRepository customerRepository,</span><br><span class="line">    IOrderService orderService,</span><br><span class="line">    ICustomerHistoryRepository historyRepository,</span><br><span class="line">    IOrderRepository orderRepository,</span><br><span class="line">    IProductRespoitory productRespoitory,</span><br><span class="line">    IRelatedProductsRepository relatedProductsRepository,</span><br><span class="line">    ISupportService supportService,</span><br><span class="line">    ILog logger</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
-<p>如果借助<code>MediatR</code>进行改造，也许仅需注入<code>IMediatR</code>就可以了。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(IMediatR mediatr)</span><br></pre></td></tr></table></figure>
-
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>看到这里，也许你应该明白MediatR实质上并不是严格意义上的中介者模式实现，我更倾向于其是基于Ioc容器的一层抽象，根据请求定位相应的请求处理器进行消息处理，也就是服务定位。<br>那到这里似乎也恍然大悟MediatR这个笔误可能是有意为之了。序员，你怎么看？</p>
-<blockquote>
-<p>参考资料：<br><a href="https://lostechies.com/jimmybogard/2016/10/27/cqrsmediatr-implementation-patterns/" target="_blank" rel="noopener">CQRS/MediatR implementation patterns</a><br><a href="https://stackoverflow.com/questions/50663501/mediatr-when-and-why-i-should-use-it-vs-2017-webapi" target="_blank" rel="noopener">MediatR when and why I should use it? vs 2017 webapi</a><br><a href="https://www.jianshu.com/p/c28500ec9439?tdsourcetag=s_pctim_aiomsg" target="_blank" rel="noopener">ABP CQRS 实现案例:基于 MediatR 实现</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET Core</tag>
-        <tag>中介者模式</tag>
-        <tag>发布订阅模式</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>事件总线知多少(1)</title>
     <url>/how-much-you-know-about-the-eventbus-1/</url>
     <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线这个概念对你来说可能很陌生，但提到观察者（发布-订阅）模式，你也许就很熟悉。事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。</p>
@@ -242,8 +120,130 @@
       </categories>
       <tags>
         <tag>.NET Core</tag>
-        <tag>发布订阅模式</tag>
         <tag>EventBus</tag>
+        <tag>发布订阅模式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MediatR 知多少</title>
+    <url>/how-much-you-know-about-the-MediatR/</url>
+    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
+<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
+<p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
+<blockquote>
+<p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
+</blockquote>
+<p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
+<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
+<blockquote>
+<p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
+</blockquote>
+<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
+<p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
+<p>那其优缺点也在图中很容易看出：</p>
+<blockquote>
+<p><strong>优点</strong>：中介者模式的优点就是减少类间的依赖，把原有的一对多的依赖变成了一对一的依赖，同事类只依赖中介者，减少了依赖，当然同时也降低了类间的耦合<br><strong>缺点</strong>：中介者模式的缺点就是中介者会膨胀得很大，而且逻辑复杂，原本N个对象直接的相互依赖关系转换为中介者和同事类的依赖关系，同事类越多，中介者的逻辑就越复杂。</p>
+</blockquote>
+<h1 id="Hello-MeidatR"><a href="#Hello-MeidatR" class="headerlink" title="Hello MeidatR"></a>Hello MeidatR</h1><p>在开始之前，我们先来了解下其基本用法。</p>
+<h2 id="单播消息传输"><a href="#单播消息传输" class="headerlink" title="单播消息传输"></a>单播消息传输</h2><p>单播消息传输，也就是一对一的消息传递，一个消息对应一个消息处理。其通过<code>IRequest</code>来抽象单播消息，用<code>IRequestHandler</code>进行消息处理。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 消息请求</span><br><span class="line">public class Ping : IRequest&lt;string&gt; &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理</span><br><span class="line">public class PingHandler : IRequestHandler&lt;Ping, string&gt; &#123;</span><br><span class="line">    public Task&lt;string&gt; Handle(Ping request, CancellationToken cancellationToken) &#123;</span><br><span class="line">        return Task.FromResult(&quot;Pong&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;发送 请求</span><br><span class="line">var response &#x3D; await mediator.Send(new Ping());</span><br><span class="line">Debug.WriteLine(response); &#x2F;&#x2F; &quot;Pong&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="多播消息传输"><a href="#多播消息传输" class="headerlink" title="多播消息传输"></a>多播消息传输</h2><p>多播消息传输，也就是一对多的消息传递，一个消息对应多个消息处理。其通过<code>INotification</code>来抽象多播消息，对应的消息处理类型为<code>INotificationHandler</code>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
+
+<h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
+<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
+<p>从代码图中我们可以看到其核心的对象主要包括：</p>
+<ol>
+<li>IRequest Vs IRequestHandler</li>
+<li>INotification Vs INoticifaitonHandler</li>
+<li>IMediator Vs Mediator</li>
+<li>Unit</li>
+<li>IPipelineBehavior</li>
+</ol>
+<h2 id="IRequest-Vs-IRequestHandler"><a href="#IRequest-Vs-IRequestHandler" class="headerlink" title="IRequest Vs IRequestHandler"></a>IRequest Vs IRequestHandler</h2><p>其中<code>IRequest</code>和<code>INotification</code>分别对应单播和多播消息的抽象。<br>对于单播消息可以决定是否需要返回值选用不同的接口：</p>
+<ul>
+<li>IRequest<T> - 有返回值</li>
+<li>IRequest - 无返回值</li>
+</ul>
+<p>这里就不得不提到其中巧妙的设计，通过引入结构类型<code>Unit</code>来代表无返回的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表无需返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IRequest : IRequest&lt;Unit&gt; &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表有返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TResponse&quot;&gt;Response type&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IRequest&lt;out TResponse&gt; : IBaseRequest &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Allows for generic type constraints of objects implementing IRequest or IRequest&#123;TResponse&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IBaseRequest &#123; &#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样对于<code>IRequestHandler</code>也是通过结构类型<code>Unit</code>来处理不需要返回值的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IRequestHandler&lt;in TRequest, TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Task&lt;TResponse&gt; Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IRequestHandler&lt;in TRequest&gt; : IRequestHandler&lt;TRequest, Unit&gt;</span><br><span class="line">    where TRequest : IRequest&lt;Unit&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面我们可以看出定义了一个方法名为<code>Handle</code>返回值为<code>Task</code>的包装类型，而因此赋予了其具有以同步和异步的方式进行消息处理的能力。我们再看一下其以异步方式进行消息处理（无返回值）的默认实现<code>AsyncRequestHandler</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class AsyncRequestHandler&lt;TRequest&gt; : IRequestHandler&lt;TRequest&gt;</span><br><span class="line">    where TRequest : IRequest</span><br><span class="line">&#123;</span><br><span class="line">    async Task&lt;Unit&gt; IRequestHandler&lt;TRequest, Unit&gt;.Handle(TRequest request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        await Handle(request, cancellationToken).ConfigureAwait(false);</span><br><span class="line">        return Unit.Value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    protected abstract Task Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面的代码来看，我们很容易看出这是装饰模式的实现方式，是不是很巧妙的解决了无需返回值的场景。</p>
+<p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
+<p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
+<p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
+<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
+<p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
+<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
+<p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
+<ul>
+<li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
+<li>IRequestPostProcessor&lt;in TRequest, in TResponse&gt; 请求处理后接口</li>
+</ul>
+<p>其中<code>IPipelineBehavior</code>的默认实现：<code>RequestPreProcessorBehavior</code>和<code>RequestPostProcessorBehavior</code>分别用来处理所有实现<code>IRequestPreProcessor</code>和<code>IRequestPostProcessor</code>接口定义的管道行为。</p>
+<p>而处理管道是如何构建的呢？我们来看下<code>RequestHandlerWrapperImpl</code>的具体实现：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">internal class RequestHandlerWrapperImpl&lt;TRequest, TResponse&gt; : RequestHandlerWrapper&lt;TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public override Task&lt;TResponse&gt; Handle(IRequest&lt;TResponse&gt; request, CancellationToken cancellationToken,</span><br><span class="line">        ServiceFactory serviceFactory)</span><br><span class="line">    &#123;</span><br><span class="line">        Task&lt;TResponse&gt; Handler() &#x3D;&gt; GetHandler&lt;IRequestHandler&lt;TRequest, TResponse&gt;&gt;(serviceFactory).Handle((TRequest) request, cancellationToken);</span><br><span class="line"></span><br><span class="line">        return serviceFactory</span><br><span class="line">            .GetInstances&lt;IPipelineBehavior&lt;TRequest, TResponse&gt;&gt;()</span><br><span class="line">            .Reverse()</span><br><span class="line">            .Aggregate((RequestHandlerDelegate&lt;TResponse&gt;) Handler, (next, pipeline) &#x3D;&gt; () &#x3D;&gt; pipeline.Handle((TRequest)request, cancellationToken, next))();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>就这样一个简单的函数，涉及的知识点还真不少，说实话我花了不少时间来理清这个逻辑。<br>那都涉及到哪些知识点呢？我们一个一个的来理一理。</p>
+<ol>
+<li>C# 7.0的新特性 - 局部函数</li>
+<li>C# 6.0的新特性 - 表达式形式的成员函数</li>
+<li>Linq高阶函数 - <code>Aggregate</code></li>
+<li>匿名委托</li>
+<li>构造委托函数链</li>
+</ol>
+<p>关于第1、2个知识点，请看下面这段代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();&#x2F;&#x2F;定义委托</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;局部函数(在函数内部定义函数)</span><br><span class="line">    &#x2F;&#x2F;表达式形式的成员函数， 相当于 int Sum() &#123; return 1 + 2;&#125;</span><br><span class="line">    int Sum() &#x3D;&gt; 1 + 2;</span><br><span class="line"></span><br><span class="line">    var sumDelegate &#x3D; (SumDelegate)Sum;&#x2F;&#x2F;转换为委托</span><br><span class="line">    Console.WriteLine(sumDelegate());&#x2F;&#x2F;委托调用，输出：3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再看第4个知识点，匿名委托：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();</span><br><span class="line"></span><br><span class="line">SumDelegate delegater1 &#x3D; delegate()&#123; return 1+2; &#125;</span><br><span class="line">&#x2F;&#x2F;也相当于</span><br><span class="line">SumDelegate delegater2 &#x3D;&gt; 1+2;</span><br></pre></td></tr></table></figure>
+
+<p>下面再来介绍一下<code>Aggregate</code>这个Linq高阶函数。<code>Aggregate</code>是对一个集合序列进行累加操作，通过指定初始值，累加函数，以及结果处理函数完成计算。</p>
+<p>函数定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static TResult Aggregate&lt;TSource,TAccumulate,TResult&gt;</span><br><span class="line">(this IEnumerable&lt;TSource&gt; source, </span><br><span class="line">TAccumulate seed, </span><br><span class="line">Func&lt;TAccumulate,TSource,TAccumulate&gt; func, </span><br><span class="line">Func&lt;TAccumulate,TResult&gt; resultSelector);</span><br></pre></td></tr></table></figure>
+
+<p>根据函数定义我们来写个简单的demo：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; Enumerable.Range(2, 3);&#x2F;&#x2F;[2,3,4]</span><br><span class="line">&#x2F;&#x2F; 计算1到5的累加之和，再将结果乘以2</span><br><span class="line">var sum &#x3D; nums.Aggregate(1, (total, next) &#x3D;&gt; total + next, result &#x3D;&gt; result * 2);&#x2F;&#x2F; 相当于 (((1+2)+3)+4)*2&#x3D;20</span><br><span class="line">Console.WriteLine(sum);&#x2F;&#x2F;20</span><br></pre></td></tr></table></figure>
+<p>和函数参数进行一一对应：</p>
+<ol>
+<li>seed : 1</li>
+<li>Func&lt;TAccumulate,TSource,TAccumulate&gt; func : (total, next) =&gt; total + next</li>
+<li>Func&lt;TAccumulate,TResult&gt; resultSelector : result =&gt; result * 2</li>
+</ol>
+<p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
+<p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
+<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
+<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
+<p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
+<p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
+<p>至此，MediatR的实现思路算是理清了。</p>
+<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>如文章开头提到：MediatR是一种进程内消息传递机制。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</p>
+<p>那么我们就应该明白，其核心是<strong>消息的解耦</strong>。因为我们几乎都是在与消息打交道，那因此它的应用场景就很广泛，比如我们可以基于MediatR实现CQRS、EventBus等。</p>
+<p>另外，还有一种应用场景：我们知道借助依赖注入的好处是，就是解除依赖，但我们又不得不思考一个问题，随着业务逻辑复杂度的增加，构造函数可能要注入更多的服务，当注入的依赖太多时，其会导致构造函数膨胀。比如：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(</span><br><span class="line">    ICustomerRepository customerRepository,</span><br><span class="line">    IOrderService orderService,</span><br><span class="line">    ICustomerHistoryRepository historyRepository,</span><br><span class="line">    IOrderRepository orderRepository,</span><br><span class="line">    IProductRespoitory productRespoitory,</span><br><span class="line">    IRelatedProductsRepository relatedProductsRepository,</span><br><span class="line">    ISupportService supportService,</span><br><span class="line">    ILog logger</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+<p>如果借助<code>MediatR</code>进行改造，也许仅需注入<code>IMediatR</code>就可以了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(IMediatR mediatr)</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>看到这里，也许你应该明白MediatR实质上并不是严格意义上的中介者模式实现，我更倾向于其是基于Ioc容器的一层抽象，根据请求定位相应的请求处理器进行消息处理，也就是服务定位。<br>那到这里似乎也恍然大悟MediatR这个笔误可能是有意为之了。序员，你怎么看？</p>
+<blockquote>
+<p>参考资料：<br><a href="https://lostechies.com/jimmybogard/2016/10/27/cqrsmediatr-implementation-patterns/" target="_blank" rel="noopener">CQRS/MediatR implementation patterns</a><br><a href="https://stackoverflow.com/questions/50663501/mediatr-when-and-why-i-should-use-it-vs-2017-webapi" target="_blank" rel="noopener">MediatR when and why I should use it? vs 2017 webapi</a><br><a href="https://www.jianshu.com/p/c28500ec9439?tdsourcetag=s_pctim_aiomsg" target="_blank" rel="noopener">ABP CQRS 实现案例:基于 MediatR 实现</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET Core</tag>
+        <tag>发布订阅模式</tag>
+        <tag>中介者模式</tag>
       </tags>
   </entry>
   <entry>
@@ -337,8 +337,8 @@
       </categories>
       <tags>
         <tag>.NET Core</tag>
-        <tag>发布订阅模式</tag>
         <tag>EventBus</tag>
+        <tag>发布订阅模式</tag>
       </tags>
   </entry>
   <entry>
@@ -494,7 +494,7 @@
 <p>socket: 直译为“插座”，在计算机通信领域，socket 被翻译为“套接字”，它是计算机之间进行通信的一种约定或一种方式。通过 socket 这种约定，一台计算机可以接收其他计算机的数据，也可以向其他计算机发送数据。我们把插头插到插座上就能从电网获得电力供应，同样，应用程序为了与远程计算机进行数据传输，需要连接到因特网，而 socket 就是用来连接到因特网的工具。</p>
 </blockquote>
 <p>另外还需要知道的是，socket 编程的基本流程。<br><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-5f95e14aac563bce.png" alt="Socket 编程流程"></p>
-<h1 id="2-同步阻塞IO"><a href="#2-同步阻塞IO" class="headerlink" title="2. 同步阻塞IO"></a>2. 同步阻塞IO</h1><p>先回顾下概念：阻塞IO是指，应用进程中线程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。</p>
+<h1 id="同步阻塞IO"><a href="#同步阻塞IO" class="headerlink" title="同步阻塞IO"></a>同步阻塞IO</h1><p>先回顾下概念：阻塞IO是指，应用进程中线程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static void Start()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">    var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">    var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">    &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">    serverSocket.Bind(ipEndpoint);</span><br><span class="line">    &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">    serverSocket.Listen(10);</span><br><span class="line">    Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;4. 等待客户端连接</span><br><span class="line">        var clientSocket &#x3D; serverSocket.Accept();&#x2F;&#x2F;阻塞</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">        Span&lt;byte&gt; buffer &#x3D; new Span&lt;byte&gt;(new byte[512]);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-开始接收数据...&quot;);</span><br><span class="line">        int readLength &#x3D; clientSocket.Receive(buffer);&#x2F;&#x2F;阻塞</span><br><span class="line">        var msg &#x3D; Encoding.UTF8.GetString(buffer.ToArray(), 0, readLength);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line">        var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">        clientSocket.Send(sendBuffer);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-c4034c0af2e3b32f.gif" alt=""></p>
 <p>代码很简单，直接看注释就OK了，运行结果如上图所示，但有几个问题点需要着重说明下：</p>
@@ -512,7 +512,7 @@
 <p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-12046ce197b2f2b3.gif" alt="多线程"></p>
 <p>是的，多线程解决了上述的问题，但如果你观察以上动图后，你应该能发现个问题：<strong>才建立4个客户端连接，CPU的占用率就开始直线上升了。</strong></p>
 <p>而这个问题的本质就是，服务端的IO模型为阻塞IO模型，为了解决阻塞导致的问题，采用重复轮询，导致无效的系统调用，从而导致CPU持续走高。</p>
-<h1 id="3-IO多路复用"><a href="#3-IO多路复用" class="headerlink" title="3. IO多路复用"></a>3. IO多路复用</h1><p>既然知道原因所在，咱们就来予以改造。适用异步方式来处理连接、接收和发送数据。</p>
+<h1 id="IO多路复用"><a href="#IO多路复用" class="headerlink" title="IO多路复用"></a>IO多路复用</h1><p>既然知道原因所在，咱们就来予以改造。适用异步方式来处理连接、接收和发送数据。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static class NioServer</span><br><span class="line">&#123;</span><br><span class="line">    private static ManualResetEvent _acceptEvent &#x3D; new ManualResetEvent(true);</span><br><span class="line">    private static ManualResetEvent _readEvent &#x3D; new ManualResetEvent(true);</span><br><span class="line">    public static void Start()</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">        var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">        &#x2F;&#x2F; serverSocket.Blocking &#x3D; false;&#x2F;&#x2F;设置为非阻塞</span><br><span class="line">        var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">        &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">        serverSocket.Bind(ipEndpoint);</span><br><span class="line">        &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">        serverSocket.Listen(10);</span><br><span class="line">        Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            _acceptEvent.Reset();&#x2F;&#x2F;重置信号量</span><br><span class="line">            serverSocket.BeginAccept(OnClientConnected, serverSocket);</span><br><span class="line">            _acceptEvent.WaitOne();&#x2F;&#x2F;阻塞</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void OnClientConnected(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        _acceptEvent.Set();&#x2F;&#x2F;当有客户端连接进来后，则释放信号量</span><br><span class="line">        var serverSocket &#x3D; ar.AsyncState as Socket;</span><br><span class="line">        Debug.Assert(serverSocket !&#x3D; null, nameof(serverSocket) + &quot; !&#x3D; null&quot;);</span><br><span class="line"></span><br><span class="line">        var clientSocket &#x3D; serverSocket.EndAccept(ar);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">        </span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            _readEvent.Reset();&#x2F;&#x2F;重置信号量</span><br><span class="line">            var stateObj &#x3D; new StateObject &#123; ClientSocket &#x3D; clientSocket &#125;;</span><br><span class="line">            clientSocket.BeginReceive(stateObj.Buffer, 0, stateObj.Buffer.Length, SocketFlags.None, OnMessageReceived, stateObj);</span><br><span class="line">            _readEvent.WaitOne();&#x2F;&#x2F;阻塞等待</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void OnMessageReceived(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        var state &#x3D; ar.AsyncState as StateObject;</span><br><span class="line">        Debug.Assert(state !&#x3D; null, nameof(state) + &quot; !&#x3D; null&quot;);</span><br><span class="line">        var receiveLength &#x3D; state.ClientSocket.EndReceive(ar);</span><br><span class="line"></span><br><span class="line">        if (receiveLength &gt; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            var msg &#x3D; Encoding.UTF8.GetString(state.Buffer, 0, receiveLength);</span><br><span class="line">            Console.WriteLine($&quot;&#123;state.ClientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line"></span><br><span class="line">            var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">            state.ClientSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None,</span><br><span class="line">                SendMessage, state.ClientSocket);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void SendMessage(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        var clientSocket &#x3D; ar.AsyncState as Socket;</span><br><span class="line">        Debug.Assert(clientSocket !&#x3D; null, nameof(clientSocket) + &quot; !&#x3D; null&quot;);</span><br><span class="line">        clientSocket.EndSend(ar);</span><br><span class="line">        _readEvent.Set(); &#x2F;&#x2F;发送完毕后，释放信号量</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class StateObject</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; Client  socket.  </span><br><span class="line">    public Socket ClientSocket &#x3D; null;</span><br><span class="line">    &#x2F;&#x2F; Size of receive buffer.  </span><br><span class="line">    public const int BufferSize &#x3D; 1024;</span><br><span class="line">    &#x2F;&#x2F; Receive buffer.  </span><br><span class="line">    public byte[] Buffer &#x3D; new byte[BufferSize];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>首先来看运行结果，从下图可以看到，除了建立连接时CPU出现抖动外，在消息接收和发送阶段，CPU占有率趋于平缓，且占用率低。</p>
 <p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-bf36d3ea3c3ec980.gif" alt=""></p>
