@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
 <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
-<meta name="theme-color" content="#222">
+<meta name="theme-color" content="#0072c6">
 <meta name="generator" content="Hexo 4.2.0">
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/logo.svg" color="#0072c6">
   <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4">
   <meta name="baidu-site-verification" content="Ih8zdGWlLG">
 
@@ -23,35 +23,35 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#0072c6","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="同步异步I&#x2F;O，阻塞非阻塞I&#x2F;O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I&#x2F;O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？">
 <meta property="og:type" content="article">
 <meta property="og:title" content="IO模型知多少 | 理论篇">
-<meta property="og:url" content="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/index.html">
+<meta property="og:url" content="https://blog.shengjie.dev/post/how-much-you-know-about-the-io-models/index.html">
 <meta property="og:site_name" content="圣杰 | 知多少">
 <meta property="og:description" content="同步异步I&#x2F;O，阻塞非阻塞I&#x2F;O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I&#x2F;O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png">
-<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png">
 <meta property="article:published_time" content="2020-04-14T12:37:14.000Z">
-<meta property="article:modified_time" content="2020-05-11T01:51:06.461Z">
+<meta property="article:modified_time" content="2020-05-13T05:36:33.850Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content="I&#x2F;O">
 <meta property="article:tag" content="EPOLL">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png">
+<meta name="twitter:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png">
 
-<link rel="canonical" href="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/">
+<link rel="canonical" href="https://blog.shengjie.dev/post/how-much-you-know-about-the-io-models/">
 
 
 <script id="page-configurations">
@@ -118,6 +118,7 @@
       <h1 class="site-title">圣杰 | 知多少</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
+      <p class="site-subtitle" itemprop="description">Code is cheap, show you my mind!</p>
   </div>
 
   <div class="site-nav-right">
@@ -216,7 +217,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/post/how-much-you-know-about-the-io-models/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/MVP_Logo.bmp">
@@ -246,7 +247,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-11 09:51:06" itemprop="dateModified" datetime="2020-05-11T09:51:06+08:00">2020-05-11</time>
+                <time title="修改时间：2020-05-13 13:36:33" itemprop="dateModified" datetime="2020-05-13T13:36:33+08:00">2020-05-13</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -265,21 +266,7 @@
               </span>
               <span class="post-meta-item-text">阅读次数：</span>
               <span id="busuanzi_value_page_pv"></span>
-            </span>
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="fa fa-comment-o"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/how-much-you-know-about-the-io-models/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/how-much-you-know-about-the-io-models/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  <br>
+            </span><br>
             <span class="post-meta-item" title="本文字数">
               <span class="post-meta-item-icon">
                 <i class="fa fa-file-word-o"></i>
@@ -381,7 +368,7 @@
   <div class="popular-posts-header">猜你喜欢</div>
   <ul class="popular-posts">
     <li class="popular-posts-item">
-      <div class="popular-posts-title"><a href="/how-much-you-know-about-the-io-model-demo/" rel="bookmark">IO模型知多少 | 代码篇</a></div>
+      <div class="popular-posts-title"><a href="/post/how-much-you-know-about-the-io-model-demo/" rel="bookmark">IO模型知多少 | 代码篇</a></div>
     </li>
   </ul>
 
@@ -394,7 +381,7 @@
   </li>
   <li class="post-copyright-link">
     <strong>本文链接：</strong>
-    <a href="https://blog.shengjie.dev/how-much-you-know-about-the-io-models/" title="IO模型知多少 | 理论篇">https://blog.shengjie.dev/how-much-you-know-about-the-io-models/</a>
+    <a href="https://blog.shengjie.dev/post/how-much-you-know-about-the-io-models/" title="IO模型知多少 | 理论篇">https://blog.shengjie.dev/post/how-much-you-know-about-the-io-models/</a>
   </li>
   <li class="post-copyright-license">
     <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -429,11 +416,11 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/how-much-you-know-about-the-orleans/" rel="prev" title="Orleans 知多少 | .NET分布式框架">
+    <a href="/post/how-much-you-know-about-the-orleans/" rel="prev" title="Orleans 知多少 | .NET分布式框架">
       <i class="fa fa-chevron-left"></i> Orleans 知多少 | .NET分布式框架
     </a></div>
       <div class="post-nav-item">
-    <a href="/how-much-you-know-about-the-io-model-demo/" rel="next" title="IO模型知多少 | 代码篇">
+    <a href="/post/how-much-you-know-about-the-io-model-demo/" rel="next" title="IO模型知多少 | 代码篇">
       IO模型知多少 | 代码篇 <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
@@ -448,7 +435,6 @@
 
           </div>
           
-    <div class="comments" id="valine-comments"></div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -737,35 +723,6 @@ window.addEventListener('pjax:success', () => {
   
 
   
-
-
-<script>
-NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
-  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
-    var GUEST = ['nick', 'mail', 'link'];
-    var guest = 'nick,mail,link';
-    guest = guest.split(',').filter(item => {
-      return GUEST.includes(item);
-    });
-    new Valine({
-      el         : '#valine-comments',
-      verify     : false,
-      notify     : false,
-      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
-      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
-      placeholder: "Code is cheap, show me your mind!",
-      avatar     : 'mm',
-      meta       : guest,
-      pageSize   : '10' || 10,
-      visitor    : false,
-      lang       : '' || 'zh-cn',
-      path       : location.pathname,
-      recordIP   : true,
-      serverURLs : ''
-    });
-  }, window.Valine);
-});
-</script>
 
     </div>
 </body>

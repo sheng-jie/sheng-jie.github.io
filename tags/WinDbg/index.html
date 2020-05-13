@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
 <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
-<meta name="theme-color" content="#222">
+<meta name="theme-color" content="#0072c6">
 <meta name="generator" content="Hexo 4.2.0">
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/logo.svg" color="#0072c6">
   <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4">
   <meta name="baidu-site-verification" content="Ih8zdGWlLG">
 
@@ -23,7 +23,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#0072c6","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
@@ -104,6 +104,7 @@
       <h1 class="site-title">圣杰 | 知多少</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
+      <p class="site-subtitle" itemprop="description">Code is cheap, show you my mind!</p>
   </div>
 
   <div class="site-nav-right">
@@ -226,7 +227,7 @@
       </div>
 
       <div class="post-title">
-          <a class="post-title-link" href="/use-windbg-to-analyze-high-memory-issue/" itemprop="url">
+          <a class="post-title-link" href="/post/use-windbg-to-analyze-high-memory-issue/" itemprop="url">
             <span itemprop="name">WinDbg分析高内存占用问题</span>
           </a>
       </div>
@@ -533,35 +534,6 @@ window.addEventListener('pjax:success', () => {
   
 
   
-
-
-<script>
-NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
-  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
-    var GUEST = ['nick', 'mail', 'link'];
-    var guest = 'nick,mail,link';
-    guest = guest.split(',').filter(item => {
-      return GUEST.includes(item);
-    });
-    new Valine({
-      el         : '#valine-comments',
-      verify     : false,
-      notify     : false,
-      appId      : 'twal3A4ocIXKw2ydHShyHpDq-gzGzoHsz',
-      appKey     : '7fvyVUCQOMyu8b7KHQf7pQyC',
-      placeholder: "Code is cheap, show me your mind!",
-      avatar     : 'mm',
-      meta       : guest,
-      pageSize   : '10' || 10,
-      visitor    : false,
-      lang       : '' || 'zh-cn',
-      path       : location.pathname,
-      recordIP   : true,
-      serverURLs : ''
-    });
-  }, window.Valine);
-});
-</script>
 
     </div>
 </body>
