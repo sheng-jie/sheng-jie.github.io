@@ -3,18 +3,18 @@
   <entry>
     <title>MediatR 知多少</title>
     <url>/post/how-much-you-know-about-the-MediatR/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
 <h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
 <p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
 <blockquote>
 <p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
 </blockquote>
 <p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
-<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
+<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
 <blockquote>
 <p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
 </blockquote>
-<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
+<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
 <p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
 <p>那其优缺点也在图中很容易看出：</p>
 <blockquote>
@@ -28,7 +28,7 @@
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
 
 <h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
 <p>从代码图中我们可以看到其核心的对象主要包括：</p>
 <ol>
 <li>IRequest Vs IRequestHandler</li>
@@ -54,13 +54,13 @@
 <p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
+<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
 <p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
 <p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
-<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
+<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
 <p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
-<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
+<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
 <p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
 <ul>
 <li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
@@ -96,8 +96,8 @@
 </ol>
 <p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
 <p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
 <p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
 <p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
 <p>至此，MediatR的实现思路算是理清了。</p>
@@ -127,7 +127,7 @@
     <url>/post/how-much-you-know-about-the-eventbus-1/</url>
     <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线这个概念对你来说可能很陌生，但提到观察者（发布-订阅）模式，你也许就很熟悉。事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。</p>
 <p>我们来看看事件总线的处理流程：</p>
-<p><img src="../images/how-much-you-know-about-the-eventbus-1/2799767-6f44bdefa88a23a2.png" alt="图1：EventBus流程"></p>
+<p><img src="/images/how-much-you-know-about-the-eventbus-1/2799767-6f44bdefa88a23a2.png" alt="图1：EventBus流程"></p>
 <p>了解了事件总线的基本概念和处理流程，下面我们就来分析下如何去实现事件总线。</p>
 <h1 id="2-回归本质"><a href="#2-回归本质" class="headerlink" title="2.回归本质"></a>2.回归本质</h1><p>在动手实现事件总线之前，我们还是要追本溯源，探索一下事件的本质和发布订阅模式的实现机制。</p>
 <h2 id="2-1-事件的本质"><a href="#2-1-事件的本质" class="headerlink" title="2.1.事件的本质"></a>2.1.事件的本质</h2><p>我们先来探讨一下事件的概念。都是读过书的，应该都还记得记叙文的六要素：时间、地点、人物、事件（起因、经过、结果）。</p>
@@ -158,7 +158,7 @@
 </ul>
 <p>总的来说，发布订阅模式中有两个关键字，通知和更新。<br>被观察者状态改变通知观察者做出相应更新。<br>解决的是当对象改变时需要通知其他对象做出相应改变的问题。</p>
 <p>如果画一个图来表示这个流程的画，图形应该是这样的：</p>
-<p><img src="../images/how-much-you-know-about-the-eventbus-1/2799767-8a17f6e834278167.png" alt="图2：发布订阅模式流程"></p>
+<p><img src="/images/how-much-you-know-about-the-eventbus-1/2799767-8a17f6e834278167.png" alt="图2：发布订阅模式流程"></p>
 <h1 id="3-实现发布订阅模式"><a href="#3-实现发布订阅模式" class="headerlink" title="3. 实现发布订阅模式"></a>3. 实现发布订阅模式</h1><p>相信通过上面的解释，对事件和发布订阅模式有了一个大概的印象。都说理论要与实践相结合，所以我们还是动动手指敲敲代码比较好。<br>我将以<a href="http://www.jianshu.com/p/45675c73296d" target="_blank" rel="noopener">『观察者模式』来钓鱼</a>这个例子为基础，通过重构的方式来完善一个更加通用的发布订阅模式。<br>先上代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 鱼的品类枚举</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public enum FishType</span><br><span class="line">&#123;</span><br><span class="line">    鲫鱼,</span><br><span class="line">    鲤鱼,</span><br><span class="line">    黑鱼,</span><br><span class="line">    青鱼,</span><br><span class="line">    草鱼,</span><br><span class="line">    鲈鱼</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>钓鱼竿的实现：</p>
@@ -249,7 +249,7 @@
   <entry>
     <title>事件总线知多少(2)</title>
     <url>/post/how-much-you-know-about-the-eventbus-2/</url>
-    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
 <h1 id="2-回顾事件总线"><a href="#2-回顾事件总线" class="headerlink" title="2.回顾事件总线"></a>2.回顾事件总线</h1><p>在进行具体分析之前，我们还是先对我们实现的事件总线进行一个简单的回顾：</p>
 <ol>
 <li>针对事件源，抽象<code>IEventData</code>接口；</li>
@@ -270,7 +270,7 @@
 </ol>
 <p>那既然反射有性能瓶颈，我们该如何是好呢？<br>你可能会说，既然反射有问题，那就对反射进行性能优化，比如增加缓存机制。出发点是好的，但最终还是在反射问题的阴影之下。对于反射我们应该持以这样一种态度：能不用反射，则不用反射。</p>
 <p>那既然要推翻反射这条路，那如何解决动态绑定和动态触发的问题呢？<br>办法总比问题多。额，啊，嗯。就不饶圈子了，咱们上IOC。</p>
-<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
+<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
 <p>下面我们就以<a href="https://github.com/castleproject/Windsor" target="_blank" rel="noopener">Castle Windsor</a>作为我们的IOC容器为例，来讲解下如何解除依赖。</p>
 <h2 id="4-1-了解Castle-Windsor"><a href="#4-1-了解Castle-Windsor" class="headerlink" title="4.1. 了解Castle Windsor"></a>4.1. 了解Castle Windsor</h2><p>使用Castle Windsor主要包含以下几步：</p>
 <ol>
@@ -325,8 +325,8 @@
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义锁对象</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private static object lockObj&#x3D; new object();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 获取事件总线映射字典中指定事件源的事件列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若有，返回列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若无，构造空列表返回</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">private List&lt;Type&gt; GetOrCreateHandlers(Type eventType)</span><br><span class="line">&#123;</span><br><span class="line">    return _eventAndHandlerMapping.GetOrAdd(eventType, (type) &#x3D;&gt; new List&lt;Type&gt;());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void Register(Type eventType, Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    &#x2F;&#x2F;注册到事件总线</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(eventType).Add(handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(typeof(TEventData)).RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h1 id="6-单元测试"><a href="#6-单元测试" class="headerlink" title="6.单元测试"></a>6.单元测试</h1><p>为了确保重构的正确性和业务的完整性，以上的改进都是基于单元测试进行改进的，使用的是Xunit+Shouldly。虽然不能保证单元测试的覆盖度，但至少确保了正常业务的流转。</p>
-<p><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
-<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
+<p><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
+<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
 <hr>
 <blockquote>
 <p>参考资料：<br><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lwhkdash/archive/2012/09/28/2707549.html" target="_blank" rel="noopener">[c#] 反射真的很可怕吗？</a></p>
@@ -344,13 +344,13 @@
   <entry>
     <title>IdentityServer4 知多少</title>
     <url>/post/how-much-you-know-about-the-identityserver4/</url>
-    <content><![CDATA[<h1 id=""><a href="#" class="headerlink" title=""></a><img src="../images/how-much-you-know-about-the-identityserver4/2799767-c17b64e06a2d4f71-1588585455631.png" alt=""></h1><h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>现在的应用开发层出不穷，基于浏览器的网页应用，基于微信的公众号、小程序，基于IOS、Android的App，基于Windows系统的桌面应用和UWP应用等等，这么多种类的应用，就给应用的开发带来的挑战，我们除了分别实现各个应用外，我们还要考虑各个应用之间的交互，通用模块的提炼，其中身份的认证和授权就是每个应用必不可少的的一部分。而现在的互联网，对于信息安全要求又十分苛刻，所以一套统一的身份认证和授权就至关重要。</p>
-<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-edb5904a988bb3a6.png" alt="IdentityServer 4"></p>
+    <content><![CDATA[<h1 id=""><a href="#" class="headerlink" title=""></a><img src="/images/how-much-you-know-about-the-identityserver4/2799767-c17b64e06a2d4f71-1588585455631.png" alt=""></h1><h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>现在的应用开发层出不穷，基于浏览器的网页应用，基于微信的公众号、小程序，基于IOS、Android的App，基于Windows系统的桌面应用和UWP应用等等，这么多种类的应用，就给应用的开发带来的挑战，我们除了分别实现各个应用外，我们还要考虑各个应用之间的交互，通用模块的提炼，其中身份的认证和授权就是每个应用必不可少的的一部分。而现在的互联网，对于信息安全要求又十分苛刻，所以一套统一的身份认证和授权就至关重要。</p>
+<p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-edb5904a988bb3a6.png" alt="IdentityServer 4"></p>
 <blockquote>
 <p>IdentityServer4就是这样一个框架，IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。</p>
 </blockquote>
 <p>下面我们就来介绍一下相关概念，并梳理下如何集成IdentityServer4。<br>也可浏览自行整理的<strong><a href="http://naotu.baidu.com/file/75b251257ce27cfa62e0ad7f47b75576?token=e2db617be22b6274" target="_blank" rel="noopener">IdentityServer4 百度脑图</a></strong>快速了解。</p>
-<h1 id="2-OAuth2-0-amp-amp-OpenId-Connect"><a href="#2-OAuth2-0-amp-amp-OpenId-Connect" class="headerlink" title="2.OAuth2.0 &amp;&amp; OpenId Connect"></a>2.OAuth2.0 &amp;&amp; OpenId Connect</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-4cd2e40d9b5d84b5.png" alt=""></p>
+<h1 id="2-OAuth2-0-amp-amp-OpenId-Connect"><a href="#2-OAuth2-0-amp-amp-OpenId-Connect" class="headerlink" title="2.OAuth2.0 &amp;&amp; OpenId Connect"></a>2.OAuth2.0 &amp;&amp; OpenId Connect</h1><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-4cd2e40d9b5d84b5.png" alt=""></p>
 <h2 id="2-1-OpenId"><a href="#2-1-OpenId" class="headerlink" title="2.1. OpenId"></a>2.1. OpenId</h2><blockquote>
 <p>OpenID 是一个<strong>以用户为中心的数字身份识别框架</strong>，它具有开放、分散性。OpenID 的创建基于这样一个概念：我们可以通过 URI （又叫 URL 或网站地址）来认证一个网站的唯一身份，同理，我们也可以通过这种方式来作为用户的身份认证。</p>
 </blockquote>
@@ -364,7 +364,7 @@
 </blockquote>
 <p>简而言之：<strong>OpenId Connect = OIDC = Authentication + Authorization + OAuth2.0</strong>。</p>
 <p>比如，Facebook、Google、QQ、微博都是比较知名的OpenId  Connect提供商。</p>
-<h1 id="3-术语解释"><a href="#3-术语解释" class="headerlink" title="3. 术语解释"></a>3. 术语解释</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-00eec4bc3482dd66.png" alt=""></p>
+<h1 id="3-术语解释"><a href="#3-术语解释" class="headerlink" title="3. 术语解释"></a>3. 术语解释</h1><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-00eec4bc3482dd66.png" alt=""></p>
 <p>了解完OpenId Connect和OAuth2.0的基本概念，我们再来梳理下涉及到的相关术语：</p>
 <ol>
 <li>User：用户</li>
@@ -373,11 +373,11 @@
 <li>Identity Server：认证授权服务器</li>
 <li>Token：Access Token（访问令牌）和 Identity Token（身份令牌）</li>
 </ol>
-<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-3f778baddaf58043.png" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-3f778baddaf58043.png" alt=""></p>
 <h1 id="4-JwtBearer-认证"><a href="#4-JwtBearer-认证" class="headerlink" title="4. JwtBearer 认证"></a>4. JwtBearer 认证</h1><h2 id="4-1-HTTP身份验证流程"><a href="#4-1-HTTP身份验证流程" class="headerlink" title="4.1. HTTP身份验证流程"></a>4.1. HTTP身份验证流程</h2><blockquote>
 <p>HTTP提供了一套标准的身份验证框架：服务器可以用来针对客户端的请求发送质询(challenge)，客户端根据质询提供身份验证凭证。质询与应答的工作流程如下：服务器端向客户端返回401（Unauthorized，未授权）状态码，并在WWW-Authenticate头中添加如何进行验证的信息，其中至少包含有一种质询方式。然后客户端可以在请求中添加Authorization头进行验证，其Value为身份验证的凭证信息。</p>
 </blockquote>
-<p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-6d9e1014fd3bca72.png" alt="HTTP身份验证流程"></p>
+<p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-6d9e1014fd3bca72.png" alt="HTTP身份验证流程"></p>
 <p>Bearer认证（也叫做令牌认证）是一种HTTP认证方案，其中包含的安全令牌的叫做Bearer Token。因此Bearer认证的核心是Token。那如何确保Token的安全是重中之重。一种方式是使用Https，另一种方式就是对Token进行加密签名。而JWT就是一种比较流行的Token编码方式。</p>
 <h2 id="4-2-JWT（Json-Web-Token"><a href="#4-2-JWT（Json-Web-Token" class="headerlink" title="4.2. JWT（Json Web Token)"></a>4.2. JWT（Json Web Token)</h2><blockquote>
 <p>Json web token (JWT), 是为了在网络应用环境间传递声明而执行的一种基于JSON的开放标准（<a href="https://tools.ietf.org/html/rfc7519" target="_blank" rel="noopener">RFC 7519</a>）。该token被设计为紧凑且安全的，特别适用于分布式站点的单点登录（SSO）场景。JWT的声明一般被用来在身份提供者和服务提供者间传递被认证的用户身份信息，以便于从资源服务器获取资源，也可以增加一些额外的其它业务逻辑所必须的声明信息，该token也可直接被用于认证，也可被加密。</p>
@@ -400,21 +400,21 @@
 <li>Resource Owner Password Credentials：密码模式</li>
 <li>Authorization Code：授权码模式； </li>
 </ol>
-<h2 id="5-1-Client-Credentials"><a href="#5-1-Client-Credentials" class="headerlink" title="5.1. Client Credentials"></a>5.1. Client Credentials</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-b8f1275cda8b204d.png" alt="客户端凭证模式"></p>
+<h2 id="5-1-Client-Credentials"><a href="#5-1-Client-Credentials" class="headerlink" title="5.1. Client Credentials"></a>5.1. Client Credentials</h2><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-b8f1275cda8b204d.png" alt="客户端凭证模式"></p>
 <p>客户端凭证模式，是最简单的授权模式，因为授权的流程仅发生在Client与Identity Server之间。</p>
 <p>该模式的适用场景为服务器与服务器之间的通信。比如对于一个电子商务网站，将订单和物流系统分拆为两个服务分别部署。订单系统需要访问物流系统进行物流信息的跟踪，物流系统需要访问订单系统的快递单号信息进行物流信息的定时刷新。而这两个系统之间服务的授权就可以通过这种模式来实现。</p>
-<h2 id="5-2-Resource-Owner-Password-Credentials"><a href="#5-2-Resource-Owner-Password-Credentials" class="headerlink" title="5.2. Resource Owner Password Credentials"></a>5.2. Resource Owner Password Credentials</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-934f091397d7234b.png" alt="密码模式"></p>
+<h2 id="5-2-Resource-Owner-Password-Credentials"><a href="#5-2-Resource-Owner-Password-Credentials" class="headerlink" title="5.2. Resource Owner Password Credentials"></a>5.2. Resource Owner Password Credentials</h2><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-934f091397d7234b.png" alt="密码模式"></p>
 <p>Resource Owner其实就是User，所以可以直译为用户名密码模式。密码模式相较于客户端凭证模式，多了一个参与者，就是User。通过User的用户名和密码向Identity Server申请访问令牌。这种模式下要求客户端不得储存密码。但我们并不能确保客户端是否储存了密码，所以该模式仅适用于受信任的客户端。否则会发生密码泄露的危险。<strong>该模式不推荐使用</strong>。</p>
-<h2 id="5-3-Authorization-Code"><a href="#5-3-Authorization-Code" class="headerlink" title="5.3. Authorization Code"></a>5.3. Authorization Code</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-15e218058b896231.png" alt="image.png"></p>
+<h2 id="5-3-Authorization-Code"><a href="#5-3-Authorization-Code" class="headerlink" title="5.3. Authorization Code"></a>5.3. Authorization Code</h2><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-15e218058b896231.png" alt="image.png"></p>
 <p>授权码模式是一种混合模式，是目前功能最完整、流程最严密的授权模式。它主要分为两大步骤：认证和授权。<br>其流程为：</p>
 <ol>
 <li>用户访问客户端，客户端将用户导向Identity Server。</li>
 <li>用户填写凭证信息向客户端授权，认证服务器根据客户端指定的重定向URI，并返回一个【Authorization Code】给客户端。</li>
 <li>客户端根据【Authorization Code】向Identity Server申请【Access Token】</li>
 </ol>
-<h2 id="5-4-Implicit"><a href="#5-4-Implicit" class="headerlink" title="5.4. Implicit"></a>5.4. Implicit</h2><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-890a555d2a3922d3.png" alt="简化模式"></p>
+<h2 id="5-4-Implicit"><a href="#5-4-Implicit" class="headerlink" title="5.4. Implicit"></a>5.4. Implicit</h2><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-890a555d2a3922d3.png" alt="简化模式"></p>
 <p>简化模式是相对于授权码模式而言的。其不再需要【Client】的参与，所有的认证和授权都是通过浏览器来完成的。</p>
-<h1 id="6-IdentityServer4-集成"><a href="#6-IdentityServer4-集成" class="headerlink" title="6. IdentityServer4 集成"></a>6. IdentityServer4 集成</h1><p><img src="../images/how-much-you-know-about-the-identityserver4/2799767-6708925e096c8510.png" alt="如何集成Identity Server"></p>
+<h1 id="6-IdentityServer4-集成"><a href="#6-IdentityServer4-集成" class="headerlink" title="6. IdentityServer4 集成"></a>6. IdentityServer4 集成</h1><p><img src="/images/how-much-you-know-about-the-identityserver4/2799767-6708925e096c8510.png" alt="如何集成Identity Server"></p>
 <p>通过以上知识点的梳理，我们对OpenId Connect 和OAuth2.0的一些相关概念有了大致认识。而IdentityServer4是为ASP.NET CORE量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。<br>所以自然而然我们对IdentityServer4有了基础的认识。下面就来介绍如何集成IdentityServer4。其主要分为三步：</p>
 <ol>
 <li>IdentityServer如何配置和启用IdentityServer中间件</li>
@@ -493,10 +493,10 @@
 <blockquote>
 <p>socket: 直译为“插座”，在计算机通信领域，socket 被翻译为“套接字”，它是计算机之间进行通信的一种约定或一种方式。通过 socket 这种约定，一台计算机可以接收其他计算机的数据，也可以向其他计算机发送数据。我们把插头插到插座上就能从电网获得电力供应，同样，应用程序为了与远程计算机进行数据传输，需要连接到因特网，而 socket 就是用来连接到因特网的工具。</p>
 </blockquote>
-<p>另外还需要知道的是，socket 编程的基本流程。<br><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-5f95e14aac563bce.png" alt="Socket 编程流程"></p>
+<p>另外还需要知道的是，socket 编程的基本流程。<br><img src="/images/how-much-you-know-about-the-io-model-demo/2799767-5f95e14aac563bce.png" alt="Socket 编程流程"></p>
 <h1 id="同步阻塞IO"><a href="#同步阻塞IO" class="headerlink" title="同步阻塞IO"></a>同步阻塞IO</h1><p>先回顾下概念：阻塞IO是指，应用进程中线程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static void Start()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">    var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">    var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">    &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">    serverSocket.Bind(ipEndpoint);</span><br><span class="line">    &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">    serverSocket.Listen(10);</span><br><span class="line">    Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;4. 等待客户端连接</span><br><span class="line">        var clientSocket &#x3D; serverSocket.Accept();&#x2F;&#x2F;阻塞</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">        Span&lt;byte&gt; buffer &#x3D; new Span&lt;byte&gt;(new byte[512]);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-开始接收数据...&quot;);</span><br><span class="line">        int readLength &#x3D; clientSocket.Receive(buffer);&#x2F;&#x2F;阻塞</span><br><span class="line">        var msg &#x3D; Encoding.UTF8.GetString(buffer.ToArray(), 0, readLength);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line">        var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">        clientSocket.Send(sendBuffer);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-c4034c0af2e3b32f.gif" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-io-model-demo/2799767-c4034c0af2e3b32f.gif" alt=""></p>
 <p>代码很简单，直接看注释就OK了，运行结果如上图所示，但有几个问题点需要着重说明下：</p>
 <ol>
 <li>等待连接处<code>serverSocket.Accept()</code>，线程阻塞！</li>
@@ -509,13 +509,13 @@
 </ol>
 <h1 id="同步非阻塞IO"><a href="#同步非阻塞IO" class="headerlink" title="同步非阻塞IO"></a>同步非阻塞IO</h1><p>看完，你可能会说，这两个问题很好解决啊，创建一个新线程去接收数据就是了。于是就有了下面的代码改进。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static void Start2()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">    var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">    var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">    &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">    serverSocket.Bind(ipEndpoint);</span><br><span class="line">    &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">    serverSocket.Listen(10);</span><br><span class="line">    Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;4. 等待客户端连接</span><br><span class="line">        var clientSocket &#x3D; serverSocket.Accept();&#x2F;&#x2F;阻塞</span><br><span class="line">        Task.Run(() &#x3D;&gt; ReceiveData(clientSocket));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private static void ReceiveData(Socket clientSocket)</span><br><span class="line">&#123;</span><br><span class="line">    Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">    Span&lt;byte&gt; buffer &#x3D; new Span&lt;byte&gt;(new byte[512]);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        if (clientSocket.Available &#x3D;&#x3D; 0) continue;</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-开始接收数据...&quot;);</span><br><span class="line">        int readLength &#x3D; clientSocket.Receive(buffer);&#x2F;&#x2F;阻塞</span><br><span class="line">        var msg &#x3D; Encoding.UTF8.GetString(buffer.ToArray(), 0, readLength);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line">        var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">        clientSocket.Send(sendBuffer);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-12046ce197b2f2b3.gif" alt="多线程"></p>
+<p><img src="/images/how-much-you-know-about-the-io-model-demo/2799767-12046ce197b2f2b3.gif" alt="多线程"></p>
 <p>是的，多线程解决了上述的问题，但如果你观察以上动图后，你应该能发现个问题：<strong>才建立4个客户端连接，CPU的占用率就开始直线上升了。</strong></p>
 <p>而这个问题的本质就是，服务端的IO模型为阻塞IO模型，为了解决阻塞导致的问题，采用重复轮询，导致无效的系统调用，从而导致CPU持续走高。</p>
 <h1 id="IO多路复用"><a href="#IO多路复用" class="headerlink" title="IO多路复用"></a>IO多路复用</h1><p>既然知道原因所在，咱们就来予以改造。适用异步方式来处理连接、接收和发送数据。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static class NioServer</span><br><span class="line">&#123;</span><br><span class="line">    private static ManualResetEvent _acceptEvent &#x3D; new ManualResetEvent(true);</span><br><span class="line">    private static ManualResetEvent _readEvent &#x3D; new ManualResetEvent(true);</span><br><span class="line">    public static void Start()</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;1. 创建Tcp Socket对象</span><br><span class="line">        var serverSocket &#x3D; new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);</span><br><span class="line">        &#x2F;&#x2F; serverSocket.Blocking &#x3D; false;&#x2F;&#x2F;设置为非阻塞</span><br><span class="line">        var ipEndpoint &#x3D; new IPEndPoint(IPAddress.Loopback, 5001);</span><br><span class="line">        &#x2F;&#x2F;2. 绑定Ip端口</span><br><span class="line">        serverSocket.Bind(ipEndpoint);</span><br><span class="line">        &#x2F;&#x2F;3. 开启监听，指定最大连接数</span><br><span class="line">        serverSocket.Listen(10);</span><br><span class="line">        Console.WriteLine($&quot;服务端已启动(&#123;ipEndpoint&#125;)-等待连接...&quot;);</span><br><span class="line"></span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            _acceptEvent.Reset();&#x2F;&#x2F;重置信号量</span><br><span class="line">            serverSocket.BeginAccept(OnClientConnected, serverSocket);</span><br><span class="line">            _acceptEvent.WaitOne();&#x2F;&#x2F;阻塞</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void OnClientConnected(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        _acceptEvent.Set();&#x2F;&#x2F;当有客户端连接进来后，则释放信号量</span><br><span class="line">        var serverSocket &#x3D; ar.AsyncState as Socket;</span><br><span class="line">        Debug.Assert(serverSocket !&#x3D; null, nameof(serverSocket) + &quot; !&#x3D; null&quot;);</span><br><span class="line"></span><br><span class="line">        var clientSocket &#x3D; serverSocket.EndAccept(ar);</span><br><span class="line">        Console.WriteLine($&quot;&#123;clientSocket.RemoteEndPoint&#125;-已连接&quot;);</span><br><span class="line">        </span><br><span class="line">        while (true)</span><br><span class="line">        &#123;</span><br><span class="line">            _readEvent.Reset();&#x2F;&#x2F;重置信号量</span><br><span class="line">            var stateObj &#x3D; new StateObject &#123; ClientSocket &#x3D; clientSocket &#125;;</span><br><span class="line">            clientSocket.BeginReceive(stateObj.Buffer, 0, stateObj.Buffer.Length, SocketFlags.None, OnMessageReceived, stateObj);</span><br><span class="line">            _readEvent.WaitOne();&#x2F;&#x2F;阻塞等待</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void OnMessageReceived(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        var state &#x3D; ar.AsyncState as StateObject;</span><br><span class="line">        Debug.Assert(state !&#x3D; null, nameof(state) + &quot; !&#x3D; null&quot;);</span><br><span class="line">        var receiveLength &#x3D; state.ClientSocket.EndReceive(ar);</span><br><span class="line"></span><br><span class="line">        if (receiveLength &gt; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            var msg &#x3D; Encoding.UTF8.GetString(state.Buffer, 0, receiveLength);</span><br><span class="line">            Console.WriteLine($&quot;&#123;state.ClientSocket.RemoteEndPoint&#125;-接收数据：&#123;msg&#125;&quot;);</span><br><span class="line"></span><br><span class="line">            var sendBuffer &#x3D; Encoding.UTF8.GetBytes($&quot;received:&#123;msg&#125;&quot;);</span><br><span class="line">            state.ClientSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None,</span><br><span class="line">                SendMessage, state.ClientSocket);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static void SendMessage(IAsyncResult ar)</span><br><span class="line">    &#123;</span><br><span class="line">        var clientSocket &#x3D; ar.AsyncState as Socket;</span><br><span class="line">        Debug.Assert(clientSocket !&#x3D; null, nameof(clientSocket) + &quot; !&#x3D; null&quot;);</span><br><span class="line">        clientSocket.EndSend(ar);</span><br><span class="line">        _readEvent.Set(); &#x2F;&#x2F;发送完毕后，释放信号量</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class StateObject</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; Client  socket.  </span><br><span class="line">    public Socket ClientSocket &#x3D; null;</span><br><span class="line">    &#x2F;&#x2F; Size of receive buffer.  </span><br><span class="line">    public const int BufferSize &#x3D; 1024;</span><br><span class="line">    &#x2F;&#x2F; Receive buffer.  </span><br><span class="line">    public byte[] Buffer &#x3D; new byte[BufferSize];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>首先来看运行结果，从下图可以看到，除了建立连接时CPU出现抖动外，在消息接收和发送阶段，CPU占有率趋于平缓，且占用率低。</p>
-<p><img src="../images/how-much-you-know-about-the-io-model-demo/2799767-bf36d3ea3c3ec980.gif" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-io-model-demo/2799767-bf36d3ea3c3ec980.gif" alt=""></p>
 <p>分析代码后我们发现：</p>
 <ol>
 <li>CPU使用率是下来了，但代码复杂度上升了。</li>
@@ -582,7 +582,7 @@
   <entry>
     <title>IO模型知多少 | 理论篇</title>
     <url>/post/how-much-you-know-about-the-io-models/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</p>
 <p>简而言之，对于I/O的认知，不能仅仅停留在字面上认识，了解内部玄机，才能深刻理解I/O，才能看清I/O相关问题的本质。</p>
 <h1 id="2-I-O-的定义"><a href="#2-I-O-的定义" class="headerlink" title="2. I/O 的定义"></a>2. I/O 的定义</h1><p>I/O 的全称是Input/Output。虽常谈及I/O，但想必你也一时不能给出一个完整的定义。搜索了谷歌，发现也尽是些冗长的论述。要想厘清I/O这个概念，我们需要从不同的视角去理解它。</p>
@@ -603,18 +603,18 @@
 <li>IO执行阶段：内核执行IO操作并返回<br>2.1. 准备数据阶段：内核等待I/O设备准备好数据<br>  2.2. 拷贝数据阶段：将数据从内核缓冲区拷贝到用户空间缓冲区</li>
 </ol>
 <p>怎么理解准备数据阶段呢？<br>对于写请求：等待系统调用的完整请求数据，并写入内核缓冲区；<br>对于读请求：等待系统调用的完整请求数据；（若请求数据不存在于内核缓冲区）则将外围设备的数据读入到内核缓冲区。</p>
-<p> <img src="../images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
+<p> <img src="/images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
 <p>而应用程序进程在发起IO调用至内核执行IO返回之前，应用程序进程/线程所处状态，就是我们下面要讨论的第二个话题阻塞IO与非阻塞IO。</p>
 <h1 id="3-IO-模型之阻塞I-O-BIO"><a href="#3-IO-模型之阻塞I-O-BIO" class="headerlink" title="3. IO 模型之阻塞I/O(BIO)"></a>3. IO 模型之阻塞I/O(BIO)</h1><p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。阻塞IO简称BIO，Blocking IO。其处理流程如下图所示：</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
 <p>从上图可知当用户进程发起IO系统调用后，内核从准备数据到拷贝数据到用户空间的两个阶段期间<strong>用户调用线程选择阻塞等待</strong>数据返回。</p>
 <p>因此BIO带来了一个问题：如果内核数据需要耗时很久才能准备好，那么用户进程将被阻塞，浪费性能。为了提升应用的性能，虽然可以通过多线程来提升性能，但线程的创建依然会借助系统调用，同时多线程会导致频繁的线程上下文的切换，同样会影响性能。所以要想解决BIO带来的问题，我们就得看到问题的本质，那就是<strong>阻塞</strong>二字。</p>
 <h1 id="4-IO-模型之非阻塞I-O-NIO"><a href="#4-IO-模型之非阻塞I-O-NIO" class="headerlink" title="4. IO 模型之非阻塞I/O(NIO)"></a>4. IO 模型之非阻塞I/O(NIO)</h1><p>那解决方案自然也容易想到，将阻塞变为非阻塞，那就是用户进程在发起系统调用时指定为非阻塞，内核接收到请求后，就会立即返回，然后用户进程通过轮询的方式来拉取处理结果。也就是如下图所示：</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
 <p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程不会等待而是立即返回，则此次IO操作为非阻塞IO模型。非阻塞IO简称NIO，Non-Blocking IO。</p>
 <p>然而，非阻塞IO虽然相对于阻塞IO大幅提升了性能，但依旧不是完美的解决方案，其依然存在性能问题，也就是频繁的轮询导致频繁的系统调用，会耗费大量的CPU资源。比如当并发很高时，假设有1000个并发，那么单位时间循环内将会有1000次系统调用去轮询执行结果，而实际上可能只有2个请求结果执行完毕，这就会有998次无效的系统调用，造成严重的性能浪费。有问题就要解决，那<strong>NIO问题的本质就是频繁轮询导致的无效系统调用</strong>。</p>
 <h1 id="5-IO模型之IO多路复用"><a href="#5-IO模型之IO多路复用" class="headerlink" title="5. IO模型之IO多路复用"></a>5. IO模型之IO多路复用</h1><p>解决NIO的思路就是降解无效的系统调用，如何降解呢？我们一起来看看以下几种IO多路复用的解决思路。</p>
-<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
+<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="/images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
 <p>但是，select有一个限制，就是存在连接数限制，针对于此，又提出了poll。其与select相比，主要是解决了连接限制。</p>
 <p>select/epoll 虽然解决了NIO重复无效系统调用用的问题，但同时又引入了新的问题。问题是：</p>
 <ol>
@@ -623,17 +623,17 @@
 </ol>
 <p>换句话说，select/poll虽然减少了用户进程的发起的系统调用，但内核的工作量只增不减。在高并发的情况下，内核的性能问题依旧。所以select/poll的问题本质是：内核存在无效的循环遍历。</p>
 <h2 id="5-2-IO多路复用之epoll"><a href="#5-2-IO多路复用之epoll" class="headerlink" title="5.2. IO多路复用之epoll"></a>5.2. IO多路复用之epoll</h2><p>针对select/pool引入的问题，我们把解决问题的思路转回到内核上，如何减少内核重复无效的循环遍历呢？变主动为被动，基于事件驱动来实现。其流程图如下所示：</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
 <p>epoll相较于select/poll，多了两次系统调用，其中epoll_create建立与内核的连接，epoll_ctl注册事件，epoll_wait阻塞用户进程，等待IO事件。</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
 <p>epoll，已经大大优化了IO的执行效率，但在IO执行的第一阶段：数据准备阶段都还是被阻塞的。所以这是一个可以继续优化的点。</p>
 <h1 id="6-IO-模型之信号驱动IO-SIGIO"><a href="#6-IO-模型之信号驱动IO-SIGIO" class="headerlink" title="6. IO 模型之信号驱动IO(SIGIO)"></a>6. IO 模型之信号驱动IO(SIGIO)</h1><p>信号驱动IO与BIO和NIO最大的区别就在于，在IO执行的数据准备阶段，不会阻塞用户进程。<br>如下图所示：当用户进程需要等待数据的时候，会向内核发送一个信号，告诉内核我要什么数据，然后用户进程就继续做别的事情去了，而当内核中的数据准备好之后，内核立马发给用户进程一个信号，说”数据准备好了，快来查收“，用户进程收到信号之后，立马调用recvfrom，去查收数据。</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
 <p>乍一看，信号驱动式I/O模型有种异步操作的感觉，但是在IO执行的第二阶段，也就是将数据从内核空间复制到用户空间这个阶段，用户进程还是被阻塞的。</p>
 <p>综上，你会发现，不管是BIO还是NIO还是SIGIO，它们最终都会被阻塞在IO执行的第二阶段。<br>那如果能将IO执行的第二阶段变成非阻塞，那就完美了。</p>
-<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="../images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
+<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="/images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
 <p>所以，之所以称为异步IO，取决于IO执行的第二阶段是否阻塞。因此前面讲的BIO，NIO和SIGIO均为同步IO。</p>
-<p><img src="../images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
 <h1 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h1><p>梳理完这些IO模型后，之前一直处于懵懂状态的阻塞，非阻塞，同步异步IO，终于算是有个概念了。同时也纠正了自己一直以来的误解，所以一路走来，愈发觉得返璞归真的重要性，只有如此，才能在快速更迭的技术演进中，以不变应万变。</p>
 <p><em>本片综合多方资料写就，难免纰漏，但只有写下来，才能得以指正。所以，烦请各位看官不吝赐教。</em></p>
 <blockquote>
@@ -660,13 +660,13 @@
   <entry>
     <title>OAtuth2.0 知多少</title>
     <url>/post/how-much-you-know-about-the-oauth2-0/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>周末逛简书，看了一篇写的极好的文章，点击大红心点赞，就直接给我跳转到登录界面了，原来点赞是需要登录的。</p>
-<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-264c5378f5c255b1.png" alt="简书登录界面"></p>
+<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-264c5378f5c255b1.png" alt="简书登录界面"></p>
 <p>可是没有我并没有简书账号，一直使用的QQ的集成登录。下面有一排社交登录按钮，我们可以用第三方社交账号登陆即可。点击QQ图标，就给我跳转到了QQ登录授权页面，如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-54cf4032678fe331.png" alt="QQ登录授权页面"></p>
+<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-54cf4032678fe331.png" alt="QQ登录授权页面"></p>
 <p>从图片上我们可以看到主要包括两个部分，一个是左边的用户登录，一个是右边告知简书将获取哪些权限。输入QQ账号和密码，点击授权并登录，就成功登录到简书了，并成功获取到了我QQ的账号和昵称，如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-bce90f200d70a514.png" alt="简书成功获取到QQ昵称和头像"></p>
+<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-bce90f200d70a514.png" alt="简书成功获取到QQ昵称和头像"></p>
 <p>简书集成的社交登录，大大简化了我们的注册登录流程，真是一号在手上网无忧啊。<br>这看似简单的集成，但背后的技术原理『OAuth2.0』可没那么简单，那我们废话不多说，一探究竟吧。</p>
 <h1 id="2-OAuth-2-0"><a href="#2-OAuth-2-0" class="headerlink" title="2. OAuth 2.0"></a>2. OAuth 2.0</h1><blockquote>
 <p><a href="https://oauth.net/2/" target="_blank" rel="noopener">OAuth 2.0</a>是用于授权的行业标准协议。OAuth 2.0取代了在2006年创建的原始OAuth协议上所做的工作。OAuth 2.0专注于客户端开发人员的简单性，同时为Web应用程序，桌面应用程序，手机和客厅设备提供特定的授权流程。</p>
@@ -681,7 +681,7 @@
 </ol>
 <p>想一想这样一个场景，如果简书是直接使用QQ用户名密码登录，简书就很有可能会为了后续业务的需要而擅自保存QQ用户名及密码，简书只要拿到了QQ用户名密码就可以访问不仅仅QQ昵称、头像等信息，甚至可以获取到QQ用户的所有通讯录列表。如果简书的账号密码泄露，就会直接影响到QQ数据的安全。这是一个可怕的问题。</p>
 <p>所以OAuth应运而生，来解决这一问题。</p>
-<h1 id="3-OAuth-2-0授权流程"><a href="#3-OAuth-2-0授权流程" class="headerlink" title="3. OAuth 2.0授权流程"></a>3. OAuth 2.0授权流程</h1><p>下面我们就以简书使用QQ授权登录为例，来捋一捋OAuth 2.0的流程。<br>先来看看OAuth 2.0的流程，如下图所示：<br><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-27b3e30b6563dc2f.png" alt="OAuth 2.0授权流程"></p>
+<h1 id="3-OAuth-2-0授权流程"><a href="#3-OAuth-2-0授权流程" class="headerlink" title="3. OAuth 2.0授权流程"></a>3. OAuth 2.0授权流程</h1><p>下面我们就以简书使用QQ授权登录为例，来捋一捋OAuth 2.0的流程。<br>先来看看OAuth 2.0的流程，如下图所示：<br><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-27b3e30b6563dc2f.png" alt="OAuth 2.0授权流程"></p>
 <p>这里面主要包含四个角色：</p>
 <ol>
 <li>Client：需要授权的客户端，本文中就是【简书】。</li>
@@ -703,14 +703,14 @@
 &amp;response_type=code
 &amp;state=bb38108d1aaf567c72da0f1167e87142d0e20cb2bb24ec5a</code></p>
 <p>无图无真相，咱们看看控制台的网络监控：</p>
-<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-b7dab004998d702d.png" alt="简书跳转到QQ登录的认证请求"></p>
+<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-b7dab004998d702d.png" alt="简书跳转到QQ登录的认证请求"></p>
 <p>如图所示，除了scope参数外，其他四个参数均有传参。<br>此时你可能唯一对state参数比较迷惑，传递一个state参数，认证服务器会原封不动返回，那还干嘛要传递state参数呢？</p>
 <p>我的理解是，简书用一个guid加长版字符串来唯一标识一个授权请求。这样才会正确获取授权服务器返回的授权码。</p>
 <p>这里你可能会问了，既然我知道了这些参数，我岂不是可以伪造简书认证请求，修改<code>redirect_uri</code>参数跳转到个人的网站，然后不就可以获取QQ授权？</p>
 <p>跟我一样太傻太天真，简书在QQ互联平台申请时肯定已经预留备案了要跳转返回的URL。QQ互联平台在收到简书的授权请求时肯定会验证回调Url的。</p>
 <h2 id="3-2-第二步：用户同意为第三方客户端授权"><a href="#3-2-第二步：用户同意为第三方客户端授权" class="headerlink" title="3.2. 第二步：用户同意为第三方客户端授权"></a>3.2. 第二步：用户同意为第三方客户端授权</h2><p>这一步，对于用户来说，只需要使用资源所有者（QQ）的用户名密码登录，并同意授权即可。点击授权并登录后，授权服务器首先会post一个请求回服务器进行用户认证，认证通过后授权服务器会生成一个授权码，然后服务器根据授权请求的<code>redirect_uri</code>进行跳转，并返回授权码<code>code</code>和授权请求中传递的<code>state</code>。<br>这里要注意的是：<strong>授权码有一个短暂的时效</strong></p>
 <p>无图无真相，咱们还是看一下控制台网络监控：</p>
-<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-2ad0271ee9af4618.png" alt="用户授权并登录"></p>
+<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-2ad0271ee9af4618.png" alt="用户授权并登录"></p>
 <p>从图中即可验证我们上面所说，最终跳转回简书的Url为：<br><code>http://www.jianshu.com/users/auth/qq_connect/callback?code=093B9307E38DC5A2C3AD147B150F2AB3
 &amp;state=bb38108d1aaf567c72da0f1167e87142d0e20cb2bb24ec5a</code><br>和之前的授权请求URL进行对比，可以发现<code>redirect_uri</code>、<code>state</code>完全一致。<br>而<code>code=093B9307E38DC5A2C3AD147B150F2AB3</code>就是返回的授权码。</p>
 <h2 id="3-3-第三步：使用授权码向认证服务器申请令牌"><a href="#3-3-第三步：使用授权码向认证服务器申请令牌" class="headerlink" title="3.3. 第三步：使用授权码向认证服务器申请令牌"></a>3.3. 第三步：使用授权码向认证服务器申请令牌</h2><p>从这一步开始，对于用户来说是察觉不到的。简书后台默默的在做后续的工作。</p>
@@ -741,7 +741,7 @@
 <p>同样，我们可以模拟出一个返回的token：<br><code>http://www.jianshu.com/users/auth/qq_connect/callback?access_token=548ADF2D5E1C5E88H4JH15FKUN51F
 &amp;expires_in=36000&amp;refresh_token=53AD68JH834HHJF9J349FJADF3</code></p>
 <p>这个时候简书还有一件事情要做，就是把用户token写到cookie里，进行用户登录状态的维持。咱们还是打开控制器验证一下。</p>
-<p><img src="../images/how-much-you-know-about-the-oauth2-0/2799767-714ba763cb80cd6e.png" alt="保存token到cookie"></p>
+<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-714ba763cb80cd6e.png" alt="保存token到cookie"></p>
 <p>从图中可以看出简书把用户token保存在名为<code>remember_user_token</code>的cookie里。<br>不用打cookie的歪主意了，肯定是加密了的。<br>可以尝试下手动把<code>remember_user_token</code>这条cookie删除，保证刷新界面后需要你重新登录简书。</p>
 <h2 id="3-4-第四步：向资源服务器申请资源"><a href="#3-4-第四步：向资源服务器申请资源" class="headerlink" title="3.4. 第四步：向资源服务器申请资源"></a>3.4. 第四步：向资源服务器申请资源</h2><p>有了token，向资源服务器提供的资源接口发送一个get请求不就行了，资源服务器校验令牌无误，就会向简书返回资源（QQ用户信息）。</p>
 <p>同样咱们也来模拟一个使用token请求QQ用户基本信息资源的URL：<br><code>https://graph.qq.com/user/get_user_info?client_id=100410602
@@ -779,7 +779,7 @@
   <entry>
     <title>Orleans 知多少 | .NET分布式框架</title>
     <url>/post/how-much-you-know-about-the-orleans/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-orleans/2799767-ff59ad0a7485aa58.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-orleans/2799767-ff59ad0a7485aa58.png" alt=""></p>
 <h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>公司物联网项目集成Orleans以支持高并发的分布式业务，对于Orleans也是第一次接触，本文就分享下个人对Orleans的理解。</p>
 <p>这里先抛出自己的观点：<strong>Orleans 是一个支持有状态云生应用/服务水平伸缩的基于Virtual Actor 模型的.NET分布式框架。</strong></p>
 <p>下面我会从以下几个关键点，进行阐述：</p>
@@ -789,9 +789,9 @@
 <li>什么是 Actor 模型</li>
 <li>什么是 Virtual Actor 模型</li>
 </ol>
-<h1 id="云生应用的挑战"><a href="#云生应用的挑战" class="headerlink" title="云生应用的挑战"></a>云生应用的挑战</h1><p>在讲云生应用之前，我们来先讲讲传统应用，对于传统应用常用的三层结构如下图所示。<br><img src="../images/how-much-you-know-about-the-orleans/2799767-48465d42659fe932.png" alt="传统应用三层结构"></p>
+<h1 id="云生应用的挑战"><a href="#云生应用的挑战" class="headerlink" title="云生应用的挑战"></a>云生应用的挑战</h1><p>在讲云生应用之前，我们来先讲讲传统应用，对于传统应用常用的三层结构如下图所示。<br><img src="/images/how-much-you-know-about-the-orleans/2799767-48465d42659fe932.png" alt="传统应用三层结构"></p>
 <p>随着业务的发展，数据库层通常存在瓶颈，为了缓解数据库的压力，一般会优先考虑增加一层缓存层。</p>
-<p><img src="../images/how-much-you-know-about-the-orleans/2799767-4abc2a898285d382.png" alt="增加了缓存层的四层结构"></p>
+<p><img src="/images/how-much-you-know-about-the-orleans/2799767-4abc2a898285d382.png" alt="增加了缓存层的四层结构"></p>
 <p>而随着业务的继续发展，高并发、大数据量的应用场景逐渐凸显。如果继续在单体应用的基础上进行扩展，能做的无非是增加消息队列、异步、读写分离等机制进行性能优化。总体而言，优化空间不大，但应用的整体复杂度却随着引入的新的技术框架而迅速增加，对于应用的维护，是一个潜在的定时炸弹。</p>
 <p>这个时候你可能会想，既然单体应用单机部署不能满足需求，我可以做集群啊。通过将单体应用按照分层结构进行纵向分离，将数据库从应用服务器分离，将缓存从应用服务器分离。这样就可以对分离的各个部分进行分别部署，再借助负载均衡完成集群效应。到这一步，你的应用应该能撑一段时间了。</p>
 <p>这个时候，如果回到业务本身去分析，对于一个复杂应用来说，通常的性能瓶颈就是几个核心服务上。如果能够对存在性能瓶颈的服务进行伸缩，既能大大提高应用的整体可用性又能提高资源的利用率。那怎么做呢？服务拆分。</p>
@@ -834,7 +834,7 @@
 <p>简单来讲：<strong>Actor模型 = 状态 + 行为 + 消息</strong>。一个应用/服务由多个Actor组成，每个Actor都是一个独立的运行单元，拥有隔离的运行空间，在隔离的空间内，其有独立的状态和行为，不被外界干预，Actor之间通过消息进行交互，而同一时刻，每个Actor只能被单个线程执行，这样既有效避免了数据共享和并发问题，又确保了应用的伸缩性。</p>
 <p>另外Actor基于事件驱动模型进行异步通信，性能良好。且位置透明，无论Actor是在本机亦或是在集群中的其他机器，都可以直接进行透明调用。</p>
 <p>因此Actor模型赋予了应用/服务的生命力（有状态）、高并发的处理能力和弹性伸缩能力。</p>
-<p><img src="../images/how-much-you-know-about-the-orleans/2799767-001b915c61c84cb0.png" alt="Actor模型"></p>
+<p><img src="/images/how-much-you-know-about-the-orleans/2799767-001b915c61c84cb0.png" alt="Actor模型"></p>
 <h1 id="Virtual-Actor-模型-与-Orleans"><a href="#Virtual-Actor-模型-与-Orleans" class="headerlink" title="Virtual Actor 模型 与 Orleans"></a>Virtual Actor 模型 与 Orleans</h1><p>对于Actor模型，业界已经有系列的实现框架，比如Erlang、Akka。然而Actor模型作为一个偏底层的技术框架，对于开发者来说，需要有一定分布式应用的开发经验，才能用好Actor（包括Actor的生命周期管理，状态管理等等）。为了进一步简化分布式编程，微软的研究人员引入了 Virtual Actor 模型概念，简单来讲Virtual Actor模型是对Actor模型的进一步封装和抽象。<br>其与Actor模型的最大的区别在于，Actor的物理实例完全被抽象出来，并由Virtual Actor所在的运行时自动管理。</p>
 <p>Orleans 就是作为一款面向.NET的Virtual Actor模型的实现框架，提供了开发者友好的编程方式，简化了分布式应用的开发成本。<strong>在Orleans中Virtual Actor由Grain来体现。</strong></p>
 <p>Orleans中核心优势：开发效率高、透明可伸缩。</p>
@@ -869,7 +869,7 @@
   <entry>
     <title>性能优化知多少</title>
     <url>/post/how-much-you-know-about-the-performance-optimization/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近一段时间，系统新版本要发布，在beta客户测试期间，暴露了很多问题，除了一些业务和异常问题外，其他都集中在性能上。有幸接触到这些性能调优的机会，当然要学习总结了。</p>
 <p>性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I/O、内存、网络、算法、大数据量等等。我们可以大致把性能问题分为四个层次：代码层次、数据库层次、算法层次、架构层次。<br>所以下面我会结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。</p>
 <h1 id="2-先说心态"><a href="#2-先说心态" class="headerlink" title="2. 先说心态"></a>2. 先说心态</h1><p>说到性能问题，你可能首先就想到的是麻烦或者头大，因为一般性能问题都比较紧急，轻则影响客户体验，重则宕机导致财务损失，而且性能问题比较隐蔽，不易发现。因此一时间无从下手，而这时我们就很容易从心底开始去排斥它，不愿接这烫手的山芋。</p>
@@ -894,7 +894,7 @@
 <p>案例1：客户反馈某结算报表统计十天内的数据耗时10mins左右。</p>
 </blockquote>
 <p>由于前几天刚学会用RedGate的分析工具，拿到这个问题，本地尝试重现后，就直接想使用工具分析。然而，这工具在使用webdev模式起站点时，总是报错，而当时时一根筋，老是想解决这个工具的报错问题。结果，白白搞了半天也没搞定。最后不得已放弃工具，转而选择使用sql server profiler去监控sql语句耗时。一跟踪不要紧，问题就直接暴露了，整个全屏的重复sql语句，如下图。</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
 <p>这下问题就很明显了，八成是代码在循环拼接sql执行语句。根据抓取到sql关键字往代码中去搜索，果然如此。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#region更新三张表数据结合的中间临时表数据，有上游单据的直接调拨单分多次下推时，只计算一次的调拨数量和价税合计</span><br><span class="line">string sSql &#x3D; string.Format(@</span><br><span class="line">&quot;SELECT FENTRYID FROM &#123;0&#125; GROUP BY FENTRYID HAVING COUNT(FENTRYID) &gt; 1&quot;, sJoinDataTempTable);</span><br><span class="line">using(IDataReader reader &#x3D; DBUtils.ExecuteReader(this.Context, sSql)) &#123;</span><br><span class="line">    while (reader.Read()) &#123;</span><br><span class="line">        sbSql.AppendFormat(@&quot;</span><br><span class="line">UPDATE &#123;0&#125; SET FDIRECTQTY &#x3D; 0,FALLAMOUNT &#x3D; 0 </span><br><span class="line">WHERE FSEQ NOT IN (</span><br><span class="line">SELECT TOP 1 FSEQ FROM &#123;0&#125; WHERE FENTRYID &#x3D; &#123;1&#125;) AND FENTRYID &#x3D; (&#123;1&#125;);&quot;</span><br><span class="line">, sJoinDataTempTable, Convert.ToInt32(reader[&quot;FENTRYID&quot;]));</span><br><span class="line">        listSqlObj.Add(new SqlObject(sbSql.ToString(), new List &lt; SqlParam &gt; ()));</span><br><span class="line">        sbSql.Clear();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">#endregion</span><br></pre></td></tr></table></figure>
 
@@ -914,20 +914,20 @@
 <li>选中Performance Session，右键Attach对应进程即可跟踪分析性能了</li>
 <li>在跟踪过程中，可随时暂停跟踪和停止跟踪</li>
 </ol>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
 <p>跟踪结束后本案例跟踪到的采样结果如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
-<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
+<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
 <p>其中第1、4条大致说明程序I/O消耗大，第一代的GC上存在未及时释放的垃圾占比过高。而根据上图的采样结果，我们可以直接看出是由于再代码中频繁操作DataTable引起的性能瓶颈。走读代码发现的确如此，所有的数量统计都是在代码中循环遍历DataTable进行处理的。而最终的优化策略，就相当于一次大的重构，将所有代码中通过遍历DataTable的计算逻辑全部挪到SQL中去做。由于代码过多，就不再放出。</p>
 <blockquote>
 <p>案例3：客户反馈批量引入1000张订单，耗时40mins左右，且容易中断。</p>
 </blockquote>
 <p>同样，我们还是先尝试本地重现。经测试批量引入101张单据，就耗时5mins左右。下一步打开Sql监控工具也未发现耗时语句。但考虑到是批量导入操作，虽然单个耗时不多，但乘以100这个基数，就明显了。下面我们就使用RedGate的<a href="http://www.red-gate.com/products/dotnet-development/ants-performance-profiler/" target="_blank" rel="noopener">Ants Performance Profiler</a>跟踪一下。</p>
 <p>该工具比较直观，可以同时监控代码和SQL执行情况。第一步，New Profiler Session，第二步进行设置，如下图。根据自己的应用程序类别，选择相应的跟踪方式。</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
 <p>针对这个问题，我们跟踪到的调用堆栈和SQL耗时结果如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
 <p>首先从调用堆栈中的Hit Count，我们可以首先看出它是一个批量过程，因为入口函数仅调用一次；第二个我们可以代码中是循环处理每一个单据，因为Hit Count与我们批量引入的单据数量相符；第三个，突然来了个10201，如果有一定的数字敏感性的话，这次性能问题的原因就被你找到了。这里就不卖关子了，101 x 101 = 10201。<br>是不是明白了什么，存在循环嵌套循环的情况。我们走读代码确定一下：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Save.cs</span><br><span class="line">public override void EndOperationTransaction(EndOperationTransactionArgs e) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    foreach(DynamicObject dyItem in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;反写收款单</span><br><span class="line">        WriteBackReceiveBill wb &#x3D; new WriteBackReceiveBill();</span><br><span class="line">        wb.WriteBackForSave(e, this.Context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;WriteBackReceiveBill .cs</span><br><span class="line">public void WriteBackForSave(EndOperationTransactionArgs e, Context contx) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码：</span><br><span class="line">    foreach(DynamicObject item in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;do something </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -936,7 +936,7 @@
 <p>案例4：某全流程跟踪报表超时。</p>
 </blockquote>
 <p>这个报表是用来跟踪所有单据从下单到出库的业务流程数据流转情况。而所有的流程数据都是按照树形结果存储在数据库表中的，类似这样：</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
 <p>图中的流程为：<br>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</p>
 <p>为了构造流程图，之前的处理方法是把流程数据取回来，通过代码构造流程图。这也就是性能差的原因。</p>
 <p>而针对这种情况，就是考验我们平时经验积累了。对于树形结构的表，我们也是可以通过SQL来进行直接查询的，这就要用到了SQL Server的CTE语法来进行递归查询。关于递归查询，可参考我这篇文章：<a href="http://www.jianshu.com/p/ab9d268aa54c" target="_blank" rel="noopener">SQL递归查询知多少</a>。这里就不展开了。</p>
@@ -957,9 +957,9 @@
   <entry>
     <title>RabbitMQ 知多少</title>
     <url>/post/how-much-you-know-about-the-rabbitmq/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-82c5402158929477.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-82c5402158929477.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>RabbitMQ——Rabbit Message Queue的简写，但不能仅仅理解其为消息队列，消息代理更合适。RabbitMQ 是一个由 Erlang 语言开发的AMQP（高级消息队列协议）的开源实现，其内部结构如下：</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-05b3dc7216205c41.png" alt="RabbitMQ 内部结构"></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-05b3dc7216205c41.png" alt="RabbitMQ 内部结构"></p>
 <p>RabbitMQ作为一个消息代理，主要和<strong>消息</strong>打交道，负责接收并转发消息。RabbitMQ提供了可靠的消息机制、跟踪机制和灵活的消息路由，支持消息集群和分布式部署。适用于排队算法、秒杀活动、消息分发、异步处理、数据同步、处理耗时任务、CQRS等应用场景。</p>
 <p>下面我们就来学习下RabbitMQ。</p>
 <h1 id="2-环境搭建"><a href="#2-环境搭建" class="headerlink" title="2. 环境搭建"></a>2. 环境搭建</h1><p>本文主要基于Windows下使用Vs Code 基于.net core进行demo演示。开始之前我们需要准备好以下环境。</p>
@@ -971,7 +971,7 @@
 <li>执行<code>rabbitmqlctl status</code>检查RabbitMQ状态</li>
 <li>安装管理平台插件<br>执行<code>rabbitmq-plugins enable rabbitmq_management</code>即可成功安装，使用默认账号密码（guest/guest）登录<a href="http://localhost:15672/" target="_blank" rel="noopener">http://localhost:15672/</a>即可。</li>
 </ul>
-<h1 id="3-Hello-RabbitMQ"><a href="#3-Hello-RabbitMQ" class="headerlink" title="3. Hello RabbitMQ"></a>3. Hello RabbitMQ</h1><p>在开始之前我们先来了解下消息模型：<br><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-a5e45f97bec36c8a.png" alt="消息流"><br>消费者（consumer）订阅某个队列。生产者（producer）创建消息，然后发布到队列（queue）中，队列再将消息发送到监听的消费者。</p>
+<h1 id="3-Hello-RabbitMQ"><a href="#3-Hello-RabbitMQ" class="headerlink" title="3. Hello RabbitMQ"></a>3. Hello RabbitMQ</h1><p>在开始之前我们先来了解下消息模型：<br><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-a5e45f97bec36c8a.png" alt="消息流"><br>消费者（consumer）订阅某个队列。生产者（producer）创建消息，然后发布到队列（queue）中，队列再将消息发送到监听的消费者。</p>
 <p>下面我们我们通过demo来了解RabbitMQ的基本用法。</p>
 <h2 id="3-1-消息的发送和接收"><a href="#3-1-消息的发送和接收" class="headerlink" title="3.1.消息的发送和接收"></a>3.1.消息的发送和接收</h2><p>创建RabbitMQ文件夹，打开命令提示符，分别创建两个控制台项目Send、Receive。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">dotnet new console --name Send &#x2F;&#x2F;创建发送端控制台应用</span><br><span class="line">cd Send &#x2F;&#x2F;进入Send目录</span><br><span class="line">dotnet add package RabbitMQ.Client &#x2F;&#x2F;添加RabbitMQ.Client包</span><br><span class="line">dotnet restore &#x2F;&#x2F;恢复包</span><br></pre></td></tr></table></figure>
@@ -981,12 +981,12 @@
 <p>再来完善消息接收端逻辑：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Receive.cs  省略部分代码</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;1.实例化连接工厂</span><br><span class="line">    var factory &#x3D; new ConnectionFactory() &#123; HostName &#x3D; &quot;localhost&quot; &#125;;</span><br><span class="line">    &#x2F;&#x2F;2. 建立连接</span><br><span class="line">    using (var connection &#x3D; factory.CreateConnection())</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;3. 创建信道</span><br><span class="line">        using (var channel &#x3D; connection.CreateModel())</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;4. 申明队列</span><br><span class="line">            channel.QueueDeclare(queue: &quot;hello&quot;, durable: false, exclusive: false, autoDelete: false, arguments: null);</span><br><span class="line">            &#x2F;&#x2F;5. 构造消费者实例</span><br><span class="line">            var consumer &#x3D; new EventingBasicConsumer(channel);</span><br><span class="line">            &#x2F;&#x2F;6. 绑定消息接收后的事件委托</span><br><span class="line">            consumer.Received +&#x3D; (model, ea) &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                var message &#x3D; Encoding.UTF8.GetString(ea.Body);</span><br><span class="line">                Console.WriteLine(&quot; [x] Received &#123;0&#125;&quot;, message);</span><br><span class="line">                Thread.Sleep(6000);&#x2F;&#x2F;模拟耗时</span><br><span class="line">                Console.WriteLine (&quot; [x] Done&quot;);</span><br><span class="line">            &#125;;</span><br><span class="line">            &#x2F;&#x2F;7. 启动消费者</span><br><span class="line">            channel.BasicConsume(queue: &quot;hello&quot;, autoAck: true, consumer: consumer);</span><br><span class="line">            Console.WriteLine(&quot; Press [enter] to exit.&quot;);</span><br><span class="line">            Console.ReadLine();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>先运行消息接收端，再运行消息发送端，结果如下图。</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-9079418f0a3f1ccd.png" alt="运行结果"></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-9079418f0a3f1ccd.png" alt="运行结果"></p>
 <p>从上面的代码中可以看出，发送端和消费端的代码前4步都是一样的。主要的区别在于发送端调用<code>channel.BasicPublish</code>方法发送消息；而接收端需要实例化一个<code>EventingBasicConsumer</code>实例来进行消息处理逻辑。另外一点需要注意的是：消息接收端和发送端的队列名称（queue）必须保持一致，这里指定的队列名称为hello。</p>
 <h2 id="3-2-循环调度"><a href="#3-2-循环调度" class="headerlink" title="3.2. 循环调度"></a>3.2. 循环调度</h2><p>使用工作队列的好处就是它能够并行的处理队列。如果堆积了很多任务，我们只需要添加更多的工作者（workers）就可以了。我们先启动两个接收端，等待消息接收，再启动一个发送端进行消息发送。</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-283ced13913a0aac.png" alt="消息分发"></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-283ced13913a0aac.png" alt="消息分发"></p>
 <p>我们增加运行一个消费端后的运行结果：</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-906a1ab86a7459d8.png" alt="循环调度"></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-906a1ab86a7459d8.png" alt="循环调度"></p>
 <p>从图中可知，我们循环发送4条信息，两个消息接收端按顺序被循环分配。<br>默认情况下，RabbitMQ将按顺序将每条消息发送给下一个消费者。平均每个消费者将获得相同数量的消息。这种分发消息的方式叫做循环（round-robin）。</p>
 <h2 id="3-3-消息确认"><a href="#3-3-消息确认" class="headerlink" title="3.3. 消息确认"></a>3.3. 消息确认</h2><p>按照我们上面的demo，一旦RabbitMQ将消息发送到消费端，消息就会立即从内存中移出，无论消费端是否处理完成。在这种情况下，消息就会丢失。</p>
 <p>为了确保一个消息永远不会丢失，RabbitMQ支持<strong>消息确认（message acknowledgments）</strong>。当消费端接收消息并且处理完成后，会发送一个ack（消息确认）信号到RabbitMQ，RabbitMQ接收到这个信号后，就可以删除掉这条已经处理的消息任务。但如果消费端挂掉了（比如，通道关闭、连接丢失等）没有发送ack信号。RabbitMQ就会明白某个消息没有正常处理，RabbitMQ将会重新将消息入队，如果有另外一个消费端在线，就会快速的重新发送到另外一个消费端。</p>
@@ -995,19 +995,19 @@
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;5. 构造消费者实例</span><br><span class="line">var consumer &#x3D; new EventingBasicConsumer(channel);</span><br><span class="line">&#x2F;&#x2F;6. 绑定消息接收后的事件委托</span><br><span class="line">consumer.Received +&#x3D; (model, ea) &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var message &#x3D; Encoding.UTF8.GetString(ea.Body);</span><br><span class="line">    Console.WriteLine(&quot; [x] Received &#123;0&#125;&quot;, message);</span><br><span class="line">    Thread.Sleep(6000);&#x2F;&#x2F;模拟耗时</span><br><span class="line">    Console.WriteLine(&quot; [x] Done&quot;);</span><br><span class="line">    &#x2F;&#x2F; 7. 发送消息确认信号（手动消息确认）</span><br><span class="line">    channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);</span><br><span class="line">&#125;;</span><br><span class="line">&#x2F;&#x2F;8. 启动消费者</span><br><span class="line">&#x2F;&#x2F;autoAck:true；自动进行消息确认，当消费端接收到消息后，就自动发送ack信号，不管消息是否正确处理完毕</span><br><span class="line">&#x2F;&#x2F;autoAck:false；关闭自动消息确认，通过调用BasicAck方法手动进行消息确认</span><br><span class="line">channel.BasicConsume(queue: &quot;hello&quot;, autoAck: false, consumer: consumer);</span><br></pre></td></tr></table></figure>
 
 <p>主要改动的是将 <code>autoAck:true</code>修改为<code>autoAck:fasle</code>，以及在消息处理完毕后手动调用<code>BasicAck</code>方法进行手动消息确认。</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-d781dd054f6d2c77.png" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-d781dd054f6d2c77.png" alt=""></p>
 <p>从图中可知，消息发送端连续发送4条消息，其中消费端1先被分配处理第一条消息，消费端2被循环分配第二条消息，第三条消息由于没有空闲消费者仍然在队列中。<br>在消费端2未处理完第一条消息之前，手动中断（ctrl+c）。我们可以发现RabbitMQ在下一次分发时，会优先将被中断的消息分发给消费端1处理。</p>
 <h2 id="3-4-消息持久化"><a href="#3-4-消息持久化" class="headerlink" title="3.4. 消息持久化"></a>3.4. 消息持久化</h2><p>消息确认确保了即使消费端异常，消息也不会丢失能够被重新分发处理。但是如果RabbitMQ服务端异常，消息依然会丢失。除非我们指定<code>durable:true</code>，否则当RabbitMQ退出或奔溃时，消息将依然会丢失。通过指定<code>durable:true</code>，并指定<code>Persistent=true</code>，来告知RabbitMQ将消息持久化。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;send.cs</span><br><span class="line">&#x2F;&#x2F;4. 申明队列(指定durable:true,告知rabbitmq对消息进行持久化)</span><br><span class="line">channel.QueueDeclare(queue: &quot;hello&quot;, durable: true, exclusive: false, autoDelete: false, arguments</span><br><span class="line">&#x2F;&#x2F;将消息标记为持久性 - 将IBasicProperties.SetPersistent设置为true</span><br><span class="line">var properties &#x3D; channel.CreateBasicProperties();</span><br><span class="line">properties.Persistent &#x3D; true;</span><br><span class="line">&#x2F;&#x2F;5. 构建byte消息数据包</span><br><span class="line">string message &#x3D; args.Length &gt; 0 ? args[0] : &quot;Hello RabbitMQ!&quot;;</span><br><span class="line">var body &#x3D; Encoding.UTF8.GetBytes(message);</span><br><span class="line">&#x2F;&#x2F;6. 发送数据包(指定basicProperties)</span><br><span class="line">channel.BasicPublish(exchange: &quot;&quot;, routingKey: &quot;hello&quot;, basicProperties: properties, body: body);</span><br></pre></td></tr></table></figure>
 <p>将消息标记为持久性不能完全保证消息不会丢失。虽然它告诉RabbitMQ将消息保存到磁盘，但是当RabbitMQ接受消息并且还没有保存时，仍然有一个很短的时间窗口。RabbitMQ 可能只是将消息保存到了缓存中，并没有将其写入到磁盘上。持久化是不能够一定保证的，但是对于一个简单任务队列来说已经足够。如果需要确保消息队列的持久化，可以使用<a href="https://www.rabbitmq.com/confirms.html" target="_blank" rel="noopener">publisher confirms</a>.</p>
 <h2 id="3-5-公平分发"><a href="#3-5-公平分发" class="headerlink" title="3.5. 公平分发"></a>3.5. 公平分发</h2><p>RabbitMQ的消息分发默认按照消费端的数量，按顺序循环分发。这样仅是确保了消费端被平均分发消息的数量，但却忽略了消费端的闲忙情况。这就可能出现某个消费端一直处理耗时任务处于阻塞状态，某个消费端一直处理一般任务处于空置状态，而只是它们分配的任务数量一样。</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-d2bb1f2ac63fdb15.png" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-d2bb1f2ac63fdb15.png" alt=""></p>
 <p>但我们可以通过<code>channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);</code><br>设置<code>prefetchCount : 1</code>来告知RabbitMQ，在未收到消费端的消息确认时，不再分发消息，也就确保了当消费端处于忙碌状态时，不再分配任务。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Receive.cs</span><br><span class="line">&#x2F;&#x2F;4. 申明队列</span><br><span class="line">channel.QueueDeclare(queue: &quot;hello&quot;, durable: false, exclusive: false, autoDelete: false, arguments: null);</span><br><span class="line">&#x2F;&#x2F;设置prefetchCount : 1来告知RabbitMQ，在未收到消费端的消息确认时，不再分发消息，也就确保了当消费端处于忙碌状态时</span><br><span class="line">channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);</span><br></pre></td></tr></table></figure>
 
 <p>这时你需要注意的是如果所有的消费端都处于忙碌状态，你的队列可能会被塞满。你需要注意这一点，要么添加更多的消费端，要么采取其他策略。</p>
 <h1 id="4-Exchange"><a href="#4-Exchange" class="headerlink" title="4. Exchange"></a>4. Exchange</h1><p>细心的你也许发现上面的demo，生产者和消费者直接是通过相同队列名称进行匹配衔接的。消费者订阅某个队列，生产者创建消息发布到队列中，队列再将消息转发到订阅的消费者。这样就会有一个局限性，即消费者一次只能发送消息到某一个队列。</p>
-<p>那消费者如何才能发送消息到多个消息队列呢？<br>RabbitMQ提供了<strong>Exchange</strong>，它类似于路由器的功能，它用于对消息进行路由，将消息发送到多个队列上。Exchange一方面从生产者接收消息，另一方面将消息推送到队列。但exchange必须知道如何处理接收到的消息，是将其附加到特定队列还是附加到多个队列，还是直接忽略。而这些规则由exchange type定义，exchange的原理如下图所示。<br><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-0b4fba202e525745.png" alt="Exchange"></p>
+<p>那消费者如何才能发送消息到多个消息队列呢？<br>RabbitMQ提供了<strong>Exchange</strong>，它类似于路由器的功能，它用于对消息进行路由，将消息发送到多个队列上。Exchange一方面从生产者接收消息，另一方面将消息推送到队列。但exchange必须知道如何处理接收到的消息，是将其附加到特定队列还是附加到多个队列，还是直接忽略。而这些规则由exchange type定义，exchange的原理如下图所示。<br><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-0b4fba202e525745.png" alt="Exchange"></p>
 <p>常见的exchange type 有以下几种：</p>
 <ul>
 <li>direct（明确的路由规则：消费端绑定的队列名称必须和消息发布时指定的路由名称一致）</li>
@@ -1016,25 +1016,25 @@
 </ul>
 <p>下面我们就来一一这介绍它们的用法。</p>
 <h2 id="4-1-fanout"><a href="#4-1-fanout" class="headerlink" title="4.1 fanout"></a>4.1 fanout</h2><p>本着先易后难的思想，我们先来了解下<strong>fanout</strong>的广播路由机制。fanout的路由机制如下图，即发送到 fanout 类型exchange的消息都会分发到所有绑定该exchange的队列上去。</p>
-<p><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-3afd7b874221a9a2.png" alt="fanout 路由机制"></p>
+<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-3afd7b874221a9a2.png" alt="fanout 路由机制"></p>
 <p>生产者示例代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; 生成随机队列名称</span><br><span class="line">var queueName &#x3D; channel.QueueDeclare().QueueName;</span><br><span class="line">&#x2F;&#x2F;使用fanout exchange type，指定exchange名称</span><br><span class="line">channel.ExchangeDeclare(exchange: &quot;fanoutEC&quot;, type: &quot;fanout&quot;);</span><br><span class="line">var message &#x3D; &quot;Hello Rabbit!&quot;;</span><br><span class="line">var body &#x3D; Encoding.UTF8.GetBytes(message);</span><br><span class="line">&#x2F;&#x2F;发布到指定exchange，fanout类型无需指定routingKey</span><br><span class="line">channel.BasicPublish(exchange: &quot;fanoutEC&quot;, routingKey: &quot;&quot;, basicProperties: null, body: body);</span><br></pre></td></tr></table></figure>
 <p>消费者示例代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;申明fanout类型exchange</span><br><span class="line">channel.ExchangeDeclare (exchange: &quot;fanoutEC&quot;, type: &quot;fanout&quot;);</span><br><span class="line">&#x2F;&#x2F;申明随机队列名称</span><br><span class="line">var queuename &#x3D; channel.QueueDeclare ().QueueName;</span><br><span class="line">&#x2F;&#x2F;绑定队列到指定fanout类型exchange，无需指定路由键</span><br><span class="line">channel.QueueBind (queue : queuename, exchange: &quot;fanoutEC&quot;, routingKey: &quot;&quot;);</span><br></pre></td></tr></table></figure>
 
-<h2 id="4-2-direct"><a href="#4-2-direct" class="headerlink" title="4.2. direct"></a>4.2. direct</h2><p>direct相对于fanout就属于完全匹配、单播的模式，路由机制如下图，即队列名称和消息发送时指定的路由完全匹配时，消息才会发送到指定队列上。<br><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-6c78ab57fe06c6ce.png" alt="direct路由机制"></p>
+<h2 id="4-2-direct"><a href="#4-2-direct" class="headerlink" title="4.2. direct"></a>4.2. direct</h2><p>direct相对于fanout就属于完全匹配、单播的模式，路由机制如下图，即队列名称和消息发送时指定的路由完全匹配时，消息才会发送到指定队列上。<br><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-6c78ab57fe06c6ce.png" alt="direct路由机制"></p>
 <p>生产者示例代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; 生成随机队列名称</span><br><span class="line">var queueName &#x3D; channel.QueueDeclare().QueueName;</span><br><span class="line">&#x2F;&#x2F;使用direct exchange type，指定exchange名称</span><br><span class="line">channel.ExchangeDeclare(exchange: &quot;directEC&quot;, type: &quot;direct&quot;);</span><br><span class="line">var message &#x3D; &quot;Hello Rabbit!&quot;;</span><br><span class="line">var body &#x3D; Encoding.UTF8.GetBytes(message);</span><br><span class="line">&#x2F;&#x2F;发布到direct类型exchange，必须指定routingKey</span><br><span class="line">channel.BasicPublish(exchange: &quot;directEC&quot;, routingKey: &quot;green&quot;, basicProperties: null, body: body);</span><br></pre></td></tr></table></figure>
 <p>消费者示例代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;申明direct类型exchange</span><br><span class="line">channel.ExchangeDeclare (exchange: &quot;directEC&quot;, type: &quot;direct&quot;);</span><br><span class="line">&#x2F;&#x2F;绑定队列到direct类型exchange，需指定路由键routingKey</span><br><span class="line">channel.QueueBind (queue : green, exchange: &quot;directEC&quot;, routingKey: &quot;green&quot;);</span><br></pre></td></tr></table></figure>
 
-<h2 id="4-3-topic"><a href="#4-3-topic" class="headerlink" title="4.3. topic"></a>4.3. topic</h2><p>topic是direct的升级版，是一种模式匹配的路由机制。它支持使用两种通配符来进行模式匹配：符号<strong><code>#</code></strong>和符号<strong><code>*</code></strong>。其中<strong><code>*</code></strong>匹配一个单词， <strong><code>#</code></strong>则表示匹配0个或多个单词，单词之间用<strong><code>.</code></strong>分割。如下图所示。<br><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-3196a1c3880b3466.png" alt="topic路由机制"></p>
+<h2 id="4-3-topic"><a href="#4-3-topic" class="headerlink" title="4.3. topic"></a>4.3. topic</h2><p>topic是direct的升级版，是一种模式匹配的路由机制。它支持使用两种通配符来进行模式匹配：符号<strong><code>#</code></strong>和符号<strong><code>*</code></strong>。其中<strong><code>*</code></strong>匹配一个单词， <strong><code>#</code></strong>则表示匹配0个或多个单词，单词之间用<strong><code>.</code></strong>分割。如下图所示。<br><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-3196a1c3880b3466.png" alt="topic路由机制"></p>
 <p>生产者示例代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; 生成随机队列名称</span><br><span class="line">var queueName &#x3D; channel.QueueDeclare().QueueName;</span><br><span class="line">&#x2F;&#x2F;使用topic exchange type，指定exchange名称</span><br><span class="line">channel.ExchangeDeclare(exchange: &quot;topicEC&quot;, type: &quot;topic&quot;);</span><br><span class="line">var message &#x3D; &quot;Hello Rabbit!&quot;;</span><br><span class="line">var body &#x3D; Encoding.UTF8.GetBytes(message);</span><br><span class="line">&#x2F;&#x2F;发布到topic类型exchange，必须指定routingKey</span><br><span class="line">channel.BasicPublish(exchange: &quot;topicEC&quot;, routingKey: &quot;first.green.fast&quot;, basicProperties: null, body: body);</span><br></pre></td></tr></table></figure>
 <p>消费者示例代码：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;申明topic类型exchange</span><br><span class="line">channel.ExchangeDeclare (exchange: &quot;topicEC&quot;, type: &quot;topic&quot;);</span><br><span class="line">&#x2F;&#x2F;申明随机队列名称</span><br><span class="line">var queuename &#x3D; channel.QueueDeclare ().QueueName;</span><br><span class="line">&#x2F;&#x2F;绑定队列到topic类型exchange，需指定路由键routingKey</span><br><span class="line">channel.QueueBind (queue : queuename, exchange: &quot;topicEC&quot;, routingKey: &quot;#.*.fast&quot;);</span><br></pre></td></tr></table></figure>
 
-<h1 id="5-RPC"><a href="#5-RPC" class="headerlink" title="5. RPC"></a>5. RPC</h1><p>RPC——Remote Procedure Call，远程过程调用。<br>那RabbitMQ如何进行远程调用呢？示意图如下：<br><img src="../images/how-much-you-know-about-the-rabbitmq/2799767-121e20f9b512c406.png" alt="RPC机制"><br>第一步，主要是进行远程调用的客户端需要指定接收远程回调的队列，并申明消费者监听此队列。<br>第二步，远程调用的服务端除了要申明消费端接收远程调用请求外，还要将结果发送到客户端用来监听回调结果的队列中去。</p>
+<h1 id="5-RPC"><a href="#5-RPC" class="headerlink" title="5. RPC"></a>5. RPC</h1><p>RPC——Remote Procedure Call，远程过程调用。<br>那RabbitMQ如何进行远程调用呢？示意图如下：<br><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-121e20f9b512c406.png" alt="RPC机制"><br>第一步，主要是进行远程调用的客户端需要指定接收远程回调的队列，并申明消费者监听此队列。<br>第二步，远程调用的服务端除了要申明消费端接收远程调用请求外，还要将结果发送到客户端用来监听回调结果的队列中去。</p>
 <p>远程调用客户端：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;申明唯一guid用来标识此次发送的远程调用请求</span><br><span class="line">var correlationId &#x3D; Guid.NewGuid().ToString();</span><br><span class="line">&#x2F;&#x2F;申明需要监听的回调队列</span><br><span class="line">var replyQueue &#x3D; channel.QueueDeclare().QueueName;</span><br><span class="line">var properties &#x3D; channel.CreateBasicProperties();</span><br><span class="line">properties.ReplyTo &#x3D; replyQueue;&#x2F;&#x2F;指定回调队列</span><br><span class="line">properties.CorrelationId &#x3D; correlationId;&#x2F;&#x2F;指定消息唯一标识</span><br><span class="line">string number &#x3D; args.Length &gt; 0 ? args[0] : &quot;30&quot;;</span><br><span class="line">var body &#x3D; Encoding.UTF8.GetBytes(number);</span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">channel.BasicPublish(exchange: &quot;&quot;, routingKey: &quot;rpc_queue&quot;, basicProperties: properties, body: body);</span><br><span class="line">Console.WriteLine($&quot;[*] Request fib(&#123;number&#125;)&quot;);</span><br><span class="line">&#x2F;&#x2F; &#x2F;&#x2F;创建消费者用于处理消息回调（远程调用返回结果）</span><br><span class="line">var callbackConsumer &#x3D; new EventingBasicConsumer(channel);</span><br><span class="line">channel.BasicConsume(queue: replyQueue, autoAck: true, consumer: callbackConsumer);</span><br><span class="line">callbackConsumer.Received +&#x3D; (model, ea) &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">     &#x2F;&#x2F;仅当消息回调的ID与发送的ID一致时，说明远程调用结果正确返回。</span><br><span class="line">    if (ea.BasicProperties.CorrelationId &#x3D;&#x3D; correlationId)</span><br><span class="line">    &#123;</span><br><span class="line">        var responseMsg &#x3D; $&quot;Get Response: &#123;Encoding.UTF8.GetString(ea.Body)&#125;&quot;;</span><br><span class="line">        Console.WriteLine($&quot;[x]: &#123;responseMsg&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
@@ -1070,12 +1070,12 @@
   <entry>
     <title>反应式编程知多少 | Rx.NET了解下</title>
     <url>/post/how-much-you-know-about-the-reactive-programming-in-dotnet/</url>
-    <content><![CDATA[<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54048d974ab3962e.png" alt=""></p>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54048d974ab3962e.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><blockquote>
 <p>An API for asynchronous programming with observable streams.<br>ReactiveX is a combination of the best ideas from the <strong>Observer</strong> pattern, the <strong>Iterator</strong> pattern, and <strong>functional programming</strong>.<br><em>ReactiveX 使用可观察数据流进行异步编程的API。<br>ReactiveX结合了观察者模式、迭代器模式和函数式编程的精华</em>。</p>
 </blockquote>
 <p>关于Reactive（本文统一译作响应式），有一个<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">The Reactive Manifesto</a>【响应式宣言】：<strong>响应式系统（Reactive System）具备以下特质：即时响应性（Responsive）、回弹性（Resilient）、弹性（Elastic）以及消息驱动（Message Driven）。</strong></p>
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-84eafef9e10f402d.png" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-84eafef9e10f402d.png" alt=""></p>
 <p>很显然开发一个响应式系统，并不简单。<br>那本文就来讲一讲如何基于Rx.NET进行响应式编程，进而开发更加灵活、松耦合、可伸缩的响应式系统。</p>
 <h1 id="2-编程范式"><a href="#2-编程范式" class="headerlink" title="2. 编程范式"></a>2. 编程范式</h1><p>在开始之前呢，我们有必要了解下几种编程范式：命令式编程、声明式编程、函数式编程和响应式编程。</p>
 <p><strong>命令式编程</strong>：命令式编程的主要思想是关注计算机执行的步骤，即一步一步告诉计算机先做什么再做什么。</p>
@@ -1104,9 +1104,9 @@
 </ol>
 <p>通过以上我们可以看到Rx.NET大大简化了事件处理的步骤，而这只是Rx的冰山一角。</p>
 <h1 id="4-Rx-NET-核心"><a href="#4-Rx-NET-核心" class="headerlink" title="4. Rx.NET 核心"></a>4. Rx.NET 核心</h1><p><a href="https://github.com/dotnet/reactive" target="_blank" rel="noopener">Reactive Extensions</a>（Rx）是一个为.NET应用提供响应式编程模型的库，用来构建异步基于事件流的应用，通过安装<code>System.Reactive</code>Nuget包进行引用。Rx将事件流抽象为Observable sequences（可观察序列）表示异步数据流，使用LINQ运算符查询异步数据流，并使用<code>Scheduler</code>来控制异步数据流中的并发性。简单地说：<strong>Rx = Observables + LINQ + Schedulers。</strong></p>
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-b4a81ae7fbc5526d.png" alt="Rx layer"></p>
+<p><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-b4a81ae7fbc5526d.png" alt="Rx layer"></p>
 <p>在软件系统中，事件是一种消息用于指示发生了某些事情。事件由Event Source（事件源）引发并由Event Handler（事件处理程序）使用。<br>在Rx中，事件源可以由observable表示，事件处理程序可以由observer表示。<br>但是应用程序使用的数据如何表示呢，例如数据库中的数据或从Web服务器获取的数据。而在应用程序中我们一般处理的数据无外乎两种：静态数据和动态数据。 但无论使用何种类型的数据，其都可以作为流来观察。换句话说，数据流本身也是可观察的。也就意味着，我们也可以用observable来表示数据流。</p>
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-093cbaf2aab308e9.png" alt="Everything is stream"></p>
+<p><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-093cbaf2aab308e9.png" alt="Everything is stream"></p>
 <p>讲到这里，Rx.NET的核心也就一目了然了：</p>
 <ol>
 <li>一切皆为数据流</li>
@@ -1116,7 +1116,7 @@
 <p>在Rx中，分别使用<code>IObservable&lt;T&gt;</code>和<code>IObserver&lt;T&gt;</code>接口来表示可观察序列和观察者。它们预置在system命名空间下，其定义如下：</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IObservable&lt;out T&gt;</span><br><span class="line">&#123;</span><br><span class="line">      &#x2F;&#x2F;Notifies the provider that an observer is to receive notifications.</span><br><span class="line">      IDisposable Subscribe(IObserver&lt;T&gt; observer);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IObserver&lt;in T&gt;</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;Notifies the observer that the provider has finished sending push-based notifications.</span><br><span class="line">    void OnCompleted();</span><br><span class="line"> </span><br><span class="line">    &#x2F;&#x2F;Notifies the observer that the provider has experienced an error condition.</span><br><span class="line">    void OnError(Exception error);</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F;Provides the observer with new data.</span><br><span class="line">    void OnNext(T value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-cb04b6cd6fced9ea.png" alt=""></p>
+<p><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-cb04b6cd6fced9ea.png" alt=""></p>
 <h1 id="5-创建IObservable"><a href="#5-创建IObservable" class="headerlink" title="5. 创建IObservable"></a>5. 创建IObservable<T></h1><p>创建<code>IObservable&lt;T&gt;</code>主要有以下几种方式：<br><strong>1. 直接实现<code>IObservable&lt;T&gt;</code>接口</strong><br><strong>2. 使用<code>Observable.Create</code>创建</strong></p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Observable.Create&lt;int&gt;(observer&#x3D;&gt;&#123;</span><br><span class="line">    for (int i &#x3D; 0; i &lt; 5; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        observer.OnNext(i);</span><br><span class="line">    &#125;</span><br><span class="line">    observer.OnCompleted();</span><br><span class="line">    return Disposable.Empty;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
 <p><strong>3. 使用<code>Observable.Deffer</code>进行延迟创建（当有观察者订阅时才创建）</strong><br>比如要连接数据库进行查询，如果没有观察者，那么数据库连接会一直被占用，这样会造成资源浪费。使用Deffer可以解决这个问题。</p>
@@ -1134,25 +1134,25 @@
 
 <p><strong>9. 使用<code>Observable.Using</code>进行资源释放</strong></p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">IObservable&lt;string&gt; lines &#x3D;</span><br><span class="line">    Observable.Using (</span><br><span class="line">        () &#x3D;&gt; File.OpenText (&quot;TextFile.txt&quot;), &#x2F;&#x2F; opens the file and returns the stream we work with</span><br><span class="line">        stream &#x3D;&gt;</span><br><span class="line">        Observable.Generate (</span><br><span class="line">            stream, &#x2F;&#x2F;initial state</span><br><span class="line">            s &#x3D;&gt; !s.EndOfStream, &#x2F;&#x2F;we continue until we reach the end of the file</span><br><span class="line">            s &#x3D;&gt; s, &#x2F;&#x2F;the stream is our state, it holds the position in the file </span><br><span class="line">            s &#x3D;&gt; s.ReadLine ()) &#x2F;&#x2F;each iteration will emit the current line (and moves to the next)</span><br><span class="line">    );</span><br></pre></td></tr></table></figure>
-<p><strong>10. 使用<code>Observable.Interval</code>创建指定间隔可观察序列</strong><br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-fbc5816e51fb2b45.png" alt=""></p>
-<p><strong>11. 使用<code>Observable.Timer</code>创建可观察的计时器</strong><br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-9295db8a2f4e08e4.png" alt=""></p>
-<h1 id="6-RX-操作符"><a href="#6-RX-操作符" class="headerlink" title="6. RX 操作符"></a>6. RX 操作符</h1><p>创建完IObservable<T>后，我们可以对其应用系列Linq操作符，对其进行查询、过滤、聚合等等。Rx内置了以下系列操作符：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54a9467df0b603fa.png" alt="Rx 操作符"><br>下面通过图示来解释常用操作符的作用：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-a865665f963a58d8.png" alt="操作符解释"></p>
+<p><strong>10. 使用<code>Observable.Interval</code>创建指定间隔可观察序列</strong><br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-fbc5816e51fb2b45.png" alt=""></p>
+<p><strong>11. 使用<code>Observable.Timer</code>创建可观察的计时器</strong><br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-9295db8a2f4e08e4.png" alt=""></p>
+<h1 id="6-RX-操作符"><a href="#6-RX-操作符" class="headerlink" title="6. RX 操作符"></a>6. RX 操作符</h1><p>创建完IObservable<T>后，我们可以对其应用系列Linq操作符，对其进行查询、过滤、聚合等等。Rx内置了以下系列操作符：<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54a9467df0b603fa.png" alt="Rx 操作符"><br>下面通过图示来解释常用操作符的作用：<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-a865665f963a58d8.png" alt="操作符解释"></p>
 <h1 id="7-多播传输靠：Subject"><a href="#7-多播传输靠：Subject" class="headerlink" title="7. 多播传输靠：Subject"></a>7. 多播传输靠：Subject</h1><p>基于以上示例，我们了解到，借助Rx可以简化事件模型的实现，而其实质上就是对观察者模式的扩展。提到观察者模式，我们知道一个Subject可以被多个观察者订阅，从而完成消息的多播。同样，在Rx中，也引入了Subject用于多播消息传输，不过Rx中的Subject具有双重身份——即是观察者也是被观察者。</p>
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">interface ISubject&lt;in TSource, out TResult&gt; : IObserver&lt;TSource&gt;,IObservable&lt;TResult&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>Rx中默认提供了以下四种实现：</p>
 <ul>
-<li><p>Subject<T>  - 向所有观察者广播每个通知<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-81a5de33fcef3ea5.png" alt=""></p>
+<li><p>Subject<T>  - 向所有观察者广播每个通知<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-81a5de33fcef3ea5.png" alt=""></p>
 </li>
-<li><p>AsyncSubject<T>  - 当可观察序列完成后有且仅发送一个通知<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-0961c4adefb27d9a.png" alt=""></p>
+<li><p>AsyncSubject<T>  - 当可观察序列完成后有且仅发送一个通知<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-0961c4adefb27d9a.png" alt=""></p>
 </li>
-<li><p>ReplaySubject<T>  - 缓存指定通知以对后续订阅的观察者进行重放<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-f661dc814a8ac625.png" alt=""></p>
+<li><p>ReplaySubject<T>  - 缓存指定通知以对后续订阅的观察者进行重放<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-f661dc814a8ac625.png" alt=""></p>
 </li>
-<li><p>BehaviorSubject<T>  - 推送默认值或最新值给观察者<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c72dc53ff1f6368d.png" alt=""></p>
+<li><p>BehaviorSubject<T>  - 推送默认值或最新值给观察者<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c72dc53ff1f6368d.png" alt=""></p>
 </li>
 </ul>
-<p>但对于第一种<code>Subject&lt;T&gt;</code>有一点需要指出，当其有多个观察者序列时，一旦其中一个停止发送消息，则Subject就停止广播所有其他序列后续发送的任何消息。<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c6fedeb092186767.png" alt=""></p>
-<h1 id="8-有温度的可观察者序列"><a href="#8-有温度的可观察者序列" class="headerlink" title="8. 有温度的可观察者序列"></a>8. 有温度的可观察者序列</h1><p>对于Observable，它们是有温度的，有冷热之分。它们的区别如下图所示：<br><img src="../images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c4204f808d9849ed.png" alt="冷热观察者序列的区别"></p>
+<p>但对于第一种<code>Subject&lt;T&gt;</code>有一点需要指出，当其有多个观察者序列时，一旦其中一个停止发送消息，则Subject就停止广播所有其他序列后续发送的任何消息。<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c6fedeb092186767.png" alt=""></p>
+<h1 id="8-有温度的可观察者序列"><a href="#8-有温度的可观察者序列" class="headerlink" title="8. 有温度的可观察者序列"></a>8. 有温度的可观察者序列</h1><p>对于Observable，它们是有温度的，有冷热之分。它们的区别如下图所示：<br><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-c4204f808d9849ed.png" alt="冷热观察者序列的区别"></p>
 <p><strong>Cold Observable</strong>：有且仅当有观察者订阅时才发送通知，且每个观察者独享一份完整的观察者序列。<br><strong>Hot Observable</strong>：不管有无观察者订阅都会发送通知，且所有观察者共享同一份观察者序列。</p>
 <h1 id="9-一切皆在掌控：Scheduler"><a href="#9-一切皆在掌控：Scheduler" class="headerlink" title="9. 一切皆在掌控：Scheduler"></a>9. 一切皆在掌控：Scheduler</h1><p>在Rx中，使用Scheduler来控制并发。而对于Scheduler我们可以理解为程序调度，通过Scheduler来规定在什么时间什么地点执行什么事情。Rx提供了以下几种Scheduler：</p>
 <ol>
@@ -1177,93 +1177,6 @@
       <tags>
         <tag>.NET Core</tag>
         <tag>Rx.NET</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>SQL递归查询知多少</title>
-    <url>/post/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/</url>
-    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-438a0621acbccd40.png" alt="流程表结构数据举例"></p>
-<p>仔细观察表结构，会发现其树形结构的特点：</p>
-<ul>
-<li>FFIRSTNODE：标记是否为根节点</li>
-<li>FSTABLENAME：标记来源单据名称</li>
-<li>FSID：标记来源单据分录ID</li>
-<li>FTTABLENAME ：标记目标单据名称</li>
-<li>FTID：标记目标单据分录ID</li>
-</ul>
-<p>图中的流程为：<br><strong>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</strong></p>
-<p>首先想到的办法就是把流程数据取回来，然后代码构造流程图。<br>第一个思路：根据根节点循环往下找，吭呲半天，发现没那么简单。<br>因为任何一个源头单据都可以多次下推目标单据：<br>第二个思路：先找到终极节点，在从终极节点往上找只至根节点为0。<br>这个思路实现起来也没有那么复杂，逻辑理清，循环遍历，最终也能实现结果。（但在大数据量情况下，易导致性能瓶颈。）</p>
-<p>这一次我们换一个思路，让SQL来替我们做这一复杂的递归查询。</p>
-<h1 id="SqlServer-递归查询"><a href="#SqlServer-递归查询" class="headerlink" title="SqlServer 递归查询"></a>SqlServer 递归查询</h1><h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><blockquote>
-<p>公用表表达式 (CTE) 可以认为是在单个 SELECT、INSERT、UPDATE、DELETE 或 CREATE VIEW 语句的执行范围内定义的临时结果集。公用表表达式可以包括对自身的引用，这种表达式称为递归公用表表达式。</p>
-</blockquote>
-<ul>
-<li>创建递归查询。有关详细信息，请参阅<a href="https://technet.microsoft.com/zh-cn/library/ms186243(v=sql.105).aspx" target="_blank" rel="noopener">使用公用表表达式的递归查询</a>。</li>
-<li>在不需要常规使用视图时替换视图，也就是说，不必将定义存储在元数据中。</li>
-<li>启用按从标量嵌套 select 语句派生的列进行分组，或者按不确定性函数或有外部访问的函数进行分组。</li>
-<li>在同一语句中多次引用生成的表。</li>
-</ul>
-<p><a href="https://msdn.microsoft.com/zh-cn/library/ms175972.aspx" target="_blank" rel="noopener">MSDN上对CTE的介绍</a><br><a href="http://www.cnblogs.com/CareySon/archive/2011/12/12/2284740.html" target="_blank" rel="noopener">T-SQL查询进阶–详解公用表表达式(CTE)</a></p>
-<p>CTE 的基本语法结构如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH expression_name [ ( column_name [,...n] ) ]</span><br><span class="line">AS</span><br><span class="line">( CTE_query_definition )</span><br><span class="line">--只有在查询定义中为所有结果列都提供了不同的名称时，列名称列表才是可选的。</span><br><span class="line">--运行 CTE 的语句为：</span><br><span class="line">SELECT &lt;column_list&gt; FROM expression_name;</span><br></pre></td></tr></table></figure>
-<p>即三个部分：</p>
-<ol>
-<li>公用表表达式的名字（在WITH关键字之后）</li>
-<li>查询的列名（可选）</li>
-<li>紧跟AS之后的SELECT语句（<em>如果AS之后有多个对公用表的查询，则只有第一个查询有效</em>）</li>
-</ol>
-<h2 id="动手实践"><a href="#动手实践" class="headerlink" title="动手实践"></a>动手实践</h2><p>根据官网示例我们很简单就可以写出CTE语句应用于我们的应用场景：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID  FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
-
-<p>在查询中我们指定条件参数<code>WHERE TBIE.FTTABLENAME = &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID = 121625</code>，即可查询到指定节点的完整流程数据。<br><em>其中在与公用表<code>TEST_CTE</code>进行关联时，我指定了两个条件<code>CTBIE.FSID=CTE.FTID AND CTBIE.FSTABLENAME = CTE.FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7ecb5971eca7ad7a.png" alt="查询结果"></p>
-<p>需要注意的是<strong><code>OPTION(MAXRECURSION 10)</code></strong>是用来限制递归次数，以避免无限递归导致数据库性能消耗严重。</p>
-<h2 id="扩展：构造递归路径"><a href="#扩展：构造递归路径" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID,Cast(TBIE.FTID as nvarchar(4000)) AS PATH</span><br><span class="line">FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID,CTE.PATH+&#39;-&gt;&#39;+Cast(CTBIE.FTID as nvarchar(4000)) PATH  </span><br><span class="line">FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
-
-<p>基于上一个查询，增加一列手动拼接递归路径。注意sql中将PATH设置的类型为navarchar(4000)，在union中，两边的表结构类型必须保持一致，否则会报错<code>定位点类型和递归部分的类型不匹配</code>。可参考此篇博文<br><a href="http://www.cnblogs.com/ccding13/p/3515393.html" target="_blank" rel="noopener">解决CTE定位点类型和递归部分的类型不匹配</a>。</p>
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-82fc5de8bb634c3a.png" alt="递归路径查询结果"></p>
-<h1 id="Oracle-递归查询"><a href="#Oracle-递归查询" class="headerlink" title="Oracle 递归查询"></a>Oracle 递归查询</h1><h2 id="基本概念-1"><a href="#基本概念-1" class="headerlink" title="基本概念"></a>基本概念</h2><p>Oracle中的递归查询语句为<code>start with…connect by prior</code>，为中序遍历算法。<br>可参考<a href="http://www.cnblogs.com/yingsong/p/5035907.html" target="_blank" rel="noopener">Oracle 树操作、递归查询(select…start with…connect by…prior)</a>了解更多。</p>
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7a6a047617d286e4.png" alt="查询顺序"></p>
-<p>其基本语法是：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select colname from tablename</span><br><span class="line">start with 条件1</span><br><span class="line">connect by 条件2</span><br><span class="line">where 条件3;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>条件1： 是根结点的限定语句，当然可以放宽限定条件，以遍历多个根结点，实际就是多棵树。</li>
-<li>条件2：是连接条件，其中用<strong>PRIOR</strong>表示上一条记录。<br>比如<code>CONNECT BY PRIOR Id = Parent_Id</code>就是说<strong>上一条记录的Id 是本条记录的Parent_Id</strong>。</li>
-<li>条件3：过滤返回的结果集。</li>
-</ul>
-<p><strong>PRIOR关键字</strong></p>
-<p>运算符PRIOR被放置于等号前后的位置，决定着查询时的检索顺序。</p>
-<ul>
-<li>PRIOR被置于CONNECT BY子句中<strong>等号的前面</strong>时，则强制从根节点到叶节点的顺序检索，为<strong>自顶向下</strong>查找。<br>如：<code>CONNECT BY PRIOR Id=Parent_Id</code></li>
-<li>PIROR运算符被置于CONNECT BY 子句中<strong>等号的后面</strong>时，则强制从叶节点到根节点的顺序检索，为<strong>自底向上的</strong>查找。<br>如：<code>CONNECT BY Id=PRIOR Parent_Id</code></li>
-</ul>
-<p><strong>PS：当CONNECT BY后指定多个连接条件时，每个条件都应指定<code>PRIOR</code>关键字</strong></p>
-<h2 id="动手实践-1"><a href="#动手实践-1" class="headerlink" title="动手实践"></a>动手实践</h2><p>理清了用法，我们用Oracle来对查询一下业务流程。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT * FROM T_BF_INSTANCEENTRY </span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-c1c7a780cbb60575.png" alt="查询结果"></p>
-<p>该流程为：<strong>销售订单–&gt;发货通知单–&gt;销售出库单–&gt;退货通知单–&gt;销售退货单</strong><br><em>其中在指定连接条件时，我指定了两个条件<code>FSID= PRIOR FTID AND FSTABLENAME =PRIOR FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
-<h2 id="扩展：构造递归路径-1"><a href="#扩展：构造递归路径-1" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><p>Oracle中提供了<code>SYS_CONNECT_BY_PATH</code>函数用来进行连接路径。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
-<p>基于上个查询，增加了一列<code>SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH</code>用来拼接递归路径。</p>
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-a2159ee0b27a72c7.png" alt="递归路径查询结果"></p>
-<h2 id="显示当前节点的根节点"><a href="#显示当前节点的根节点" class="headerlink" title="显示当前节点的根节点"></a>显示当前节点的根节点</h2><p>这个时候我们要用到<code>connect_by_root</code>函数，用来记录当前节点的根节点信息。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
-
-<p><img src="../images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-1ed0676674ecdc51.png" alt="当前节点的根节点的查询结果"></p>
-<h2 id="Oracle中的with…as语句"><a href="#Oracle中的with…as语句" class="headerlink" title="Oracle中的with…as语句"></a>Oracle中的with…as语句</h2><p>Oracle也有with..as 查询语法，一般用来进行子查询，提高查询效率。<br>语法：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with tempTableName as ( select * from table1 )</span><br><span class="line">select * from tempTableName</span><br></pre></td></tr></table></figure>
-<p>拿我们的案例举例就是：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with flow_temp as (</span><br><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">select * from flow_temp</span><br></pre></td></tr></table></figure>
-
-<p>为啥要讲这个呢，我们可以在oracle递归查询后进行筛选啊。</p>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>SQL</tag>
       </tags>
   </entry>
   <entry>
@@ -1324,12 +1237,99 @@
       </tags>
   </entry>
   <entry>
+    <title>SQL递归查询知多少</title>
+    <url>/post/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-438a0621acbccd40.png" alt="流程表结构数据举例"></p>
+<p>仔细观察表结构，会发现其树形结构的特点：</p>
+<ul>
+<li>FFIRSTNODE：标记是否为根节点</li>
+<li>FSTABLENAME：标记来源单据名称</li>
+<li>FSID：标记来源单据分录ID</li>
+<li>FTTABLENAME ：标记目标单据名称</li>
+<li>FTID：标记目标单据分录ID</li>
+</ul>
+<p>图中的流程为：<br><strong>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</strong></p>
+<p>首先想到的办法就是把流程数据取回来，然后代码构造流程图。<br>第一个思路：根据根节点循环往下找，吭呲半天，发现没那么简单。<br>因为任何一个源头单据都可以多次下推目标单据：<br>第二个思路：先找到终极节点，在从终极节点往上找只至根节点为0。<br>这个思路实现起来也没有那么复杂，逻辑理清，循环遍历，最终也能实现结果。（但在大数据量情况下，易导致性能瓶颈。）</p>
+<p>这一次我们换一个思路，让SQL来替我们做这一复杂的递归查询。</p>
+<h1 id="SqlServer-递归查询"><a href="#SqlServer-递归查询" class="headerlink" title="SqlServer 递归查询"></a>SqlServer 递归查询</h1><h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><blockquote>
+<p>公用表表达式 (CTE) 可以认为是在单个 SELECT、INSERT、UPDATE、DELETE 或 CREATE VIEW 语句的执行范围内定义的临时结果集。公用表表达式可以包括对自身的引用，这种表达式称为递归公用表表达式。</p>
+</blockquote>
+<ul>
+<li>创建递归查询。有关详细信息，请参阅<a href="https://technet.microsoft.com/zh-cn/library/ms186243(v=sql.105).aspx" target="_blank" rel="noopener">使用公用表表达式的递归查询</a>。</li>
+<li>在不需要常规使用视图时替换视图，也就是说，不必将定义存储在元数据中。</li>
+<li>启用按从标量嵌套 select 语句派生的列进行分组，或者按不确定性函数或有外部访问的函数进行分组。</li>
+<li>在同一语句中多次引用生成的表。</li>
+</ul>
+<p><a href="https://msdn.microsoft.com/zh-cn/library/ms175972.aspx" target="_blank" rel="noopener">MSDN上对CTE的介绍</a><br><a href="http://www.cnblogs.com/CareySon/archive/2011/12/12/2284740.html" target="_blank" rel="noopener">T-SQL查询进阶–详解公用表表达式(CTE)</a></p>
+<p>CTE 的基本语法结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH expression_name [ ( column_name [,...n] ) ]</span><br><span class="line">AS</span><br><span class="line">( CTE_query_definition )</span><br><span class="line">--只有在查询定义中为所有结果列都提供了不同的名称时，列名称列表才是可选的。</span><br><span class="line">--运行 CTE 的语句为：</span><br><span class="line">SELECT &lt;column_list&gt; FROM expression_name;</span><br></pre></td></tr></table></figure>
+<p>即三个部分：</p>
+<ol>
+<li>公用表表达式的名字（在WITH关键字之后）</li>
+<li>查询的列名（可选）</li>
+<li>紧跟AS之后的SELECT语句（<em>如果AS之后有多个对公用表的查询，则只有第一个查询有效</em>）</li>
+</ol>
+<h2 id="动手实践"><a href="#动手实践" class="headerlink" title="动手实践"></a>动手实践</h2><p>根据官网示例我们很简单就可以写出CTE语句应用于我们的应用场景：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID  FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
+
+<p>在查询中我们指定条件参数<code>WHERE TBIE.FTTABLENAME = &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID = 121625</code>，即可查询到指定节点的完整流程数据。<br><em>其中在与公用表<code>TEST_CTE</code>进行关联时，我指定了两个条件<code>CTBIE.FSID=CTE.FTID AND CTBIE.FSTABLENAME = CTE.FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7ecb5971eca7ad7a.png" alt="查询结果"></p>
+<p>需要注意的是<strong><code>OPTION(MAXRECURSION 10)</code></strong>是用来限制递归次数，以避免无限递归导致数据库性能消耗严重。</p>
+<h2 id="扩展：构造递归路径"><a href="#扩展：构造递归路径" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID,Cast(TBIE.FTID as nvarchar(4000)) AS PATH</span><br><span class="line">FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID,CTE.PATH+&#39;-&gt;&#39;+Cast(CTBIE.FTID as nvarchar(4000)) PATH  </span><br><span class="line">FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
+
+<p>基于上一个查询，增加一列手动拼接递归路径。注意sql中将PATH设置的类型为navarchar(4000)，在union中，两边的表结构类型必须保持一致，否则会报错<code>定位点类型和递归部分的类型不匹配</code>。可参考此篇博文<br><a href="http://www.cnblogs.com/ccding13/p/3515393.html" target="_blank" rel="noopener">解决CTE定位点类型和递归部分的类型不匹配</a>。</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-82fc5de8bb634c3a.png" alt="递归路径查询结果"></p>
+<h1 id="Oracle-递归查询"><a href="#Oracle-递归查询" class="headerlink" title="Oracle 递归查询"></a>Oracle 递归查询</h1><h2 id="基本概念-1"><a href="#基本概念-1" class="headerlink" title="基本概念"></a>基本概念</h2><p>Oracle中的递归查询语句为<code>start with…connect by prior</code>，为中序遍历算法。<br>可参考<a href="http://www.cnblogs.com/yingsong/p/5035907.html" target="_blank" rel="noopener">Oracle 树操作、递归查询(select…start with…connect by…prior)</a>了解更多。</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7a6a047617d286e4.png" alt="查询顺序"></p>
+<p>其基本语法是：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select colname from tablename</span><br><span class="line">start with 条件1</span><br><span class="line">connect by 条件2</span><br><span class="line">where 条件3;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>条件1： 是根结点的限定语句，当然可以放宽限定条件，以遍历多个根结点，实际就是多棵树。</li>
+<li>条件2：是连接条件，其中用<strong>PRIOR</strong>表示上一条记录。<br>比如<code>CONNECT BY PRIOR Id = Parent_Id</code>就是说<strong>上一条记录的Id 是本条记录的Parent_Id</strong>。</li>
+<li>条件3：过滤返回的结果集。</li>
+</ul>
+<p><strong>PRIOR关键字</strong></p>
+<p>运算符PRIOR被放置于等号前后的位置，决定着查询时的检索顺序。</p>
+<ul>
+<li>PRIOR被置于CONNECT BY子句中<strong>等号的前面</strong>时，则强制从根节点到叶节点的顺序检索，为<strong>自顶向下</strong>查找。<br>如：<code>CONNECT BY PRIOR Id=Parent_Id</code></li>
+<li>PIROR运算符被置于CONNECT BY 子句中<strong>等号的后面</strong>时，则强制从叶节点到根节点的顺序检索，为<strong>自底向上的</strong>查找。<br>如：<code>CONNECT BY Id=PRIOR Parent_Id</code></li>
+</ul>
+<p><strong>PS：当CONNECT BY后指定多个连接条件时，每个条件都应指定<code>PRIOR</code>关键字</strong></p>
+<h2 id="动手实践-1"><a href="#动手实践-1" class="headerlink" title="动手实践"></a>动手实践</h2><p>理清了用法，我们用Oracle来对查询一下业务流程。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT * FROM T_BF_INSTANCEENTRY </span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-c1c7a780cbb60575.png" alt="查询结果"></p>
+<p>该流程为：<strong>销售订单–&gt;发货通知单–&gt;销售出库单–&gt;退货通知单–&gt;销售退货单</strong><br><em>其中在指定连接条件时，我指定了两个条件<code>FSID= PRIOR FTID AND FSTABLENAME =PRIOR FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
+<h2 id="扩展：构造递归路径-1"><a href="#扩展：构造递归路径-1" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><p>Oracle中提供了<code>SYS_CONNECT_BY_PATH</code>函数用来进行连接路径。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
+<p>基于上个查询，增加了一列<code>SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH</code>用来拼接递归路径。</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-a2159ee0b27a72c7.png" alt="递归路径查询结果"></p>
+<h2 id="显示当前节点的根节点"><a href="#显示当前节点的根节点" class="headerlink" title="显示当前节点的根节点"></a>显示当前节点的根节点</h2><p>这个时候我们要用到<code>connect_by_root</code>函数，用来记录当前节点的根节点信息。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-1ed0676674ecdc51.png" alt="当前节点的根节点的查询结果"></p>
+<h2 id="Oracle中的with…as语句"><a href="#Oracle中的with…as语句" class="headerlink" title="Oracle中的with…as语句"></a>Oracle中的with…as语句</h2><p>Oracle也有with..as 查询语法，一般用来进行子查询，提高查询效率。<br>语法：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with tempTableName as ( select * from table1 )</span><br><span class="line">select * from tempTableName</span><br></pre></td></tr></table></figure>
+<p>拿我们的案例举例就是：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with flow_temp as (</span><br><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">select * from flow_temp</span><br></pre></td></tr></table></figure>
+
+<p>为啥要讲这个呢，我们可以在oracle递归查询后进行筛选啊。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>WinDbg分析高内存占用问题</title>
     <url>/post/use-windbg-to-analyze-high-memory-issue/</url>
-    <content><![CDATA[<p><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-0f1cf31d06374907.png" alt=""></p>
-<h1 id="1-问题简介"><a href="#1-问题简介" class="headerlink" title="1. 问题简介"></a>1. 问题简介</h1><p>最近产品发布大版本补丁更新，一商超客户升级后，反馈系统经常奔溃，导致超市的收银系统无法正常收银，现场排队付款的顾客更是抱怨声声。为了缓解现场的情况， 客户都是手动回收IIS应用程序池才能解决。<br><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-fc4cfcbf08a0df04.png" alt="现场排队情况"></p>
+    <content><![CDATA[<p><img src="/images/use-windbg-to-analyze-high-memory-issue/2799767-0f1cf31d06374907.png" alt=""></p>
+<h1 id="1-问题简介"><a href="#1-问题简介" class="headerlink" title="1. 问题简介"></a>1. 问题简介</h1><p>最近产品发布大版本补丁更新，一商超客户升级后，反馈系统经常奔溃，导致超市的收银系统无法正常收银，现场排队付款的顾客更是抱怨声声。为了缓解现场的情况， 客户都是手动回收IIS应用程序池才能解决。<br><img src="/images/use-windbg-to-analyze-high-memory-issue/2799767-fc4cfcbf08a0df04.png" alt="现场排队情况"></p>
 <p>这样的后果是很严重的，接到反馈，第一时间想到的是加内存吧，这样最快。但是客户从8G–&gt;16G–&gt;32G，只是延长了每次奔溃的时间，但是并没有解决系统卡顿的问题。到这里，也基本猜测了问题所在了，肯定是什么东西一直在吃内存且得不到释放。这种问题，也就只能打Dump分析了。</p>
-<h1 id="2-打Dump"><a href="#2-打Dump" class="headerlink" title="2. 打Dump"></a>2. 打Dump</h1><p>远程客户应用服务器，32G内存占用已经消耗了78%，而现场已经反馈收银系统接近奔溃了，要求先强制回收内存。反正也要奔溃了，先打Dump再说吧。<br>（PS：打Dump会挂起进程，导致应用无法响应！而打Dump的耗时，也是根据当时进程的内存占用有关，内存占用越大，耗时越久。）<br>打开任务管理器，选择对应的IIS进程，右键创建转储文件（Dump）。<br><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-fe85d20242c6f435.png" alt="打Dump"></p>
+<h1 id="2-打Dump"><a href="#2-打Dump" class="headerlink" title="2. 打Dump"></a>2. 打Dump</h1><p>远程客户应用服务器，32G内存占用已经消耗了78%，而现场已经反馈收银系统接近奔溃了，要求先强制回收内存。反正也要奔溃了，先打Dump再说吧。<br>（PS：打Dump会挂起进程，导致应用无法响应！而打Dump的耗时，也是根据当时进程的内存占用有关，内存占用越大，耗时越久。）<br>打开任务管理器，选择对应的IIS进程，右键创建转储文件（Dump）。<br><img src="/images/use-windbg-to-analyze-high-memory-issue/2799767-fe85d20242c6f435.png" alt="打Dump"></p>
 <p>结果，Dump文件是生成的，结果当分析的时候，发现Windbg提示Dump无效。说明Dump文件创建的有问题。观察任务管理器，发现内存占用一下就降下来了，原来是之前的进程直接奔溃了，重启了一个W3WP进程。</p>
 <p>既然直接从任务管理器无法创建，就使用第三方工具收集Dump吧。经过Goggle，找到一款很好用的Dump收集工具<a href="https://docs.microsoft.com/zh-cn/sysinternals/downloads/procdump" target="_blank" rel="noopener">ProcDump</a>，是一个命令行应用，其主要用途是监视应用程序的CPU或内存峰值并在峰值期间生成Dump。</p>
 <p>因为是高内存占用问题，我们使用以下命令来抓取dump：<br>（PS：可以使用进程名称，也可以使用进程ID来指定要创建Dump的进程。当有多个相同名称的进程时，必须使用进程ID来指定！）</p>
@@ -1405,7 +1405,7 @@
 <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">0:000&gt; ~* e!clrstack</span><br><span class="line">OS Thread Id: 0x11dc (0)</span><br><span class="line">Unable to walk the managed stack. The current thread is likely not a </span><br><span class="line">managed thread. You can run !threads to get a list of managed threads in</span><br><span class="line">the process</span><br><span class="line">Failed to start stack walk: 80070057</span><br><span class="line">OS Thread Id: 0x2b2c (28)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">00000076cff7ecc8 00007ffdca2e6bf4 [HelperMethodFrame_1OBJ: 00000076cff7ecc8] System.Threading.WaitHandle.WaitMultiple(System.Threading.WaitHandle[], Int32, Boolean, Boolean)</span><br><span class="line">00000076cff7ee00 00007ffdb91af67c System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[], Int32, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\waithandle.cs @ 454]</span><br><span class="line">00000076cff7ee60 00007ffdb201b2fb System.Net.TimerThread.ThreadProc()</span><br><span class="line">00000076cff7ef10 00007ffdb915ca72 System.Threading.ExecutionContext.RunInternal(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 954]</span><br><span class="line">00000076cff7efe0 00007ffdb915c904 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 902]</span><br><span class="line">00000076cff7f010 00007ffdb915c8c2 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 891]</span><br><span class="line">00000076cff7f060 00007ffdb9196472 System.Threading.ThreadHelper.ThreadStart() [f:\dd\ndp\clr\src\BCL\system\threading\thread.cs @ 111]</span><br><span class="line">00000076cff7f2b8 00007ffdbb4f6793 [GCFrame: 00000076cff7f2b8] </span><br><span class="line">00000076cff7f608 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076cff7f608] </span><br><span class="line">00000076cff7f798 00007ffdbb4f6793 [ContextTransitionFrame: 00000076cff7f798] </span><br><span class="line">00000076cff7f9c8 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076cff7f9c8] </span><br><span class="line"></span><br><span class="line">OS Thread Id: 0x1bd4 (133)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x1a98 (134)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">00000076dbdbcc88 00007ffdca2e6124 [InlinedCallFrame: 00000076dbdbcc88] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbdbcc88 00007ffdaaaf5dd4 [InlinedCallFrame: 00000076dbdbcc88] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbdbcc60 00007ffdaaaf5dd4 DomainNeutralILStubClass.IL_STUB_PInvoke(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbdbcd10 00007ffdaab08fe3 SNINativeMethodWrapper.SNIReadSyncOverAsync(System.Runtime.InteropServices.SafeHandle, IntPtr ByRef, Int32)</span><br><span class="line">00000076dbdbcd70 00007ffdaabe0ae0 System.Data.SqlClient.TdsParserStateObject.ReadSniSyncOverAsync()</span><br><span class="line">00000076dbdbcdd0 00007ffdaabe09dd System.Data.SqlClient.TdsParserStateObject.TryReadNetworkPacket()</span><br><span class="line">00000076dbdbce10 00007ffdaabdf7f5 System.Data.SqlClient.TdsParserStateObject.TryPrepareBuffer()</span><br><span class="line">00000076dbdbce50 00007ffdaabdfa0e System.Data.SqlClient.TdsParserStateObject.TryReadByte(Byte ByRef)</span><br><span class="line">00000076dbdbce90 00007ffdaabc7daa System.Data.SqlClient.TdsParser.TryRun(System.Data.SqlClient.RunBehavior, System.Data.SqlClient.SqlCommand, System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.BulkCopySimpleResultSet, System.Data.SqlClient.TdsParserStateObject, Boolean ByRef)</span><br><span class="line">00000076dbdbcff0 00007ffdaabbb3c7 System.Data.SqlClient.SqlDataReader.TryConsumeMetaData()</span><br><span class="line">00000076dbdbd050 00007ffdaabb8325 System.Data.SqlClient.SqlDataReader.get_MetaData()</span><br><span class="line">00000076dbdbd0a0 00007ffdaab3be73 System.Data.SqlClient.SqlCommand.FinishExecuteReader(System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.RunBehavior, System.String, Boolean, Boolean)</span><br><span class="line">00000076dbdbd110 00007ffdaab3b75f System.Data.SqlClient.SqlCommand.RunExecuteReaderTds(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, Boolean, Int32, System.Threading.Tasks.Task ByRef, Boolean, Boolean, System.Data.SqlClient.SqlDataReader, Boolean)</span><br><span class="line">00000076dbdbd1f0 00007ffdaab3a763 System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String, System.Threading.Tasks.TaskCompletionSource&#96;1, Int32, System.Threading.Tasks.Task ByRef, Boolean ByRef, Boolean, Boolean)</span><br><span class="line">00000076dbdbd2c0 00007ffdaab3a49b System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String)</span><br><span class="line">00000076dbdbd360 00007ffdaab35cc6 System.Data.SqlClient.SqlCommand.ExecuteReader(System.Data.CommandBehavior, System.String)</span><br><span class="line">00000076dbdbd3f0 00007ffd5c517ead Kingdee.BOS.App.Data.AbstractDatabase.DoExecuteReader(System.Data.Common.DbCommand, System.Data.CommandBehavior)</span><br><span class="line">00000076dbdbd450 00007ffd5c515ebb Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbdbd4d0 00007ffd5c4fd6f2 Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior)</span><br><span class="line">00000076dbdbd500 00007ffd5c4e31b1 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbdbd570 00007ffd5c51d2a7 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, Boolean)</span><br><span class="line">00000076dbdbd5b0 00007ffd5c51d2fc Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Data.CommandType, Boolean)</span><br><span class="line">00000076dbdbd5e0 00007ffd5c51d341 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String)</span><br><span class="line">00000076dbdbd610 00007ffd5ca5a5d4 Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetSearchMenuData(Kingdee.BOS.Context, System.String, System.Collections.Generic.HashSet&#96;1 ByRef, System.Collections.Generic.HashSet&#96;1 ByRef)</span><br><span class="line">00000076dbdbd7d0 00007ffd5ca58164 Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</span><br><span class="line">00000076dbdbda78 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbdbda78] </span><br><span class="line">00000076dbdbddb8 00007ffdbb4f6793 [HelperMethodFrame_PROTECTOBJ: 00000076dbdbddb8] System.RuntimeMethodHandle.InvokeMethod(System.Object, System.Object[], System.Signature, Boolean)</span><br><span class="line">00000076dbdbdf30 00007ffdb914b690 System.Reflection.RuntimeMethodInfo.UnsafeInvokeInternal(System.Object, System.Object[], System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 761]</span><br><span class="line">00000076dbdbdfa0 00007ffdb9142922 System.Reflection.RuntimeMethodInfo.Invoke(System.Object, System.Reflection.BindingFlags, System.Reflection.Binder, System.Object[], System.Globalization.CultureInfo) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 735]</span><br><span class="line">00000076dbdbe020 00007ffdb9143f22 System.Reflection.MethodBase.Invoke(System.Object, System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodbase.cs @ 211]</span><br><span class="line">00000076dbdbe060 00007ffd5c61990c Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbdbe160 00007ffd5c619477 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe200 00007ffd5c61cbc4 Kingdee.BOS.Cache.KCacheMethodCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe350 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe3e0 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe470 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbdbe500 00007ffd5c61936d Microsoft.Practices.Unity.InterceptionExtension.HandlerPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeHandlerDelegate)</span><br><span class="line">00000076dbdbe590 00007ffd5c618999 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbdbe620 00007ffd5c61845d Microsoft.Practices.Unity.InterceptionExtension.InterceptionBehaviorPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbdbe6b0 00007ffd5c617002 Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy.Invoke(System.Runtime.Remoting.Messaging.IMessage)</span><br><span class="line">00000076dbdbe790 00007ffdb911190c System.Runtime.Remoting.Proxies.RealProxy.PrivateInvoke(System.Runtime.Remoting.Proxies.MessageData ByRef, Int32) [f:\dd\ndp\clr\src\BCL\system\runtime\remoting\realproxy.cs @ 823]</span><br><span class="line">00000076dbdbe980 00007ffdbb4f4a02 [TPMethodFrame: 00000076dbdbe980] Kingdee.BOS.Contracts.IMainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</span><br><span class="line">00000076dbdbec00 00007ffdb91ad436 System.Threading.Tasks.Task.Execute() [f:\dd\ndp\clr\src\BCL\system\threading\Tasks\Task.cs @ 2498]</span><br><span class="line">00000076dbdbec40 00007ffdb915ca72 System.Threading.ExecutionContext.RunInternal(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 954]</span><br><span class="line">00000076dbdbed10 00007ffdb915c904 System.Threading.ExecutionContext.Run(System.Threading.ExecutionContext, System.Threading.ContextCallback, System.Object, Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\executioncontext.cs @ 902]</span><br><span class="line">00000076dbdbed40 00007ffdb91ad6dc System.Threading.Tasks.Task.ExecuteWithThreadLocal(System.Threading.Tasks.Task ByRef) [f:\dd\ndp\clr\src\BCL\system\threading\Tasks\Task.cs @ 2827]</span><br><span class="line">00000076dbdbedf0 00007ffdb91acdf3 System.Threading.Tasks.Task.ExecuteEntry(Boolean) [f:\dd\ndp\clr\src\BCL\system\threading\Tasks\Task.cs @ 2767]</span><br><span class="line">00000076dbdbee30 00007ffdb9194882 System.Threading.ThreadPoolWorkQueue.Dispatch() [f:\dd\ndp\clr\src\BCL\system\threading\threadpool.cs @ 820]</span><br><span class="line">00000076dbdbf2c8 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbdbf2c8] </span><br><span class="line">00000076dbdbf458 00007ffdbb4f6793 [ContextTransitionFrame: 00000076dbdbf458] </span><br><span class="line">00000076dbdbf688 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbdbf688] </span><br><span class="line">OS Thread Id: 0x153c (135)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x242c (136)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x153c (135)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x242c (136)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">GetFrameContext failed: 1</span><br><span class="line">0000000000000000 0000000000000000 </span><br><span class="line">OS Thread Id: 0x2a04 (137)</span><br><span class="line">        Child SP               IP Call Site</span><br><span class="line">00000076dbf7af08 00007ffdca2e6124 [InlinedCallFrame: 00000076dbf7af08] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbf7af08 00007ffdaaaf5dd4 [InlinedCallFrame: 00000076dbf7af08] .SNIReadSyncOverAsync(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbf7aee0 00007ffdaaaf5dd4 DomainNeutralILStubClass.IL_STUB_PInvoke(SNI_ConnWrapper*, SNI_Packet**, Int32)</span><br><span class="line">00000076dbf7af90 00007ffdaab08fe3 SNINativeMethodWrapper.SNIReadSyncOverAsync(System.Runtime.InteropServices.SafeHandle, IntPtr ByRef, Int32)</span><br><span class="line">00000076dbf7aff0 00007ffdaabe0ae0 System.Data.SqlClient.TdsParserStateObject.ReadSniSyncOverAsync()</span><br><span class="line">00000076dbf7b050 00007ffdaabe09dd System.Data.SqlClient.TdsParserStateObject.TryReadNetworkPacket()</span><br><span class="line">00000076dbf7b090 00007ffdaabdf7f5 System.Data.SqlClient.TdsParserStateObject.TryPrepareBuffer()</span><br><span class="line">00000076dbf7b0d0 00007ffdaabdfa0e System.Data.SqlClient.TdsParserStateObject.TryReadByte(Byte ByRef)</span><br><span class="line">00000076dbf7b110 00007ffdaabc7daa System.Data.SqlClient.TdsParser.TryRun(System.Data.SqlClient.RunBehavior, System.Data.SqlClient.SqlCommand, System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.BulkCopySimpleResultSet, System.Data.SqlClient.TdsParserStateObject, Boolean ByRef)</span><br><span class="line">00000076dbf7b270 00007ffdaabbb3c7 System.Data.SqlClient.SqlDataReader.TryConsumeMetaData()</span><br><span class="line">00000076dbf7b2d0 00007ffdaabb8325 System.Data.SqlClient.SqlDataReader.get_MetaData()</span><br><span class="line">00000076dbf7b320 00007ffdaab3be73 System.Data.SqlClient.SqlCommand.FinishExecuteReader(System.Data.SqlClient.SqlDataReader, System.Data.SqlClient.RunBehavior, System.String, Boolean, Boolean)</span><br><span class="line">00000076dbf7b390 00007ffdaab3b75f System.Data.SqlClient.SqlCommand.RunExecuteReaderTds(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, Boolean, Int32, System.Threading.Tasks.Task ByRef, Boolean, Boolean, System.Data.SqlClient.SqlDataReader, Boolean)</span><br><span class="line">00000076dbf7b470 00007ffdaab3a763 System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String, System.Threading.Tasks.TaskCompletionSource&#96;1, Int32, System.Threading.Tasks.Task ByRef, Boolean ByRef, Boolean, Boolean)</span><br><span class="line">00000076dbf7b540 00007ffdaab3a49b System.Data.SqlClient.SqlCommand.RunExecuteReader(System.Data.CommandBehavior, System.Data.SqlClient.RunBehavior, Boolean, System.String)</span><br><span class="line">00000076dbf7b5e0 00007ffdaab35cc6 System.Data.SqlClient.SqlCommand.ExecuteReader(System.Data.CommandBehavior, System.String)</span><br><span class="line">00000076dbf7b670 00007ffd5c517ead Kingdee.BOS.App.Data.AbstractDatabase.DoExecuteReader(System.Data.Common.DbCommand, System.Data.CommandBehavior)</span><br><span class="line">00000076dbf7b6d0 00007ffd5c515ebb Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbf7b750 00007ffd5c4fd6f2 Kingdee.BOS.App.Data.AbstractDatabase.ExecuteReader(System.Data.Common.DbCommand, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandBehavior)</span><br><span class="line">00000076dbf7b780 00007ffd5c4e31b1 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, System.Data.CommandBehavior, Boolean)</span><br><span class="line">00000076dbf7b7f0 00007ffd5c51d2a7 Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.IEnumerable&#96;1, System.Data.CommandType, Boolean)</span><br><span class="line">00000076dbf7b830 00007ffd5c61737a Kingdee.BOS.App.Data.DBUtils.ExecuteReader(Kingdee.BOS.Context, System.String, System.Collections.Generic.List&#96;1)</span><br><span class="line">00000076dbf7b860 00007ffd5c8d2bd7 Kingdee.BOS.App.Core.UserParameterService.GetParamter(Kingdee.BOS.Context, Int64, System.String, System.String)</span><br><span class="line">00000076dbf7bb68 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbf7bb68] </span><br><span class="line">00000076dbf7bea8 00007ffdbb4f6793 [HelperMethodFrame_PROTECTOBJ: 00000076dbf7bea8] System.RuntimeMethodHandle.InvokeMethod(System.Object, System.Object[], System.Signature, Boolean)</span><br><span class="line">00000076dbf7c020 00007ffdb914b690 System.Reflection.RuntimeMethodInfo.UnsafeInvokeInternal(System.Object, System.Object[], System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 761]</span><br><span class="line">00000076dbf7c090 00007ffdb9142922 System.Reflection.RuntimeMethodInfo.Invoke(System.Object, System.Reflection.BindingFlags, System.Reflection.Binder, System.Object[], System.Globalization.CultureInfo) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 735]</span><br><span class="line">00000076dbf7c110 00007ffdb9143f22 System.Reflection.MethodBase.Invoke(System.Object, System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodbase.cs @ 211]</span><br><span class="line">00000076dbf7c150 00007ffd5c61990c Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbf7c250 00007ffd5c619477 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior+c__DisplayClass1.b__0(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c2f0 00007ffd5c61cbc4 Kingdee.BOS.Cache.KCacheMethodCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c440 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c4d0 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c560 00007ffd5c61b10b Kingdee.BOS.Performance.Publisher.PerformanceCallHandler.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextHandlerDelegate)</span><br><span class="line">00000076dbf7c5f0 00007ffd5c61936d Microsoft.Practices.Unity.InterceptionExtension.HandlerPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeHandlerDelegate)</span><br><span class="line">00000076dbf7c680 00007ffd5c618999 Microsoft.Practices.Unity.InterceptionExtension.PolicyInjectionBehavior.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.GetNextInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbf7c710 00007ffd5c61845d Microsoft.Practices.Unity.InterceptionExtension.InterceptionBehaviorPipeline.Invoke(Microsoft.Practices.Unity.InterceptionExtension.IMethodInvocation, Microsoft.Practices.Unity.InterceptionExtension.InvokeInterceptionBehaviorDelegate)</span><br><span class="line">00000076dbf7c7a0 00007ffd5c617002 Microsoft.Practices.Unity.InterceptionExtension.InterceptingRealProxy.Invoke(System.Runtime.Remoting.Messaging.IMessage)</span><br><span class="line">00000076dbf7c880 00007ffdb911190c System.Runtime.Remoting.Proxies.RealProxy.PrivateInvoke(System.Runtime.Remoting.Proxies.MessageData ByRef, Int32) [f:\dd\ndp\clr\src\BCL\system\runtime\remoting\realproxy.cs @ 823]</span><br><span class="line">00000076dbf7ca70 00007ffdbb4f4a02 [TPMethodFrame: 00000076dbf7ca70] Kingdee.BOS.Contracts.IUserParameterService.GetParamter(Kingdee.BOS.Context, Int64, System.String, System.String)</span><br><span class="line">00000076dbf7ccf0 00007ffd5c8d28c5 Kingdee.BOS.App.Security.K3CloudLoginService.SetRegionInfo(Kingdee.BOS.Context, Kingdee.BOS.Contracts.IUserParameterService, Kingdee.BOS.Orm.DataEntity.DynamicObject)</span><br><span class="line">00000076dbf7cd70 00007ffd5c22b2e2 Kingdee.BOS.App.Security.K3DataCenterService.GetDataCenterContextByID(System.String)</span><br><span class="line">00000076dbf7cdc0 00007ffd5c227d97 Kingdee.BOS.App.Security.K3CloudLoginService+c__DisplayClass8.b__3(System.String)</span><br><span class="line">00000076dbf7cdf0 00007ffd5c228471 Kingdee.BOS.Core.Authentication.AbstractAuthService.LoadContext(Kingdee.BOS.Core.Authentication.LoadContextArg)</span><br><span class="line">00000076dbf7ce50 00007ffd5c226ed8 Kingdee.BOS.App.Security.K3CloudLoginService.Login(Kingdee.BOS.Performance.Common.PerformanceContext, Kingdee.BOS.Authentication.LoginInfo)</span><br><span class="line">00000076dbf7ced0 00007ffd5c20b5a9 Kingdee.BOS.ServiceHelper.LoginServiceHelper.Login(Kingdee.BOS.Performance.Common.PerformanceContext, System.String, Kingdee.BOS.Authentication.LoginInfo)</span><br><span class="line">00000076dbf7cf30 00007ffd5c20960f Kingdee.BOS.WebApi.ServicesStub.AuthService.ValidateLoginInfo(System.String, Kingdee.BOS.Authentication.LoginInfo)</span><br><span class="line">00000076dbf7d080 00007ffd5c20783c Kingdee.BOS.WebApi.ServicesStub.AuthService.ValidateUser(System.String, System.String, System.String, Int32)</span><br><span class="line">00000076dbf7d318 00007ffdbb4f6793 [DebuggerU2MCatchHandlerFrame: 00000076dbf7d318] </span><br><span class="line">00000076dbf7d658 00007ffdbb4f6793 [HelperMethodFrame_PROTECTOBJ: 00000076dbf7d658] System.RuntimeMethodHandle.InvokeMethod(System.Object, System.Object[], System.Signature, Boolean)</span><br><span class="line">00000076dbf7d7d0 00007ffdb914b690 System.Reflection.RuntimeMethodInfo.UnsafeInvokeInternal(System.Object, System.Object[], System.Object[]) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 761]</span><br><span class="line">00000076dbf7d840 00007ffdb9142922 System.Reflection.RuntimeMethodInfo.Invoke(System.Object, System.Reflection.BindingFlags, System.Reflection.Binder, System.Object[], System.Globalization.CultureInfo) [f:\dd\ndp\clr\src\BCL\system\reflection\methodinfo.cs @ 735]</span><br><span class="line">00000076dbf7d8c0 00007ffd5c206201 Kingdee.BOS.ServiceFacade.KDServiceFx.ServiceExecutor.Execute(Kingdee.BOS.ServiceFacade.KDServiceFx.KDServiceContext, Kingdee.BOS.ServiceFacade.KDServiceFx.ServiceType, System.String[], Kingdee.BOS.ServiceFacade.SerializerProxy, Kingdee.BOS.ServiceFacade.KDServiceFx.ServiceType)</span><br><span class="line">00000076dbf7d960 00007ffd5c203ea9 Kingdee.BOS.ServiceFacade.KDServiceFx.ExecuteServiceModule.OnProcess(Kingdee.BOS.ServiceFacade.KDServiceFx.KDServiceContext)</span><br><span class="line">00000076dbf7da00 00007ffd5c203ab8 Kingdee.BOS.ServiceFacade.KDServiceFx.ModulePipeline.ExcuteRequest(Kingdee.BOS.ServiceFacade.KDServiceFx.KDServiceContext)</span><br><span class="line">00000076dbf7da50 00007ffd5c20123e Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExcuteRuntime.StartRequest(Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExtractor, Kingdee.BOS.ServiceFacade.KDServiceFx.WebContext)</span><br><span class="line">00000076dbf7daa0 00007ffd5c200f00 Kingdee.BOS.ServiceFacade.KDServiceFx.KDSVCHandler.ExecuteRequest(Kingdee.BOS.ServiceFacade.KDServiceFx.WebContext, Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExtractor)</span><br><span class="line">00000076dbf7dae0 00007ffd5c200d45 Kingdee.BOS.ServiceFacade.KDServiceFx.KDSVCHandler.ProcessRequestInternal(Kingdee.BOS.ServiceFacade.KDServiceFx.WebContext, Kingdee.BOS.ServiceFacade.KDServiceFx.RequestExtractor)</span><br><span class="line">00000076dbf7db30 00007ffdac1a373e *** WARNING: Unable to verify checksum for System.Web.ni.dll</span><br><span class="line">System.Web.HttpApplication+CallHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()</span><br><span class="line">00000076dbf7dbc0 00007ffdac1633fb System.Web.HttpApplication.ExecuteStep(IExecutionStep, Boolean ByRef)</span><br><span class="line">00000076dbf7dc10 00007ffdac178220 System.Web.HttpApplication+PipelineStepManager.ResumeSteps(System.Exception)</span><br><span class="line">00000076dbf7dd70 00007ffdac163f79 System.Web.HttpApplication.BeginProcessRequestNotification(System.Web.HttpContext, System.AsyncCallback)</span><br><span class="line">00000076dbf7ddc0 00007ffdac1766c3 System.Web.HttpRuntime.ProcessRequestNotificationPrivate(System.Web.Hosting.IIS7WorkerRequest, System.Web.HttpContext)</span><br><span class="line">00000076dbf7de40 00007ffdac165398 System.Web.Hosting.PipelineRuntime.ProcessRequestNotificationHelper(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7e000 00007ffdac164f63 System.Web.Hosting.PipelineRuntime.ProcessRequestNotification(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7e040 00007ffdac8646ba DomainNeutralILStubClass.IL_STUB_ReversePInvoke(Int64, Int64, Int64, Int32)</span><br><span class="line">00000076dbf7e8b0 00007ffdbb4f21fe [InlinedCallFrame: 00000076dbf7e8b0] System.Web.Hosting.UnsafeIISMethods.MgdIndicateCompletion(IntPtr, System.Web.RequestNotificationStatus ByRef)</span><br><span class="line">00000076dbf7e8b0 00007ffdac1d2dde [InlinedCallFrame: 00000076dbf7e8b0] System.Web.Hosting.UnsafeIISMethods.MgdIndicateCompletion(IntPtr, System.Web.RequestNotificationStatus ByRef)</span><br><span class="line">00000076dbf7e880 00007ffdac1d2dde DomainNeutralILStubClass.IL_STUB_PInvoke(IntPtr, System.Web.RequestNotificationStatus ByRef)</span><br><span class="line">00000076dbf7e940 00007ffdac16556f System.Web.Hosting.PipelineRuntime.ProcessRequestNotificationHelper(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7eb00 00007ffdac164f63 System.Web.Hosting.PipelineRuntime.ProcessRequestNotification(IntPtr, IntPtr, IntPtr, Int32)</span><br><span class="line">00000076dbf7eb40 00007ffdac8646ba DomainNeutralILStubClass.IL_STUB_ReversePInvoke(Int64, Int64, Int64, Int32)</span><br><span class="line">00000076dbf7ed18 00007ffdbb4f2453 [ContextTransitionFrame: 00000076dbf7ed18]</span><br></pre></td></tr></table></figure>
 <p>通过仔细比对发现这么一条<code>Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</code>调用堆栈。从方法命名来看，像是用来获取菜单数组并缓存。结合前后堆栈的联系，我们可以大致得出这样一个线索：<strong>用户使用WebApi登录后会缓存一份独立的菜单供用户使用</strong>。</p>
 <p>有了代码堆栈，接下来知道怎么干了吧？当然是核实源代码确定问题啊。</p>
-<h1 id="4-分析源码验证问题"><a href="#4-分析源码验证问题" class="headerlink" title="4. 分析源码验证问题"></a>4. 分析源码验证问题</h1><p><code>Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</code>方法源代码如下：<br><img src="../images/use-windbg-to-analyze-high-memory-issue/2799767-6b4c4abbb111e312.png" alt="GetMenuArrayForCache"></p>
+<h1 id="4-分析源码验证问题"><a href="#4-分析源码验证问题" class="headerlink" title="4. 分析源码验证问题"></a>4. 分析源码验证问题</h1><p><code>Kingdee.BOS.App.Core.MainConsole.MainConsoleServer.GetMenuArrayForCache(Kingdee.BOS.Context)</code>方法源代码如下：<br><img src="/images/use-windbg-to-analyze-high-memory-issue/2799767-6b4c4abbb111e312.png" alt="GetMenuArrayForCache"></p>
 <p>我们发现它是用的<code>UserToken</code>来缓存用户菜单。看到<code>Token</code>，你可能就会条件反射的想到其生命周期。是的，聪明贤惠如你，Token是有生命周期的。也就意味着Token过期后，下次登录还会再次缓存一份菜单。你可能会问Token过期后没有去清对应的菜单缓存吗？是的，并没有。</p>
 <p>严谨的你，可能又会问Token多久过期？20mins。你眼珠子一转，接着问，满打满算，一个用户1个小时也就申请3次Token，24小时，也就申请72个Token，一个菜单缓存也就顶多1K，所以一个用户一天也就最多占用72K。你的网站得有多少并发，才能被这么多菜单缓存撑爆啊？！</p>
 <p>Good Question！！！</p>

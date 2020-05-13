@@ -33,21 +33,21 @@
 <meta property="og:site_name" content="圣杰 | 知多少">
 <meta property="og:description" content="性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I&#x2F;O、内存、网络、算法、大数据量等等。下面我来结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png">
 <meta property="article:published_time" content="2017-07-02T01:24:48.000Z">
-<meta property="article:modified_time" content="2020-05-13T05:36:33.850Z">
+<meta property="article:modified_time" content="2020-05-13T05:44:41.812Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content="知多少，圣杰">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png">
 
 <link rel="canonical" href="https://blog.shengjie.dev/post/how-much-you-know-about-the-performance-optimization/">
 
@@ -245,7 +245,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-13 13:36:33" itemprop="dateModified" datetime="2020-05-13T13:36:33+08:00">2020-05-13</time>
+                <time title="修改时间：2020-05-13 13:44:41" itemprop="dateModified" datetime="2020-05-13T13:44:41+08:00">2020-05-13</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -290,7 +290,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
+        <p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近一段时间，系统新版本要发布，在beta客户测试期间，暴露了很多问题，除了一些业务和异常问题外，其他都集中在性能上。有幸接触到这些性能调优的机会，当然要学习总结了。</p>
 <p>性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I/O、内存、网络、算法、大数据量等等。我们可以大致把性能问题分为四个层次：代码层次、数据库层次、算法层次、架构层次。<br>所以下面我会结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。</p>
 <h1 id="2-先说心态"><a href="#2-先说心态" class="headerlink" title="2. 先说心态"></a>2. 先说心态</h1><p>说到性能问题，你可能首先就想到的是麻烦或者头大，因为一般性能问题都比较紧急，轻则影响客户体验，重则宕机导致财务损失，而且性能问题比较隐蔽，不易发现。因此一时间无从下手，而这时我们就很容易从心底开始去排斥它，不愿接这烫手的山芋。</p>
@@ -315,7 +315,7 @@
 <p>案例1：客户反馈某结算报表统计十天内的数据耗时10mins左右。</p>
 </blockquote>
 <p>由于前几天刚学会用RedGate的分析工具，拿到这个问题，本地尝试重现后，就直接想使用工具分析。然而，这工具在使用webdev模式起站点时，总是报错，而当时时一根筋，老是想解决这个工具的报错问题。结果，白白搞了半天也没搞定。最后不得已放弃工具，转而选择使用sql server profiler去监控sql语句耗时。一跟踪不要紧，问题就直接暴露了，整个全屏的重复sql语句，如下图。</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
 <p>这下问题就很明显了，八成是代码在循环拼接sql执行语句。根据抓取到sql关键字往代码中去搜索，果然如此。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">#region更新三张表数据结合的中间临时表数据，有上游单据的直接调拨单分多次下推时，只计算一次的调拨数量和价税合计</span><br><span class="line">string sSql &#x3D; string.Format(@</span><br><span class="line">&quot;SELECT FENTRYID FROM &#123;0&#125; GROUP BY FENTRYID HAVING COUNT(FENTRYID) &gt; 1&quot;, sJoinDataTempTable);</span><br><span class="line">using(IDataReader reader &#x3D; DBUtils.ExecuteReader(this.Context, sSql)) &#123;</span><br><span class="line">    while (reader.Read()) &#123;</span><br><span class="line">        sbSql.AppendFormat(@&quot;</span><br><span class="line">UPDATE &#123;0&#125; SET FDIRECTQTY &#x3D; 0,FALLAMOUNT &#x3D; 0 </span><br><span class="line">WHERE FSEQ NOT IN (</span><br><span class="line">SELECT TOP 1 FSEQ FROM &#123;0&#125; WHERE FENTRYID &#x3D; &#123;1&#125;) AND FENTRYID &#x3D; (&#123;1&#125;);&quot;</span><br><span class="line">, sJoinDataTempTable, Convert.ToInt32(reader[&quot;FENTRYID&quot;]));</span><br><span class="line">        listSqlObj.Add(new SqlObject(sbSql.ToString(), new List &lt; SqlParam &gt; ()));</span><br><span class="line">        sbSql.Clear();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">#endregion</span><br></pre></td></tr></table></figure>
 
@@ -335,20 +335,20 @@
 <li>选中Performance Session，右键Attach对应进程即可跟踪分析性能了</li>
 <li>在跟踪过程中，可随时暂停跟踪和停止跟踪</li>
 </ol>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
 <p>跟踪结束后本案例跟踪到的采样结果如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
-<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
+<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
 <p>其中第1、4条大致说明程序I/O消耗大，第一代的GC上存在未及时释放的垃圾占比过高。而根据上图的采样结果，我们可以直接看出是由于再代码中频繁操作DataTable引起的性能瓶颈。走读代码发现的确如此，所有的数量统计都是在代码中循环遍历DataTable进行处理的。而最终的优化策略，就相当于一次大的重构，将所有代码中通过遍历DataTable的计算逻辑全部挪到SQL中去做。由于代码过多，就不再放出。</p>
 <blockquote>
 <p>案例3：客户反馈批量引入1000张订单，耗时40mins左右，且容易中断。</p>
 </blockquote>
 <p>同样，我们还是先尝试本地重现。经测试批量引入101张单据，就耗时5mins左右。下一步打开Sql监控工具也未发现耗时语句。但考虑到是批量导入操作，虽然单个耗时不多，但乘以100这个基数，就明显了。下面我们就使用RedGate的<a href="http://www.red-gate.com/products/dotnet-development/ants-performance-profiler/" target="_blank" rel="noopener">Ants Performance Profiler</a>跟踪一下。</p>
 <p>该工具比较直观，可以同时监控代码和SQL执行情况。第一步，New Profiler Session，第二步进行设置，如下图。根据自己的应用程序类别，选择相应的跟踪方式。</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
 <p>针对这个问题，我们跟踪到的调用堆栈和SQL耗时结果如下图：</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
 <p>首先从调用堆栈中的Hit Count，我们可以首先看出它是一个批量过程，因为入口函数仅调用一次；第二个我们可以代码中是循环处理每一个单据，因为Hit Count与我们批量引入的单据数量相符；第三个，突然来了个10201，如果有一定的数字敏感性的话，这次性能问题的原因就被你找到了。这里就不卖关子了，101 x 101 = 10201。<br>是不是明白了什么，存在循环嵌套循环的情况。我们走读代码确定一下：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;Save.cs</span><br><span class="line">public override void EndOperationTransaction(EndOperationTransactionArgs e) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    foreach(DynamicObject dyItem in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;反写收款单</span><br><span class="line">        WriteBackReceiveBill wb &#x3D; new WriteBackReceiveBill();</span><br><span class="line">        wb.WriteBackForSave(e, this.Context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;WriteBackReceiveBill .cs</span><br><span class="line">public void WriteBackForSave(EndOperationTransactionArgs e, Context contx) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码：</span><br><span class="line">    foreach(DynamicObject item in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;do something </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -357,7 +357,7 @@
 <p>案例4：某全流程跟踪报表超时。</p>
 </blockquote>
 <p>这个报表是用来跟踪所有单据从下单到出库的业务流程数据流转情况。而所有的流程数据都是按照树形结果存储在数据库表中的，类似这样：</p>
-<p><img src="../images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
 <p>图中的流程为：<br>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</p>
 <p>为了构造流程图，之前的处理方法是把流程数据取回来，通过代码构造流程图。这也就是性能差的原因。</p>
 <p>而针对这种情况，就是考验我们平时经验积累了。对于树形结构的表，我们也是可以通过SQL来进行直接查询的，这就要用到了SQL Server的CTE语法来进行递归查询。关于递归查询，可参考我这篇文章：<a href="http://www.jianshu.com/p/ab9d268aa54c" target="_blank" rel="noopener">SQL递归查询知多少</a>。这里就不展开了。</p>

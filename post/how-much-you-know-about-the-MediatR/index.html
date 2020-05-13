@@ -33,23 +33,23 @@
 <meta property="og:site_name" content="圣杰 | 知多少">
 <meta property="og:description" content="MediatR：.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求&#x2F;响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png">
 <meta property="article:published_time" content="2019-01-16T07:54:48.000Z">
-<meta property="article:modified_time" content="2020-05-13T05:36:33.850Z">
+<meta property="article:modified_time" content="2020-05-13T05:44:41.812Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content=".NET Core">
 <meta property="article:tag" content="中介者模式">
 <meta property="article:tag" content="发布订阅模式">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png">
 
 <link rel="canonical" href="https://blog.shengjie.dev/post/how-much-you-know-about-the-MediatR/">
 
@@ -247,7 +247,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-13 13:36:33" itemprop="dateModified" datetime="2020-05-13T13:36:33+08:00">2020-05-13</time>
+                <time title="修改时间：2020-05-13 13:44:41" itemprop="dateModified" datetime="2020-05-13T13:44:41+08:00">2020-05-13</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -292,18 +292,18 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p><img src="../images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
+        <p><img src="/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
 <h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
 <p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
 <blockquote>
 <p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
 </blockquote>
 <p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
-<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
+<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
 <blockquote>
 <p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
 </blockquote>
-<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
+<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
 <p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
 <p>那其优缺点也在图中很容易看出：</p>
 <blockquote>
@@ -317,7 +317,7 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
 
 <h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
 <p>从代码图中我们可以看到其核心的对象主要包括：</p>
 <ol>
 <li>IRequest Vs IRequestHandler</li>
@@ -343,13 +343,13 @@
 <p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
+<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
 <p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
 <p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
-<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="../images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
+<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
 <p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
-<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="../images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
+<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
 <p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
 <ul>
 <li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
@@ -385,8 +385,8 @@
 </ol>
 <p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
 <p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
-<p><img src="../images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
 <p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
 <p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
 <p>至此，MediatR的实现思路算是理清了。</p>

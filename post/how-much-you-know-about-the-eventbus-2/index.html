@@ -33,18 +33,18 @@
 <meta property="og:site_name" content="圣杰 | 知多少">
 <meta property="og:description" content="事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。这一节我们再来结合IOC来对上节的事件总线予以进一步的优化。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png">
-<meta property="og:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png">
 <meta property="article:published_time" content="2017-06-22T12:37:14.000Z">
-<meta property="article:modified_time" content="2020-05-13T05:36:33.850Z">
+<meta property="article:modified_time" content="2020-05-13T05:44:41.812Z">
 <meta property="article:author" content="圣杰">
 <meta property="article:tag" content=".NET Core">
 <meta property="article:tag" content="发布订阅模式">
 <meta property="article:tag" content="EventBus">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.shengjie.dev/post/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png">
 
 <link rel="canonical" href="https://blog.shengjie.dev/post/how-much-you-know-about-the-eventbus-2/">
 
@@ -242,7 +242,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-05-13 13:36:33" itemprop="dateModified" datetime="2020-05-13T13:36:33+08:00">2020-05-13</time>
+                <time title="修改时间：2020-05-13 13:44:41" itemprop="dateModified" datetime="2020-05-13T13:44:41+08:00">2020-05-13</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -287,7 +287,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
+        <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1.引言"></a>1.引言</h1><p>之前的一篇文章<a href="/how-much-you-know-about-the-eventbus-1/">事件总线知多少(1)</a>，介绍了什么是事件总线，并通过发布订阅模式一步一步的分析重构，形成了事件总线的Alpha版本，这篇文章也得到了大家的肯定和积极的反馈和建议，在此谢谢大家。本着继续学习和回馈大家的思想，我决定继续完善。本文将继续延续上一篇循序渐进的写作风格，来完成对事件总线的分析和优化。<br><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-6f44bdefa88a23a2.png" alt=""></p>
 <h1 id="2-回顾事件总线"><a href="#2-回顾事件总线" class="headerlink" title="2.回顾事件总线"></a>2.回顾事件总线</h1><p>在进行具体分析之前，我们还是先对我们实现的事件总线进行一个简单的回顾：</p>
 <ol>
 <li>针对事件源，抽象<code>IEventData</code>接口；</li>
@@ -308,7 +308,7 @@
 </ol>
 <p>那既然反射有性能瓶颈，我们该如何是好呢？<br>你可能会说，既然反射有问题，那就对反射进行性能优化，比如增加缓存机制。出发点是好的，但最终还是在反射问题的阴影之下。对于反射我们应该持以这样一种态度：能不用反射，则不用反射。</p>
 <p>那既然要推翻反射这条路，那如何解决动态绑定和动态触发的问题呢？<br>办法总比问题多。额，啊，嗯。就不饶圈子了，咱们上IOC。</p>
-<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
+<h1 id="4-使用IOC解除依赖"><a href="#4-使用IOC解除依赖" class="headerlink" title="4.使用IOC解除依赖"></a>4.使用IOC解除依赖</h1><p>先看下面一张图，来了解下DIP、IOC、DI与SL之间的关系，详细可参考<a href="http://www.jianshu.com/p/96947ec3e508" target="_blank" rel="noopener">Asp.net mvc 知多少（十）</a>。<br><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-5b46dd0a9842ddd5.png" alt="DIP&amp;IOC&amp;DI&amp;SL"></p>
 <p>下面我们就以<a href="https://github.com/castleproject/Windsor" target="_blank" rel="noopener">Castle Windsor</a>作为我们的IOC容器为例，来讲解下如何解除依赖。</p>
 <h2 id="4-1-了解Castle-Windsor"><a href="#4-1-了解Castle-Windsor" class="headerlink" title="4.1. 了解Castle Windsor"></a>4.1. 了解Castle Windsor</h2><p>使用Castle Windsor主要包含以下几步：</p>
 <ol>
@@ -363,8 +363,8 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义锁对象</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">private static object lockObj&#x3D; new object();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 获取事件总线映射字典中指定事件源的事件列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若有，返回列表</span><br><span class="line">&#x2F;&#x2F;&#x2F; 若无，构造空列表返回</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventType&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;returns&gt;&lt;&#x2F;returns&gt;</span><br><span class="line">private List&lt;Type&gt; GetOrCreateHandlers(Type eventType)</span><br><span class="line">&#123;</span><br><span class="line">    return _eventAndHandlerMapping.GetOrAdd(eventType, (type) &#x3D;&gt; new List&lt;Type&gt;());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void Register(Type eventType, Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    &#x2F;&#x2F;注册到事件总线</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(eventType).Add(handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">public void UnRegister&lt;TEventData&gt;(Type handlerType)</span><br><span class="line">&#123;</span><br><span class="line">    lock (lockObj)</span><br><span class="line">    &#123;</span><br><span class="line">        GetOrCreateHandlers(typeof(TEventData)).RemoveAll(t &#x3D;&gt; t &#x3D;&#x3D; handlerType);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h1 id="6-单元测试"><a href="#6-单元测试" class="headerlink" title="6.单元测试"></a>6.单元测试</h1><p>为了确保重构的正确性和业务的完整性，以上的改进都是基于单元测试进行改进的，使用的是Xunit+Shouldly。虽然不能保证单元测试的覆盖度，但至少确保了正常业务的流转。</p>
-<p><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
-<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="../images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
+<p><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-37bc5bdd93f0445c.png" alt="UnitTest"></p>
+<h1 id="7-总结"><a href="#7-总结" class="headerlink" title="7.总结"></a>7.总结</h1><p>这一次，通过单元测试，一步一步的推进事件总线的重构和完善。主要完成了使用IOC替换反射来解耦和一些用例的完善。源码已上传至Github（<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a>）。<br><img src="/images/how-much-you-know-about-the-eventbus-2/2799767-4106f2960f6ff8aa.png" alt=""><br>至此，事件总线进入Beta版本。但很显然还有许多细节有待完善，比如异常处理等，后续就不再继续这个系列，我会直接维护Github的源码，感兴趣的可自行参阅。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
 <hr>
 <blockquote>
 <p>参考资料：<br><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lwhkdash/archive/2012/09/28/2707549.html" target="_blank" rel="noopener">[c#] 反射真的很可怕吗？</a></p>
