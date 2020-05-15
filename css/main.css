@@ -1306,7 +1306,7 @@ pre .javascript .function {
   border: 2px solid #333;
   display: block;
   margin: 0 auto;
-  max-width: 96px;
+  max-width: 150px;
   padding: 2px;
 }
 .site-author-name {
@@ -1338,7 +1338,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #53a669;
+  background: #378739;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
@@ -1658,10 +1658,7 @@ pre .javascript .function {
   position: fixed;
   transition-property: bottom;
   z-index: 1300;
-  width: 24px;
-}
-.back-to-top span {
-  display: none;
+  width: initial;
 }
 .back-to-top:hover {
   color: #87daff;
