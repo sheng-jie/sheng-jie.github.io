@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://blog.shengjie.dev/post/use-windbg-to-analyze-high-memory-issue/</loc>
-    <lastmod>2020-07-17</lastmod>
-  </url>  <url>
     <loc>https://blog.shengjie.dev/post/how-much-you-know-about-the-MediatR/</loc>
     <lastmod>2020-07-17</lastmod>
   </url>  <url>
@@ -41,6 +38,9 @@
     <lastmod>2020-07-17</lastmod>
   </url>  <url>
     <loc>https://blog.shengjie.dev/post/how-much-you-know-about-the-unit-of-work/</loc>
+    <lastmod>2020-07-17</lastmod>
+  </url>  <url>
+    <loc>https://blog.shengjie.dev/post/use-windbg-to-analyze-high-memory-issue/</loc>
     <lastmod>2020-07-17</lastmod>
   </url>
 </urlset>
