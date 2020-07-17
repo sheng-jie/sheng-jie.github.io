@@ -580,6 +580,84 @@
       </tags>
   </entry>
   <entry>
+    <title>IO模型知多少 | 理论篇</title>
+    <url>/post/how-much-you-know-about-the-io-models/</url>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</p>
+<p>简而言之，对于I/O的认知，不能仅仅停留在字面上认识，了解内部玄机，才能深刻理解I/O，才能看清I/O相关问题的本质。</p>
+<h1 id="2-I-O-的定义"><a href="#2-I-O-的定义" class="headerlink" title="2. I/O 的定义"></a>2. I/O 的定义</h1><p>I/O 的全称是Input/Output。虽常谈及I/O，但想必你也一时不能给出一个完整的定义。搜索了谷歌，发现也尽是些冗长的论述。要想厘清I/O这个概念，我们需要从不同的视角去理解它。</p>
+<h2 id="2-1-计算机视角"><a href="#2-1-计算机视角" class="headerlink" title="2.1. 计算机视角"></a>2.1. 计算机视角</h2><p> 冯•诺伊曼计算机的基本思想中有提到计算机硬件组成应为五大部分：控制器，运算器，存储器，输入和输出。其中输入是指将数据输入到计算机的设备，比如键盘鼠标；输出是指从计算机中获取数据的设备，比如显示器；以及既是输入又是输出设备，硬盘，网卡等。</p>
+<p>用户通过操作系统才能完成对计算机的操作。计算机启动时，第一个启动的程序是操作系统的内核，它将负责计算机的资源管理和进程的调度。换句话说：操作系统负责从输入设备读取数据并将数据写入到输出设备。</p>
+<p>所以I/O之于计算机，有两层意思：</p>
+<ol>
+<li>I/O设备</li>
+<li>对I/O设备的数据读写</li>
+</ol>
+<p><em>对于一次I/O操作，必然涉及2个参与方，一个输入端，一个输出端，而又根据参与双方的设备类型，我们又可以分为磁盘I/O，网络I/O（一次网络的请求响应，网卡）等。</em></p>
+<h2 id="2-2-程序视角"><a href="#2-2-程序视角" class="headerlink" title="2.2. 程序视角"></a>2.2. 程序视角</h2><p>应用程序作为一个文件保存在磁盘中，只有加载到内存到成为一个进程才能运行。应用程序运行在计算机内存中，必然会涉及到数据交换，比如读写磁盘文件，访问数据库，调用远程API等等。但我们编写的程序并不能像操作系统内核一样直接进行I/O操作。</p>
+<p>因为为了确保操作系统的安全稳定运行，操作系统启动后，将会开启保护模式：将内存分为内核空间（内核对应进程所在内存空间）和用户空间，进行内存隔离。我们构建的程序将运行在用户空间，用户空间无法操作内核空间，也就意味着用户空间的程序不能直接访问由内核管理的I/O，比如：硬盘、网卡等。</p>
+<p>但操作系统向外提供API，其由各种类型的系统调用（System Call）组成，以提供安全的访问控制。<br>所以应用程序要想访问内核管理的I/O，必须通过调用内核提供的系统调用(system call）进行间接访问。</p>
+<p>所以I/O之于应用程序来说，强调的通过<strong>向内核发起系统调用完成对I/O的间接访问</strong>。换句话说应用程序发起的一次IO操作实际包含两个阶段：</p>
+<ol>
+<li>IO调用阶段：应用程序进程向内核发起系统调用</li>
+<li>IO执行阶段：内核执行IO操作并返回<br>2.1. 准备数据阶段：内核等待I/O设备准备好数据<br>  2.2. 拷贝数据阶段：将数据从内核缓冲区拷贝到用户空间缓冲区</li>
+</ol>
+<p>怎么理解准备数据阶段呢？<br>对于写请求：等待系统调用的完整请求数据，并写入内核缓冲区；<br>对于读请求：等待系统调用的完整请求数据；（若请求数据不存在于内核缓冲区）则将外围设备的数据读入到内核缓冲区。</p>
+<p> <img src="/images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
+<p>而应用程序进程在发起IO调用至内核执行IO返回之前，应用程序进程/线程所处状态，就是我们下面要讨论的第二个话题阻塞IO与非阻塞IO。</p>
+<h1 id="3-IO-模型之阻塞I-O-BIO"><a href="#3-IO-模型之阻塞I-O-BIO" class="headerlink" title="3. IO 模型之阻塞I/O(BIO)"></a>3. IO 模型之阻塞I/O(BIO)</h1><p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。阻塞IO简称BIO，Blocking IO。其处理流程如下图所示：</p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
+<p>从上图可知当用户进程发起IO系统调用后，内核从准备数据到拷贝数据到用户空间的两个阶段期间<strong>用户调用线程选择阻塞等待</strong>数据返回。</p>
+<p>因此BIO带来了一个问题：如果内核数据需要耗时很久才能准备好，那么用户进程将被阻塞，浪费性能。为了提升应用的性能，虽然可以通过多线程来提升性能，但线程的创建依然会借助系统调用，同时多线程会导致频繁的线程上下文的切换，同样会影响性能。所以要想解决BIO带来的问题，我们就得看到问题的本质，那就是<strong>阻塞</strong>二字。</p>
+<h1 id="4-IO-模型之非阻塞I-O-NIO"><a href="#4-IO-模型之非阻塞I-O-NIO" class="headerlink" title="4. IO 模型之非阻塞I/O(NIO)"></a>4. IO 模型之非阻塞I/O(NIO)</h1><p>那解决方案自然也容易想到，将阻塞变为非阻塞，那就是用户进程在发起系统调用时指定为非阻塞，内核接收到请求后，就会立即返回，然后用户进程通过轮询的方式来拉取处理结果。也就是如下图所示：</p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
+<p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程不会等待而是立即返回，则此次IO操作为非阻塞IO模型。非阻塞IO简称NIO，Non-Blocking IO。</p>
+<p>然而，非阻塞IO虽然相对于阻塞IO大幅提升了性能，但依旧不是完美的解决方案，其依然存在性能问题，也就是频繁的轮询导致频繁的系统调用，会耗费大量的CPU资源。比如当并发很高时，假设有1000个并发，那么单位时间循环内将会有1000次系统调用去轮询执行结果，而实际上可能只有2个请求结果执行完毕，这就会有998次无效的系统调用，造成严重的性能浪费。有问题就要解决，那<strong>NIO问题的本质就是频繁轮询导致的无效系统调用</strong>。</p>
+<h1 id="5-IO模型之IO多路复用"><a href="#5-IO模型之IO多路复用" class="headerlink" title="5. IO模型之IO多路复用"></a>5. IO模型之IO多路复用</h1><p>解决NIO的思路就是降解无效的系统调用，如何降解呢？我们一起来看看以下几种IO多路复用的解决思路。</p>
+<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="/images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
+<p>但是，select有一个限制，就是存在连接数限制，针对于此，又提出了poll。其与select相比，主要是解决了连接限制。</p>
+<p>select/epoll 虽然解决了NIO重复无效系统调用用的问题，但同时又引入了新的问题。问题是：</p>
+<ol>
+<li>用户空间和内核空间之间，大量的数据拷贝</li>
+<li>内核循环遍历IO状态，浪费CPU时间</li>
+</ol>
+<p>换句话说，select/poll虽然减少了用户进程的发起的系统调用，但内核的工作量只增不减。在高并发的情况下，内核的性能问题依旧。所以select/poll的问题本质是：内核存在无效的循环遍历。</p>
+<h2 id="5-2-IO多路复用之epoll"><a href="#5-2-IO多路复用之epoll" class="headerlink" title="5.2. IO多路复用之epoll"></a>5.2. IO多路复用之epoll</h2><p>针对select/pool引入的问题，我们把解决问题的思路转回到内核上，如何减少内核重复无效的循环遍历呢？变主动为被动，基于事件驱动来实现。其流程图如下所示：</p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
+<p>epoll相较于select/poll，多了两次系统调用，其中epoll_create建立与内核的连接，epoll_ctl注册事件，epoll_wait阻塞用户进程，等待IO事件。</p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
+<p>epoll，已经大大优化了IO的执行效率，但在IO执行的第一阶段：数据准备阶段都还是被阻塞的。所以这是一个可以继续优化的点。</p>
+<h1 id="6-IO-模型之信号驱动IO-SIGIO"><a href="#6-IO-模型之信号驱动IO-SIGIO" class="headerlink" title="6. IO 模型之信号驱动IO(SIGIO)"></a>6. IO 模型之信号驱动IO(SIGIO)</h1><p>信号驱动IO与BIO和NIO最大的区别就在于，在IO执行的数据准备阶段，不会阻塞用户进程。<br>如下图所示：当用户进程需要等待数据的时候，会向内核发送一个信号，告诉内核我要什么数据，然后用户进程就继续做别的事情去了，而当内核中的数据准备好之后，内核立马发给用户进程一个信号，说”数据准备好了，快来查收“，用户进程收到信号之后，立马调用recvfrom，去查收数据。</p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
+<p>乍一看，信号驱动式I/O模型有种异步操作的感觉，但是在IO执行的第二阶段，也就是将数据从内核空间复制到用户空间这个阶段，用户进程还是被阻塞的。</p>
+<p>综上，你会发现，不管是BIO还是NIO还是SIGIO，它们最终都会被阻塞在IO执行的第二阶段。<br>那如果能将IO执行的第二阶段变成非阻塞，那就完美了。</p>
+<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="/images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
+<p>所以，之所以称为异步IO，取决于IO执行的第二阶段是否阻塞。因此前面讲的BIO，NIO和SIGIO均为同步IO。</p>
+<p><img src="/images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
+<h1 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h1><p>梳理完这些IO模型后，之前一直处于懵懂状态的阻塞，非阻塞，同步异步IO，终于算是有个概念了。同时也纠正了自己一直以来的误解，所以一路走来，愈发觉得返璞归真的重要性，只有如此，才能在快速更迭的技术演进中，以不变应万变。</p>
+<p><em>本片综合多方资料写就，难免纰漏，但只有写下来，才能得以指正。所以，烦请各位看官不吝赐教。</em></p>
+<blockquote>
+<p>参考资料：</p>
+<ol>
+<li><a href="https://www.jianshu.com/p/fa7bdc4f3de7" target="_blank" rel="noopener">程序员应该这样理解IO</a></li>
+<li><a href="https://www.jianshu.com/p/511b9cffbdac" target="_blank" rel="noopener">IO复用模型同步，异步，阻塞，非阻塞及实例详解</a></li>
+<li><a href="https://juejin.im/post/5ca4c044e51d4565372e47cf" target="_blank" rel="noopener">服务器网络编程之 IO 模型</a></li>
+<li><a href="http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html" target="_blank" rel="noopener">http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html</a></li>
+<li><a href="https://cllc.fun/2019/03/07/synchronous-asynchronous-io/" target="_blank" rel="noopener">同步I/O(阻塞I/O，非阻塞I/O)，异步I/O</a></li>
+<li><a href="https://www.bilibili.com/video/BV11K4y1C7rm?p=2" target="_blank" rel="noopener">马士兵：权威讲解nio,epoll,多路复用</a></li>
+<li><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/9050467" target="_blank" rel="noopener">Linux 内核详解以及内核缓冲区技术</a></li>
+</ol>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>I/O</tag>
+        <tag>EPOLL</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>OAtuth2.0 知多少</title>
     <url>/post/how-much-you-know-about-the-oauth2-0/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-oauth2-0/2799767-a43df1862b414722.png" alt=""></p>
@@ -696,84 +774,6 @@
       </categories>
       <tags>
         <tag>OAuth2.0</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>IO模型知多少 | 理论篇</title>
-    <url>/post/how-much-you-know-about-the-io-models/</url>
-    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-io-models/2799767-3cd8adef311e9e24-1588340611809.png" alt=""></p>
-<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>同步异步I/O，阻塞非阻塞I/O是程序员老生常谈的话题了，也是自己一直以来懵懵懂懂的一个话题。比如：何为同步异步？何为阻塞与非阻塞？二者的区别在哪里？阻塞在何处？为什么会有多种IO模型，分别用来解决问题？常用的框架采用的是何种I/O模型？各种IO模型的优劣势在哪里，适用于何种应用场景？</p>
-<p>简而言之，对于I/O的认知，不能仅仅停留在字面上认识，了解内部玄机，才能深刻理解I/O，才能看清I/O相关问题的本质。</p>
-<h1 id="2-I-O-的定义"><a href="#2-I-O-的定义" class="headerlink" title="2. I/O 的定义"></a>2. I/O 的定义</h1><p>I/O 的全称是Input/Output。虽常谈及I/O，但想必你也一时不能给出一个完整的定义。搜索了谷歌，发现也尽是些冗长的论述。要想厘清I/O这个概念，我们需要从不同的视角去理解它。</p>
-<h2 id="2-1-计算机视角"><a href="#2-1-计算机视角" class="headerlink" title="2.1. 计算机视角"></a>2.1. 计算机视角</h2><p> 冯•诺伊曼计算机的基本思想中有提到计算机硬件组成应为五大部分：控制器，运算器，存储器，输入和输出。其中输入是指将数据输入到计算机的设备，比如键盘鼠标；输出是指从计算机中获取数据的设备，比如显示器；以及既是输入又是输出设备，硬盘，网卡等。</p>
-<p>用户通过操作系统才能完成对计算机的操作。计算机启动时，第一个启动的程序是操作系统的内核，它将负责计算机的资源管理和进程的调度。换句话说：操作系统负责从输入设备读取数据并将数据写入到输出设备。</p>
-<p>所以I/O之于计算机，有两层意思：</p>
-<ol>
-<li>I/O设备</li>
-<li>对I/O设备的数据读写</li>
-</ol>
-<p><em>对于一次I/O操作，必然涉及2个参与方，一个输入端，一个输出端，而又根据参与双方的设备类型，我们又可以分为磁盘I/O，网络I/O（一次网络的请求响应，网卡）等。</em></p>
-<h2 id="2-2-程序视角"><a href="#2-2-程序视角" class="headerlink" title="2.2. 程序视角"></a>2.2. 程序视角</h2><p>应用程序作为一个文件保存在磁盘中，只有加载到内存到成为一个进程才能运行。应用程序运行在计算机内存中，必然会涉及到数据交换，比如读写磁盘文件，访问数据库，调用远程API等等。但我们编写的程序并不能像操作系统内核一样直接进行I/O操作。</p>
-<p>因为为了确保操作系统的安全稳定运行，操作系统启动后，将会开启保护模式：将内存分为内核空间（内核对应进程所在内存空间）和用户空间，进行内存隔离。我们构建的程序将运行在用户空间，用户空间无法操作内核空间，也就意味着用户空间的程序不能直接访问由内核管理的I/O，比如：硬盘、网卡等。</p>
-<p>但操作系统向外提供API，其由各种类型的系统调用（System Call）组成，以提供安全的访问控制。<br>所以应用程序要想访问内核管理的I/O，必须通过调用内核提供的系统调用(system call）进行间接访问。</p>
-<p>所以I/O之于应用程序来说，强调的通过<strong>向内核发起系统调用完成对I/O的间接访问</strong>。换句话说应用程序发起的一次IO操作实际包含两个阶段：</p>
-<ol>
-<li>IO调用阶段：应用程序进程向内核发起系统调用</li>
-<li>IO执行阶段：内核执行IO操作并返回<br>2.1. 准备数据阶段：内核等待I/O设备准备好数据<br>  2.2. 拷贝数据阶段：将数据从内核缓冲区拷贝到用户空间缓冲区</li>
-</ol>
-<p>怎么理解准备数据阶段呢？<br>对于写请求：等待系统调用的完整请求数据，并写入内核缓冲区；<br>对于读请求：等待系统调用的完整请求数据；（若请求数据不存在于内核缓冲区）则将外围设备的数据读入到内核缓冲区。</p>
-<p> <img src="/images/how-much-you-know-about-the-io-models/2799767-8747395df72a42a1-1588340715108.png" alt="IO操作执行流程"></p>
-<p>而应用程序进程在发起IO调用至内核执行IO返回之前，应用程序进程/线程所处状态，就是我们下面要讨论的第二个话题阻塞IO与非阻塞IO。</p>
-<h1 id="3-IO-模型之阻塞I-O-BIO"><a href="#3-IO-模型之阻塞I-O-BIO" class="headerlink" title="3. IO 模型之阻塞I/O(BIO)"></a>3. IO 模型之阻塞I/O(BIO)</h1><p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程一直处于等待状态，则此次IO操作为阻塞IO。阻塞IO简称BIO，Blocking IO。其处理流程如下图所示：</p>
-<p><img src="/images/how-much-you-know-about-the-io-models/2799767-69017b641db18e97.png" alt="BIO"></p>
-<p>从上图可知当用户进程发起IO系统调用后，内核从准备数据到拷贝数据到用户空间的两个阶段期间<strong>用户调用线程选择阻塞等待</strong>数据返回。</p>
-<p>因此BIO带来了一个问题：如果内核数据需要耗时很久才能准备好，那么用户进程将被阻塞，浪费性能。为了提升应用的性能，虽然可以通过多线程来提升性能，但线程的创建依然会借助系统调用，同时多线程会导致频繁的线程上下文的切换，同样会影响性能。所以要想解决BIO带来的问题，我们就得看到问题的本质，那就是<strong>阻塞</strong>二字。</p>
-<h1 id="4-IO-模型之非阻塞I-O-NIO"><a href="#4-IO-模型之非阻塞I-O-NIO" class="headerlink" title="4. IO 模型之非阻塞I/O(NIO)"></a>4. IO 模型之非阻塞I/O(NIO)</h1><p>那解决方案自然也容易想到，将阻塞变为非阻塞，那就是用户进程在发起系统调用时指定为非阻塞，内核接收到请求后，就会立即返回，然后用户进程通过轮询的方式来拉取处理结果。也就是如下图所示：</p>
-<p><img src="/images/how-much-you-know-about-the-io-models/2799767-bd1dc37ed4733004.png" alt="NIO"></p>
-<p>应用程序中进程在发起IO调用后至内核执行IO操作返回结果之前，若发起系统调用的线程不会等待而是立即返回，则此次IO操作为非阻塞IO模型。非阻塞IO简称NIO，Non-Blocking IO。</p>
-<p>然而，非阻塞IO虽然相对于阻塞IO大幅提升了性能，但依旧不是完美的解决方案，其依然存在性能问题，也就是频繁的轮询导致频繁的系统调用，会耗费大量的CPU资源。比如当并发很高时，假设有1000个并发，那么单位时间循环内将会有1000次系统调用去轮询执行结果，而实际上可能只有2个请求结果执行完毕，这就会有998次无效的系统调用，造成严重的性能浪费。有问题就要解决，那<strong>NIO问题的本质就是频繁轮询导致的无效系统调用</strong>。</p>
-<h1 id="5-IO模型之IO多路复用"><a href="#5-IO模型之IO多路复用" class="headerlink" title="5. IO模型之IO多路复用"></a>5. IO模型之IO多路复用</h1><p>解决NIO的思路就是降解无效的系统调用，如何降解呢？我们一起来看看以下几种IO多路复用的解决思路。</p>
-<h2 id="5-1-IO多路复用之select-poll"><a href="#5-1-IO多路复用之select-poll" class="headerlink" title="5.1. IO多路复用之select/poll"></a>5.1. IO多路复用之select/poll</h2><p>Select是内核提供的系统调用，它支持一次查询多个系统调用的可用状态，当任意一个结果状态可用时就会返回，用户进程再发起一次系统调用进行数据读取。换句话说，就是NIO中N次的系统调用，借助Select，只需要发起一次系统调用就够了。其IO流程如下所示：<br><img src="/images/how-much-you-know-about-the-io-models/2799767-48611e945482d71b.png" alt="I/O Multiplexing"></p>
-<p>但是，select有一个限制，就是存在连接数限制，针对于此，又提出了poll。其与select相比，主要是解决了连接限制。</p>
-<p>select/epoll 虽然解决了NIO重复无效系统调用用的问题，但同时又引入了新的问题。问题是：</p>
-<ol>
-<li>用户空间和内核空间之间，大量的数据拷贝</li>
-<li>内核循环遍历IO状态，浪费CPU时间</li>
-</ol>
-<p>换句话说，select/poll虽然减少了用户进程的发起的系统调用，但内核的工作量只增不减。在高并发的情况下，内核的性能问题依旧。所以select/poll的问题本质是：内核存在无效的循环遍历。</p>
-<h2 id="5-2-IO多路复用之epoll"><a href="#5-2-IO多路复用之epoll" class="headerlink" title="5.2. IO多路复用之epoll"></a>5.2. IO多路复用之epoll</h2><p>针对select/pool引入的问题，我们把解决问题的思路转回到内核上，如何减少内核重复无效的循环遍历呢？变主动为被动，基于事件驱动来实现。其流程图如下所示：</p>
-<p><img src="/images/how-much-you-know-about-the-io-models/2799767-7732b124e1fec05b.png" alt="epoll"></p>
-<p>epoll相较于select/poll，多了两次系统调用，其中epoll_create建立与内核的连接，epoll_ctl注册事件，epoll_wait阻塞用户进程，等待IO事件。</p>
-<p><img src="/images/how-much-you-know-about-the-io-models/2799767-dd1831740358d111.png" alt="select,poll,epoll"></p>
-<p>epoll，已经大大优化了IO的执行效率，但在IO执行的第一阶段：数据准备阶段都还是被阻塞的。所以这是一个可以继续优化的点。</p>
-<h1 id="6-IO-模型之信号驱动IO-SIGIO"><a href="#6-IO-模型之信号驱动IO-SIGIO" class="headerlink" title="6. IO 模型之信号驱动IO(SIGIO)"></a>6. IO 模型之信号驱动IO(SIGIO)</h1><p>信号驱动IO与BIO和NIO最大的区别就在于，在IO执行的数据准备阶段，不会阻塞用户进程。<br>如下图所示：当用户进程需要等待数据的时候，会向内核发送一个信号，告诉内核我要什么数据，然后用户进程就继续做别的事情去了，而当内核中的数据准备好之后，内核立马发给用户进程一个信号，说”数据准备好了，快来查收“，用户进程收到信号之后，立马调用recvfrom，去查收数据。</p>
-<p><img src="/images/how-much-you-know-about-the-io-models/2799767-dcc2492e5d47920b.png" alt="SIGIO"></p>
-<p>乍一看，信号驱动式I/O模型有种异步操作的感觉，但是在IO执行的第二阶段，也就是将数据从内核空间复制到用户空间这个阶段，用户进程还是被阻塞的。</p>
-<p>综上，你会发现，不管是BIO还是NIO还是SIGIO，它们最终都会被阻塞在IO执行的第二阶段。<br>那如果能将IO执行的第二阶段变成非阻塞，那就完美了。</p>
-<h1 id="7-IO-模型之异步IO-AIO"><a href="#7-IO-模型之异步IO-AIO" class="headerlink" title="7. IO 模型之异步IO(AIO)"></a>7. IO 模型之异步IO(AIO)</h1><p>异步IO真正实现了IO全流程的非阻塞。用户进程发出系统调用后立即返回，内核等待数据准备完成，然后将数据拷贝到用户进程缓冲区，然后发送信号告诉用户进程<strong>IO操作执行完毕</strong>（与SIGIO相比，一个是发送信号告诉用户进程数据准备完毕，一个是IO执行完毕）。其流程如下：<br><img src="/images/how-much-you-know-about-the-io-models/2799767-5ad4ff656fac53d5.png" alt="AIO"></p>
-<p>所以，之所以称为异步IO，取决于IO执行的第二阶段是否阻塞。因此前面讲的BIO，NIO和SIGIO均为同步IO。</p>
-<p><img src="/images/how-much-you-know-about-the-io-models/2799767-b92b0e6f572ce8a5.png" alt=""></p>
-<h1 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h1><p>梳理完这些IO模型后，之前一直处于懵懂状态的阻塞，非阻塞，同步异步IO，终于算是有个概念了。同时也纠正了自己一直以来的误解，所以一路走来，愈发觉得返璞归真的重要性，只有如此，才能在快速更迭的技术演进中，以不变应万变。</p>
-<p><em>本片综合多方资料写就，难免纰漏，但只有写下来，才能得以指正。所以，烦请各位看官不吝赐教。</em></p>
-<blockquote>
-<p>参考资料：</p>
-<ol>
-<li><a href="https://www.jianshu.com/p/fa7bdc4f3de7" target="_blank" rel="noopener">程序员应该这样理解IO</a></li>
-<li><a href="https://www.jianshu.com/p/511b9cffbdac" target="_blank" rel="noopener">IO复用模型同步，异步，阻塞，非阻塞及实例详解</a></li>
-<li><a href="https://juejin.im/post/5ca4c044e51d4565372e47cf" target="_blank" rel="noopener">服务器网络编程之 IO 模型</a></li>
-<li><a href="http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html" target="_blank" rel="noopener">http://www.c-jump.com/CIS77/CPU/VonNeumann/lecture.html</a></li>
-<li><a href="https://cllc.fun/2019/03/07/synchronous-asynchronous-io/" target="_blank" rel="noopener">同步I/O(阻塞I/O，非阻塞I/O)，异步I/O</a></li>
-<li><a href="https://www.bilibili.com/video/BV11K4y1C7rm?p=2" target="_blank" rel="noopener">马士兵：权威讲解nio,epoll,多路复用</a></li>
-<li><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/9050467" target="_blank" rel="noopener">Linux 内核详解以及内核缓冲区技术</a></li>
-</ol>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>I/O</tag>
-        <tag>EPOLL</tag>
       </tags>
   </entry>
   <entry>
@@ -1068,93 +1068,6 @@
       </tags>
   </entry>
   <entry>
-    <title>SQL递归查询知多少</title>
-    <url>/post/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/</url>
-    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-438a0621acbccd40.png" alt="流程表结构数据举例"></p>
-<p>仔细观察表结构，会发现其树形结构的特点：</p>
-<ul>
-<li>FFIRSTNODE：标记是否为根节点</li>
-<li>FSTABLENAME：标记来源单据名称</li>
-<li>FSID：标记来源单据分录ID</li>
-<li>FTTABLENAME ：标记目标单据名称</li>
-<li>FTID：标记目标单据分录ID</li>
-</ul>
-<p>图中的流程为：<br><strong>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</strong></p>
-<p>首先想到的办法就是把流程数据取回来，然后代码构造流程图。<br>第一个思路：根据根节点循环往下找，吭呲半天，发现没那么简单。<br>因为任何一个源头单据都可以多次下推目标单据：<br>第二个思路：先找到终极节点，在从终极节点往上找只至根节点为0。<br>这个思路实现起来也没有那么复杂，逻辑理清，循环遍历，最终也能实现结果。（但在大数据量情况下，易导致性能瓶颈。）</p>
-<p>这一次我们换一个思路，让SQL来替我们做这一复杂的递归查询。</p>
-<h1 id="SqlServer-递归查询"><a href="#SqlServer-递归查询" class="headerlink" title="SqlServer 递归查询"></a>SqlServer 递归查询</h1><h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><blockquote>
-<p>公用表表达式 (CTE) 可以认为是在单个 SELECT、INSERT、UPDATE、DELETE 或 CREATE VIEW 语句的执行范围内定义的临时结果集。公用表表达式可以包括对自身的引用，这种表达式称为递归公用表表达式。</p>
-</blockquote>
-<ul>
-<li>创建递归查询。有关详细信息，请参阅<a href="https://technet.microsoft.com/zh-cn/library/ms186243(v=sql.105).aspx" target="_blank" rel="noopener">使用公用表表达式的递归查询</a>。</li>
-<li>在不需要常规使用视图时替换视图，也就是说，不必将定义存储在元数据中。</li>
-<li>启用按从标量嵌套 select 语句派生的列进行分组，或者按不确定性函数或有外部访问的函数进行分组。</li>
-<li>在同一语句中多次引用生成的表。</li>
-</ul>
-<p><a href="https://msdn.microsoft.com/zh-cn/library/ms175972.aspx" target="_blank" rel="noopener">MSDN上对CTE的介绍</a><br><a href="http://www.cnblogs.com/CareySon/archive/2011/12/12/2284740.html" target="_blank" rel="noopener">T-SQL查询进阶–详解公用表表达式(CTE)</a></p>
-<p>CTE 的基本语法结构如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH expression_name [ ( column_name [,...n] ) ]</span><br><span class="line">AS</span><br><span class="line">( CTE_query_definition )</span><br><span class="line">--只有在查询定义中为所有结果列都提供了不同的名称时，列名称列表才是可选的。</span><br><span class="line">--运行 CTE 的语句为：</span><br><span class="line">SELECT &lt;column_list&gt; FROM expression_name;</span><br></pre></td></tr></table></figure>
-<p>即三个部分：</p>
-<ol>
-<li>公用表表达式的名字（在WITH关键字之后）</li>
-<li>查询的列名（可选）</li>
-<li>紧跟AS之后的SELECT语句（<em>如果AS之后有多个对公用表的查询，则只有第一个查询有效</em>）</li>
-</ol>
-<h2 id="动手实践"><a href="#动手实践" class="headerlink" title="动手实践"></a>动手实践</h2><p>根据官网示例我们很简单就可以写出CTE语句应用于我们的应用场景：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID  FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
-
-<p>在查询中我们指定条件参数<code>WHERE TBIE.FTTABLENAME = &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID = 121625</code>，即可查询到指定节点的完整流程数据。<br><em>其中在与公用表<code>TEST_CTE</code>进行关联时，我指定了两个条件<code>CTBIE.FSID=CTE.FTID AND CTBIE.FSTABLENAME = CTE.FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7ecb5971eca7ad7a.png" alt="查询结果"></p>
-<p>需要注意的是<strong><code>OPTION(MAXRECURSION 10)</code></strong>是用来限制递归次数，以避免无限递归导致数据库性能消耗严重。</p>
-<h2 id="扩展：构造递归路径"><a href="#扩展：构造递归路径" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID,Cast(TBIE.FTID as nvarchar(4000)) AS PATH</span><br><span class="line">FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID,CTE.PATH+&#39;-&gt;&#39;+Cast(CTBIE.FTID as nvarchar(4000)) PATH  </span><br><span class="line">FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
-
-<p>基于上一个查询，增加一列手动拼接递归路径。注意sql中将PATH设置的类型为navarchar(4000)，在union中，两边的表结构类型必须保持一致，否则会报错<code>定位点类型和递归部分的类型不匹配</code>。可参考此篇博文<br><a href="http://www.cnblogs.com/ccding13/p/3515393.html" target="_blank" rel="noopener">解决CTE定位点类型和递归部分的类型不匹配</a>。</p>
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-82fc5de8bb634c3a.png" alt="递归路径查询结果"></p>
-<h1 id="Oracle-递归查询"><a href="#Oracle-递归查询" class="headerlink" title="Oracle 递归查询"></a>Oracle 递归查询</h1><h2 id="基本概念-1"><a href="#基本概念-1" class="headerlink" title="基本概念"></a>基本概念</h2><p>Oracle中的递归查询语句为<code>start with…connect by prior</code>，为中序遍历算法。<br>可参考<a href="http://www.cnblogs.com/yingsong/p/5035907.html" target="_blank" rel="noopener">Oracle 树操作、递归查询(select…start with…connect by…prior)</a>了解更多。</p>
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7a6a047617d286e4.png" alt="查询顺序"></p>
-<p>其基本语法是：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select colname from tablename</span><br><span class="line">start with 条件1</span><br><span class="line">connect by 条件2</span><br><span class="line">where 条件3;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>条件1： 是根结点的限定语句，当然可以放宽限定条件，以遍历多个根结点，实际就是多棵树。</li>
-<li>条件2：是连接条件，其中用<strong>PRIOR</strong>表示上一条记录。<br>比如<code>CONNECT BY PRIOR Id = Parent_Id</code>就是说<strong>上一条记录的Id 是本条记录的Parent_Id</strong>。</li>
-<li>条件3：过滤返回的结果集。</li>
-</ul>
-<p><strong>PRIOR关键字</strong></p>
-<p>运算符PRIOR被放置于等号前后的位置，决定着查询时的检索顺序。</p>
-<ul>
-<li>PRIOR被置于CONNECT BY子句中<strong>等号的前面</strong>时，则强制从根节点到叶节点的顺序检索，为<strong>自顶向下</strong>查找。<br>如：<code>CONNECT BY PRIOR Id=Parent_Id</code></li>
-<li>PIROR运算符被置于CONNECT BY 子句中<strong>等号的后面</strong>时，则强制从叶节点到根节点的顺序检索，为<strong>自底向上的</strong>查找。<br>如：<code>CONNECT BY Id=PRIOR Parent_Id</code></li>
-</ul>
-<p><strong>PS：当CONNECT BY后指定多个连接条件时，每个条件都应指定<code>PRIOR</code>关键字</strong></p>
-<h2 id="动手实践-1"><a href="#动手实践-1" class="headerlink" title="动手实践"></a>动手实践</h2><p>理清了用法，我们用Oracle来对查询一下业务流程。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT * FROM T_BF_INSTANCEENTRY </span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-c1c7a780cbb60575.png" alt="查询结果"></p>
-<p>该流程为：<strong>销售订单–&gt;发货通知单–&gt;销售出库单–&gt;退货通知单–&gt;销售退货单</strong><br><em>其中在指定连接条件时，我指定了两个条件<code>FSID= PRIOR FTID AND FSTABLENAME =PRIOR FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
-<h2 id="扩展：构造递归路径-1"><a href="#扩展：构造递归路径-1" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><p>Oracle中提供了<code>SYS_CONNECT_BY_PATH</code>函数用来进行连接路径。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
-<p>基于上个查询，增加了一列<code>SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH</code>用来拼接递归路径。</p>
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-a2159ee0b27a72c7.png" alt="递归路径查询结果"></p>
-<h2 id="显示当前节点的根节点"><a href="#显示当前节点的根节点" class="headerlink" title="显示当前节点的根节点"></a>显示当前节点的根节点</h2><p>这个时候我们要用到<code>connect_by_root</code>函数，用来记录当前节点的根节点信息。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
-
-<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-1ed0676674ecdc51.png" alt="当前节点的根节点的查询结果"></p>
-<h2 id="Oracle中的with…as语句"><a href="#Oracle中的with…as语句" class="headerlink" title="Oracle中的with…as语句"></a>Oracle中的with…as语句</h2><p>Oracle也有with..as 查询语法，一般用来进行子查询，提高查询效率。<br>语法：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with tempTableName as ( select * from table1 )</span><br><span class="line">select * from tempTableName</span><br></pre></td></tr></table></figure>
-<p>拿我们的案例举例就是：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with flow_temp as (</span><br><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">select * from flow_temp</span><br></pre></td></tr></table></figure>
-
-<p>为啥要讲这个呢，我们可以在oracle递归查询后进行筛选啊。</p>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>SQL</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>反应式编程知多少 | Rx.NET了解下</title>
     <url>/post/how-much-you-know-about-the-reactive-programming-in-dotnet/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-reactive-programming-in-dotnet/2799767-54048d974ab3962e.png" alt=""></p>
@@ -1264,6 +1177,93 @@
       <tags>
         <tag>.NET Core</tag>
         <tag>Rx.NET</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>SQL递归查询知多少</title>
+    <url>/post/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近工作中遇到了一个问题，需要根据保存的流程数据，构建流程图。数据库中保存的流程数据是树形结构的，表结构及数据如下图：</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-438a0621acbccd40.png" alt="流程表结构数据举例"></p>
+<p>仔细观察表结构，会发现其树形结构的特点：</p>
+<ul>
+<li>FFIRSTNODE：标记是否为根节点</li>
+<li>FSTABLENAME：标记来源单据名称</li>
+<li>FSID：标记来源单据分录ID</li>
+<li>FTTABLENAME ：标记目标单据名称</li>
+<li>FTID：标记目标单据分录ID</li>
+</ul>
+<p>图中的流程为：<br><strong>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</strong></p>
+<p>首先想到的办法就是把流程数据取回来，然后代码构造流程图。<br>第一个思路：根据根节点循环往下找，吭呲半天，发现没那么简单。<br>因为任何一个源头单据都可以多次下推目标单据：<br>第二个思路：先找到终极节点，在从终极节点往上找只至根节点为0。<br>这个思路实现起来也没有那么复杂，逻辑理清，循环遍历，最终也能实现结果。（但在大数据量情况下，易导致性能瓶颈。）</p>
+<p>这一次我们换一个思路，让SQL来替我们做这一复杂的递归查询。</p>
+<h1 id="SqlServer-递归查询"><a href="#SqlServer-递归查询" class="headerlink" title="SqlServer 递归查询"></a>SqlServer 递归查询</h1><h2 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h2><blockquote>
+<p>公用表表达式 (CTE) 可以认为是在单个 SELECT、INSERT、UPDATE、DELETE 或 CREATE VIEW 语句的执行范围内定义的临时结果集。公用表表达式可以包括对自身的引用，这种表达式称为递归公用表表达式。</p>
+</blockquote>
+<ul>
+<li>创建递归查询。有关详细信息，请参阅<a href="https://technet.microsoft.com/zh-cn/library/ms186243(v=sql.105).aspx" target="_blank" rel="noopener">使用公用表表达式的递归查询</a>。</li>
+<li>在不需要常规使用视图时替换视图，也就是说，不必将定义存储在元数据中。</li>
+<li>启用按从标量嵌套 select 语句派生的列进行分组，或者按不确定性函数或有外部访问的函数进行分组。</li>
+<li>在同一语句中多次引用生成的表。</li>
+</ul>
+<p><a href="https://msdn.microsoft.com/zh-cn/library/ms175972.aspx" target="_blank" rel="noopener">MSDN上对CTE的介绍</a><br><a href="http://www.cnblogs.com/CareySon/archive/2011/12/12/2284740.html" target="_blank" rel="noopener">T-SQL查询进阶–详解公用表表达式(CTE)</a></p>
+<p>CTE 的基本语法结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH expression_name [ ( column_name [,...n] ) ]</span><br><span class="line">AS</span><br><span class="line">( CTE_query_definition )</span><br><span class="line">--只有在查询定义中为所有结果列都提供了不同的名称时，列名称列表才是可选的。</span><br><span class="line">--运行 CTE 的语句为：</span><br><span class="line">SELECT &lt;column_list&gt; FROM expression_name;</span><br></pre></td></tr></table></figure>
+<p>即三个部分：</p>
+<ol>
+<li>公用表表达式的名字（在WITH关键字之后）</li>
+<li>查询的列名（可选）</li>
+<li>紧跟AS之后的SELECT语句（<em>如果AS之后有多个对公用表的查询，则只有第一个查询有效</em>）</li>
+</ol>
+<h2 id="动手实践"><a href="#动手实践" class="headerlink" title="动手实践"></a>动手实践</h2><p>根据官网示例我们很简单就可以写出CTE语句应用于我们的应用场景：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID  FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
+
+<p>在查询中我们指定条件参数<code>WHERE TBIE.FTTABLENAME = &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID = 121625</code>，即可查询到指定节点的完整流程数据。<br><em>其中在与公用表<code>TEST_CTE</code>进行关联时，我指定了两个条件<code>CTBIE.FSID=CTE.FTID AND CTBIE.FSTABLENAME = CTE.FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7ecb5971eca7ad7a.png" alt="查询结果"></p>
+<p>需要注意的是<strong><code>OPTION(MAXRECURSION 10)</code></strong>是用来限制递归次数，以避免无限递归导致数据库性能消耗严重。</p>
+<h2 id="扩展：构造递归路径"><a href="#扩展：构造递归路径" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WITH TEST_CTE </span><br><span class="line">AS</span><br><span class="line">(</span><br><span class="line">SELECT TBIE.FSTABLENAME,TBIE.FSID,TBIE.FTTABLENAME,TBIE.FTID,TBIE.FROUTEID,Cast(TBIE.FTID as nvarchar(4000)) AS PATH</span><br><span class="line">FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">WHERE TBIE.FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39; AND TBIE.FTID &#x3D; 121625</span><br><span class="line">UNION ALL</span><br><span class="line">SELECT CTBIE.FSTABLENAME,CTBIE.FSID,CTBIE.FTTABLENAME,CTBIE.FTID,CTBIE.FROUTEID,CTE.PATH+&#39;-&gt;&#39;+Cast(CTBIE.FTID as nvarchar(4000)) PATH  </span><br><span class="line">FROM T_BF_INSTANCEENTRY CTBIE</span><br><span class="line">INNER JOIN TEST_CTE CTE ON CTBIE.FSID&#x3D;CTE.FTID AND CTBIE.FSTABLENAME &#x3D; CTE.FTTABLENAME</span><br><span class="line">)</span><br><span class="line">SELECT * FROM TEST_CTE  </span><br><span class="line">--限制递归次数</span><br><span class="line">OPTION(MAXRECURSION 10)</span><br></pre></td></tr></table></figure>
+
+<p>基于上一个查询，增加一列手动拼接递归路径。注意sql中将PATH设置的类型为navarchar(4000)，在union中，两边的表结构类型必须保持一致，否则会报错<code>定位点类型和递归部分的类型不匹配</code>。可参考此篇博文<br><a href="http://www.cnblogs.com/ccding13/p/3515393.html" target="_blank" rel="noopener">解决CTE定位点类型和递归部分的类型不匹配</a>。</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-82fc5de8bb634c3a.png" alt="递归路径查询结果"></p>
+<h1 id="Oracle-递归查询"><a href="#Oracle-递归查询" class="headerlink" title="Oracle 递归查询"></a>Oracle 递归查询</h1><h2 id="基本概念-1"><a href="#基本概念-1" class="headerlink" title="基本概念"></a>基本概念</h2><p>Oracle中的递归查询语句为<code>start with…connect by prior</code>，为中序遍历算法。<br>可参考<a href="http://www.cnblogs.com/yingsong/p/5035907.html" target="_blank" rel="noopener">Oracle 树操作、递归查询(select…start with…connect by…prior)</a>了解更多。</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-7a6a047617d286e4.png" alt="查询顺序"></p>
+<p>其基本语法是：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select colname from tablename</span><br><span class="line">start with 条件1</span><br><span class="line">connect by 条件2</span><br><span class="line">where 条件3;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>条件1： 是根结点的限定语句，当然可以放宽限定条件，以遍历多个根结点，实际就是多棵树。</li>
+<li>条件2：是连接条件，其中用<strong>PRIOR</strong>表示上一条记录。<br>比如<code>CONNECT BY PRIOR Id = Parent_Id</code>就是说<strong>上一条记录的Id 是本条记录的Parent_Id</strong>。</li>
+<li>条件3：过滤返回的结果集。</li>
+</ul>
+<p><strong>PRIOR关键字</strong></p>
+<p>运算符PRIOR被放置于等号前后的位置，决定着查询时的检索顺序。</p>
+<ul>
+<li>PRIOR被置于CONNECT BY子句中<strong>等号的前面</strong>时，则强制从根节点到叶节点的顺序检索，为<strong>自顶向下</strong>查找。<br>如：<code>CONNECT BY PRIOR Id=Parent_Id</code></li>
+<li>PIROR运算符被置于CONNECT BY 子句中<strong>等号的后面</strong>时，则强制从叶节点到根节点的顺序检索，为<strong>自底向上的</strong>查找。<br>如：<code>CONNECT BY Id=PRIOR Parent_Id</code></li>
+</ul>
+<p><strong>PS：当CONNECT BY后指定多个连接条件时，每个条件都应指定<code>PRIOR</code>关键字</strong></p>
+<h2 id="动手实践-1"><a href="#动手实践-1" class="headerlink" title="动手实践"></a>动手实践</h2><p>理清了用法，我们用Oracle来对查询一下业务流程。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT * FROM T_BF_INSTANCEENTRY </span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-c1c7a780cbb60575.png" alt="查询结果"></p>
+<p>该流程为：<strong>销售订单–&gt;发货通知单–&gt;销售出库单–&gt;退货通知单–&gt;销售退货单</strong><br><em>其中在指定连接条件时，我指定了两个条件<code>FSID= PRIOR FTID AND FSTABLENAME =PRIOR FTTABLENAME</code>，因为不同类型的单据各有一套自增的ID，直接用ID进行关联迭代不可行。</em></p>
+<h2 id="扩展：构造递归路径-1"><a href="#扩展：构造递归路径-1" class="headerlink" title="扩展：构造递归路径"></a>扩展：构造递归路径</h2><p>Oracle中提供了<code>SYS_CONNECT_BY_PATH</code>函数用来进行连接路径。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
+<p>基于上个查询，增加了一列<code>SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)  NAME_PATH</code>用来拼接递归路径。</p>
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-a2159ee0b27a72c7.png" alt="递归路径查询结果"></p>
+<h2 id="显示当前节点的根节点"><a href="#显示当前节点的根节点" class="headerlink" title="显示当前节点的根节点"></a>显示当前节点的根节点</h2><p>这个时候我们要用到<code>connect_by_root</code>函数，用来记录当前节点的根节点信息。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/how-much-you-know-about-the-recursive-query-in-sqlserver-and-oracle/2799767-1ed0676674ecdc51.png" alt="当前节点的根节点的查询结果"></p>
+<h2 id="Oracle中的with…as语句"><a href="#Oracle中的with…as语句" class="headerlink" title="Oracle中的with…as语句"></a>Oracle中的with…as语句</h2><p>Oracle也有with..as 查询语法，一般用来进行子查询，提高查询效率。<br>语法：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with tempTableName as ( select * from table1 )</span><br><span class="line">select * from tempTableName</span><br></pre></td></tr></table></figure>
+<p>拿我们的案例举例就是：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">with flow_temp as (</span><br><span class="line">SELECT TBIE.*, SUBSTR(SYS_CONNECT_BY_PATH(FTID,&#39;-&gt;&#39;),3)NAME_PATH, (connect_by_root FTID) ROOT  FROM T_BF_INSTANCEENTRY TBIE</span><br><span class="line">START WITH (FTID&#x3D;100501 AND FTTABLENAME &#x3D; &#39;T_SAL_ORDERENTRY&#39;)</span><br><span class="line">CONNECT BY  FSID&#x3D; PRIOR FTID AND FSTABLENAME &#x3D;PRIOR FTTABLENAME</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">select * from flow_temp</span><br></pre></td></tr></table></figure>
+
+<p>为啥要讲这个呢，我们可以在oracle递归查询后进行筛选啊。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
       </tags>
   </entry>
   <entry>
