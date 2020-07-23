@@ -1,6 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>五分钟快速搭建Serverless免费邮件服务</title>
+    <url>/post/build-your-first-serverless-free-email-service-with-azure-function/</url>
+    <content><![CDATA[<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-508cd8bd0a9c2fe7.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>本文将带你快速基于 Azure Function 和 SendGrid 构建一个免费的Serverless（无服务器）的邮件发送服务，让你感受下Serverless的强大之处。</p>
+<p>该服务可以<strong>每月免费发送2,5000封</strong>，这是完全白嫖啊，感兴趣的，赶紧动起你的小手爪，噼里啪啦搞起来呀。</p>
+<h1 id="2-创建-SendGrid-账号"><a href="#2-创建-SendGrid-账号" class="headerlink" title="2. 创建 SendGrid 账号"></a>2. 创建 SendGrid 账号</h1><p><em>你要有一个Azure账号，没有的话，花几分钟自行注册一个就好。(我的账号注册在香港区域)</em></p>
+<p>咱们先来创建一个<strong>SendGrid Accounts</strong>，如下图所示。点击SendGrid Accounts后，再点击创建SendGrid account。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-48afba14c71a05c2.png" alt="SendGrid Accounts"></p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-83453108dc39e87f.png" alt="Create SendGrid Account"></p>
+<p>填写完毕后，点击Review+Create，稍等片刻，提示部署成功，那么恭喜你，可以接着往下玩耍了。如果部署失败，可能会因为SendGrid屏蔽了某些区域的账号创建，就只能重新注册个Azure账号玩耍了。</p>
+<p>紧接着，前往刚刚创建的SendGrid Account，点击Manage会跳转至SendGrid管理面板。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-8ff7849d28bd0cee.png" alt="SendGrid Account"></p>
+<p>打开后，会要求你进去邮件验证，自行前往邮箱验证即可。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-cd231fc9c9e1a91c.png" alt="SendGrid Dashboard"></p>
+<p>点击API Keys，然后点击Create API Key，填写API Key Name，选择 Full Access，点击Create&amp;View，记下生成的API Key，后面需要用到。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-19e799cbfe57546a.png" alt="创建ApiKey"></p>
+<h1 id="3-创建第一个函数应用"><a href="#3-创建第一个函数应用" class="headerlink" title="3. 创建第一个函数应用"></a>3. 创建第一个函数应用</h1><p>回到Azure控制台，然后搜索<strong>函数应用</strong>。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-0baff2aa7153f3e3.png" alt="搜索函数应用"></p>
+<p>打开后点击添加，按以下图示进行创建。其中务必选择以代码发布，承载的操作系统选择Windows。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-8ca4cc1a0e8c637f.png" alt="Create Azure Function"></p>
+<p>创建成功后，转到资源，如下图所示：</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-c725525dd929a9a5.png" alt="Azure Function"></p>
+<p>依次点击函数，添加，选择HTTP trigger模板，填写函数名称，然后指定身份验证级别。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-965ad86a3747bae3.png" alt="Create HTTP trigger"></p>
+<p>点击创建，创建成功后，跳转到函数页面，点击获取函数URL，粘贴URL到浏览器就可以访问到你创建的第一个函数应用。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-182870212f9d7667.png" alt="First Httptrigger Function"></p>
+<p>点击代码+测试，就可以看到模板代码，如下图所示：</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-0207fff5a0b8b049.png" alt="Httptrigger 模板代码"></p>
+<p>从截图来看，这个和C#的语法并无太大差别，官方称为C#脚本。</p>
+<p>紧接着替换<code>run.csx</code>为以下代码并点击保存：</p>
+<p>紧接着替换<code>run.csx</code>为以下代码并点击保存：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;run.csx</span><br><span class="line">#r &quot;Newtonsoft.Json&quot;</span><br><span class="line">#r &quot;SendGrid&quot;</span><br><span class="line"></span><br><span class="line">using System.Net;</span><br><span class="line">using Microsoft.Azure.WebJobs.Host;</span><br><span class="line">using SendGrid.Helpers.Mail;</span><br><span class="line">using Microsoft.Extensions.Primitives;</span><br><span class="line">using Newtonsoft.Json;</span><br><span class="line"></span><br><span class="line">public static SendGridMessage Run(Email req, ILogger log)</span><br><span class="line">&#123;</span><br><span class="line">    var reqStr &#x3D; JsonConvert.SerializeObject(req);</span><br><span class="line">    log.LogInformation(reqStr);</span><br><span class="line"></span><br><span class="line">    var message &#x3D; new SendGridMessage();</span><br><span class="line">    message.AddTo(req.To);</span><br><span class="line">    message.AddContent(&quot;text&#x2F;html&quot;, req.Body);</span><br><span class="line">    message.SetFrom(new EmailAddress(req.From));</span><br><span class="line">    message.SetSubject(req.Subject);</span><br><span class="line">    return message;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class Email</span><br><span class="line">&#123;</span><br><span class="line">    public string To &#123; get; set; &#125;</span><br><span class="line">    public string From &#123; get; set; &#125;</span><br><span class="line">    public string Subject &#123; get; set; &#125;</span><br><span class="line">    public string Body &#123; get; set; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后修改<code>function.json</code>中的配置如下，并保存。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;bindings&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;authLevel&quot;: &quot;function&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;req&quot;,</span><br><span class="line">      &quot;type&quot;: &quot;httpTrigger&quot;,</span><br><span class="line">      &quot;direction&quot;: &quot;in&quot;,</span><br><span class="line">      &quot;methods&quot;: [</span><br><span class="line">        &quot;get&quot;,</span><br><span class="line">        &quot;post&quot;</span><br><span class="line">      ]</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;sendGrid&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;$return&quot;,</span><br><span class="line">      &quot;direction&quot;: &quot;out&quot;,</span><br><span class="line">      &quot;apiKey&quot;: &quot;SendGridAPIKeyAsAppSetting&quot;</span><br><span class="line">    &#125;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>注意观察配置项中需要指定<code>apiKey</code>，就是我们上面创建SendGrid Account 中对应的ApiKey。回到上面创建的Azure Function 应用服务，然后按下图添加上面发邮件函数需要的配置项，如下所示。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-2e75613d39c9277e.png" alt="添加配置项"></p>
+<p>添加完毕后，再回到函数中就可以测试运行了，如下图所示：</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-8226414351eae530.png" alt=""></p>
+<p>查收邮件，你将收到来自Azure Function &amp; SendGrid 的免费问候。</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-cf4dc9e150c3c981.png" alt="查收邮件"></p>
+<p>当然，也可以通过Postman自行验证：</p>
+<p><img src="/images/build-your-first-serverless-free-email-service-with-azure-function/2799767-f4f04ec45f023c3f.png" alt="Postman"></p>
+<h1 id="4-最后"><a href="#4-最后" class="headerlink" title="4.最后"></a>4.最后</h1><p>通过以上的连环操作，相信你不仅成功薅了一把微软的羊毛，而且顺带对<strong>Serverless</strong>也有了一定的认知。</p>
+<p>如果对Azure Function感兴趣的，不妨参考<a href="https://docs.microsoft.com/en-us/azure/azure-functions/" target="_blank" rel="noopener">官方文档</a>研究一番，相信你会发掘不少玩法，顺便再薅它几把羊毛，哈哈哈！</p>
+]]></content>
+      <categories>
+        <category>技术积累</category>
+      </categories>
+      <tags>
+        <tag>Serverless</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>MediatR 知多少</title>
     <url>/post/how-much-you-know-about-the-MediatR/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
