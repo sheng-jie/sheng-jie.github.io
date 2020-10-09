@@ -55,7 +55,7 @@
       </tags>
   </entry>
   <entry>
-    <title>诊断日志知多少 | Diagnostics 在.NET上的应用</title>
+    <title>诊断日志知多少 | DiagnosticSource 在.NET上的应用</title>
     <url>/post/how-much-you-know-about-diagnostic-in-dotnet/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f9fe53d73a593166.png" alt=""></p>
 <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近为了解决ABP集成CAP时无法通过拦截器启用工作单元的问题，从小伙伴那里学了一招。借助<code>DiagnossticSource</code>，可以最小改动完成需求。关于DiagnosticSource晓东大佬18年在文章 <a href="https://www.cnblogs.com/savorboard/p/diagnostics.html" target="_blank" rel="noopener">在 .NET Core 中使用 Diagnostics (Diagnostic Source) 记录跟踪信息</a>就有介绍，文章开头就说明了Diagnostics 一直是一个被大多数开发者忽视的东西。是的，我也忽略了，这个好东西，有必要学习一下，下面就和大家简单聊一聊<a href="https://github.com/dotnet/runtime/tree/master/src/libraries/System.Diagnostics.DiagnosticSource/src/System/Diagnostics" target="_blank" rel="noopener">System.Diagnostics.DiagnosticSource</a>在.NET上的应用。</p>

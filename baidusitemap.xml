@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://blog.shengjie.dev/post/build-your-first-serverless-free-email-service-with-azure-function/</loc>
-    <lastmod>2020-10-09</lastmod>
-  </url>  <url>
     <loc>https://blog.shengjie.dev/post/how-much-you-know-about-diagnostic-in-dotnet/</loc>
     <lastmod>2020-10-09</lastmod>
   </url>  <url>
@@ -53,6 +50,9 @@
     <lastmod>2020-10-09</lastmod>
   </url>  <url>
     <loc>https://blog.shengjie.dev/post/use-windbg-to-analyze-high-memory-issue/</loc>
+    <lastmod>2020-10-09</lastmod>
+  </url>  <url>
+    <loc>https://blog.shengjie.dev/post/build-your-first-serverless-free-email-service-with-azure-function/</loc>
     <lastmod>2020-10-09</lastmod>
   </url>
 </urlset>
