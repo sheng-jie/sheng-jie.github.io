@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4">
+  <meta name="baidu-site-verification" content="Ih8zdGWlLG">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-minimal.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本地运行eShopOnContainers">
+<meta property="og:type" content="article">
+<meta property="og:title" content="eShopOnContainers 知多少[2]：Run起来">
+<meta property="og:url" content="https://blog.shengjie.dev/post/eshoponcontainers-run-2/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="本地运行eShopOnContainers">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-95499d84e9bbf5b1.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-20beee6caa8467b3.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-f41eff4b0158ab41.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-4c9ccc376c511389.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-6485e771cfc35f6a.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-286b591d724a9f33.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-1c214b031d5a8daf.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-52c4703c139a6218.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-cc16e47bd13dbf93.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-2d4abb8f1e0e1f10.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-b96e8dbbb9be5854.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-0ffb8bcbb9e5fab1.png">
+<meta property="article:published_time" content="2018-10-16T14:12:44.000Z">
+<meta property="article:modified_time" content="2020-10-19T23:07:43.955Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content=".NET">
+<meta property="article:tag" content="eShopOnContainers">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/eshoponcontainers-run-2/2799767-95499d84e9bbf5b1.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/post/eshoponcontainers-run-2/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>eShopOnContainers 知多少[2]：Run起来 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Code is cheap, show you my mind!</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">22</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">4</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">30</span></a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/post/eshoponcontainers-run-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          eShopOnContainers 知多少[2]：Run起来
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-10-16 22:12:44" itemprop="dateCreated datePublished" datetime="2018-10-16T22:12:44+08:00">2018-10-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-10-20 07:07:43" itemprop="dateModified" datetime="2020-10-20T07:07:43+08:00">2020-10-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+            <div class="post-description">本地运行eShopOnContainers</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h1><ol>
+<li>Win10（开启Hyper-V）</li>
+<li><a href="http://dot.net/" target="_blank" rel="noopener">.NET Core SDK</a></li>
+<li><a href="https://docs.docker.com/docker-for-windows/install/" target="_blank" rel="noopener">Docker for Windows</a></li>
+<li><a href="https://visualstudio.microsoft.com" target="_blank" rel="noopener">VS2017 or VS Code</a></li>
+<li><a href="https://git-scm.com/downloads" target="_blank" rel="noopener">Git</a></li>
+<li><a href="https://go.microsoft.com/fwlink/?linkid=2014306" target="_blank" rel="noopener">SQL Server Management Studio</a>（可选）</li>
+<li><a href="https://redisdesktop.com/" target="_blank" rel="noopener">Redis Desktop Manager</a>（可选）</li>
+<li><a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a>（可选）</li>
+<li><a href="https://bower.io/" target="_blank" rel="noopener">Bower</a>（可选）</li>
+</ol>
+<h1 id="Clone代码到本地"><a href="#Clone代码到本地" class="headerlink" title="Clone代码到本地"></a>Clone代码到本地</h1><p>执行命令<code>git clone https://github.com/dotnet/eShopOnContainers.git</code>clone代码到本地。使用默认<strong><code>DEV</code></strong>分支即可，该分支会保持最新改动，不要切换到其他分支。</p>
+<p><img src="/images/eshoponcontainers-run-2/2799767-95499d84e9bbf5b1.png" alt="git clone"></p>
+<h1 id="环境设置"><a href="#环境设置" class="headerlink" title="环境设置"></a>环境设置</h1><ol>
+<li>给Docker分配CPU和内存</li>
+</ol>
+<p><em>温馨提示：以下的配置是最低需求，否则不保证项目能正常运行！</em><br><img src="/images/eshoponcontainers-run-2/2799767-20beee6caa8467b3.png" alt="内存和CPU设置"></p>
+<ol start="2">
+<li><p>设置共享驱动器<br><img src="/images/eshoponcontainers-run-2/2799767-f41eff4b0158ab41.png" alt="驱动器共享"></p>
+</li>
+<li><p>设置镜像加速<br>把<a href="https://www.daocloud.io/mirror#accelerator-doc" target="_blank" rel="noopener">DaoCloud</a>提供的镜像加速地址<code>http://f1361db2.m.daocloud.io</code>加到”registry-mirrors”的数组里，点击 Apply 。<br><img src="/images/eshoponcontainers-run-2/2799767-4c9ccc376c511389.png" alt="镜像加速"></p>
+</li>
+<li><p>勾选试验功能<br>如果遇到这个报错，<a href="https://stackoverflow.com/questions/48066994/docker-no-matching-manifest-for-windows-amd64-in-the-manifest-list-entries" target="_blank" rel="noopener">Docker: “no matching manifest for windows/amd64 in the manifest list entries”</a>，就勾选下面这个参数。<br><img src="/images/eshoponcontainers-run-2/2799767-6485e771cfc35f6a.png" alt="Experimental features"></p>
+</li>
+<li><p>防火墙设置<br>打开代码路径，找到<code>cli-windows\add-firewall-rules-for-sts-auth-thru-docker.ps1</code>power shell脚本并执行，打开本地防火墙中的端口，以便对STS（Security Token Service container）进行身份验证。<br><img src="/images/eshoponcontainers-run-2/2799767-286b591d724a9f33.png" alt="eShopOnContainers 防火墙入站规则设置"></p>
+</li>
+</ol>
+<h1 id="构建并部署到本机Docker主机"><a href="#构建并部署到本机Docker主机" class="headerlink" title="构建并部署到本机Docker主机"></a>构建并部署到本机Docker主机</h1><p>进入eShopOnContainers根目录，执行<code>docker-compose build</code>。<br><img src="/images/eshoponcontainers-run-2/2799767-1c214b031d5a8daf.png" alt="构建"></p>
+<p>去喝几杯咖啡或者打个盹吧，估计得好一会。完成后，执行<code>docker image</code>，可以查看已经构建好的镜像。<br><img src="/images/eshoponcontainers-run-2/2799767-52c4703c139a6218.png" alt="镜像列表"></p>
+<p><em>PS：你可能会看到很多为<code>&lt;none&gt;</code>的镜像，这些是临时镜像，可以通过命令<code>docker rmi $(docker images -f &quot;dangling=true&quot; -q)</code>删除。</em></p>
+<p>接下来执行<code>docker-compose up</code>命令部署到本地Docker主机。<br><img src="/images/eshoponcontainers-run-2/2799767-cc16e47bd13dbf93.png" alt="运行镜像"></p>
+<p>启动完成后，执行<code>docker ps</code>命令查看已启动的容器列表。<br><img src="/images/eshoponcontainers-run-2/2799767-2d4abb8f1e0e1f10.png" alt="运行中的容器列表"></p>
+<p>本地访问<a href="http://localhost:5100/" target="_blank" rel="noopener">http://localhost:5100/</a>，即可打开MVC Web应用。如下图所示：<br><img src="/images/eshoponcontainers-run-2/2799767-b96e8dbbb9be5854.png" alt="MVC Web"></p>
+<h1 id="测试所有应用程序和微服务"><a href="#测试所有应用程序和微服务" class="headerlink" title="测试所有应用程序和微服务"></a>测试所有应用程序和微服务</h1><p>一旦完成容器部署，就可以从本地开发机器通过一下URL或连接字符串任何服务。</p>
+<p><a href="https://github.com/dotnet-architecture/eShopOnContainers/wiki/03.-Setting-the-eShopOnContainers-solution-up-in-a-Windows-CLI-environment-(dotnet-CLI,-Docker-CLI-and-VS-Code)" target="_blank" rel="noopener"></a></p>
+<ul>
+<li>Web MVC: <a href="http://localhost:5100/" target="_blank" rel="noopener">http://localhost:5100</a></li>
+<li>Web Spa: <a href="http://localhost:5104/" target="_blank" rel="noopener">http://localhost:5104</a> </li>
+<li>Catalog microservice（产品目录微服务）: <a href="http://localhost:5101/" target="_blank" rel="noopener">http://localhost:5101</a> (Not secured)</li>
+<li>Ordering microservice（订单微服务）: <a href="http://localhost:5102/" target="_blank" rel="noopener">http://localhost:5102</a> (Requires token for authorization)</li>
+<li>Basket microservice（购物车微服务: <a href="http://localhost:5103/" target="_blank" rel="noopener">http://localhost:5103</a> (Requires token for authorization)</li>
+<li>Identity microservice（认证授权微服务）: <a href="http://localhost:5105/" target="_blank" rel="noopener">http://localhost:5105</a></li>
+<li>Web Status（健康检查): <a href="http://localhost:5107/" target="_blank" rel="noopener">http://localhost:5107</a> </li>
+<li>Orders database （订单数据库）(SQL Server connection string): <code>Server=tcp:localhost,5432;Database=Microsoft.eShopOnContainers.Services.OrderingDb;User Id=sa;Password=Pass@word;</code></li>
+<li>Catalog database (产品目录数据库）(SQL Server connection string): <code>Server=tcp:localhost,5434;Database=CatalogDB;User Id=sa;Password=Pass@word</code></li>
+<li>ASP.NET Identity database（身份数据库） (SQL Server connection string): <code>Server=localhost,5433;Database=aspnet-Microsoft.eShopOnContainers;User Id=sa;Password=Pass@word</code></li>
+<li>Basket data（购物车数据） (Redis): listening at localhost:6379</li>
+</ul>
+<h1 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h1><p><strong>1. 如何从外部连接SQL Server数据库</strong><br>Server：<strong>localhost,5433 （这里是逗号，不是冒号！！！）</strong><br>User：sa<br>Pwd：Pass@word<br><img src="/images/eshoponcontainers-run-2/2799767-0ffb8bcbb9e5fab1.png" alt="连接到容器内SQL Server数据库"></p>
+<hr>
+<p><strong>2. 构建报错问题</strong><br>构建eshop/webspa镜像时可能会报一下错误：<br><code>npm ERR! 404 Not Found: event-stream@https://registry.npmjs.org/event-stream/-/event-stream-3.3.6.tgz</code><br>解决方案是删除WebSap项目下的<code>package-lock.json</code>文件，重新构建即可。</p>
+
+    </div>
+
+    
+    
+    
+      
+  <div class="popular-posts-header">猜你喜欢</div>
+  <ul class="popular-posts">
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/post/eshoponcontainers-basket-microservice-7/" rel="bookmark">eShopOnContainers 知多少[7]：Basket microservice</a></div>
+    </li>
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/post/eshoponcontainers-catalog-microservice-4/" rel="bookmark">eShopOnContainers 知多少[4]：Catalog microservice</a></div>
+    </li>
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/post/eshoponcontainers-communication-with-grpc-11/" rel="bookmark">eShopOnContainers 知多少[11]：服务间通信之gRPC</a></div>
+    </li>
+  </ul>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/post/eshoponcontainers-run-2/" title="eShopOnContainers 知多少[2]：Run起来">https://blog.shengjie.dev/post/eshoponcontainers-run-2/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+        
+
+  <div class="followme">
+    <p>扫码关注我的公众号-「微服务知多少」</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <img src="/images/subscribe-dotnet-microservices.png" alt="">
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/NET/" rel="tag"><i class="fa fa-tag"></i> .NET</a>
+              <a href="/tags/eShopOnContainers/" rel="tag"><i class="fa fa-tag"></i> eShopOnContainers</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/post/eshoponcontainers-identity-microservice-3/" rel="prev" title="eShopOnContainers 知多少[3]：Identity microservice">
+      <i class="fa fa-chevron-left"></i> eShopOnContainers 知多少[3]：Identity microservice
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/post/eshoponcontainers-overview-1/" rel="next" title="eShopOnContainers 知多少[1]：总体概览">
+      eShopOnContainers 知多少[1]：总体概览 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ol class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ol>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#环境准备"><span class="nav-text">环境准备</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Clone代码到本地"><span class="nav-text">Clone代码到本地</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#环境设置"><span class="nav-text">环境设置</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#构建并部署到本机Docker主机"><span class="nav-text">构建并部署到本机Docker主机</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#测试所有应用程序和微服务"><span class="nav-text">测试所有应用程序和微服务</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#其他"><span class="nav-text">其他</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/shengjie_yan@live.com" title="E-Mail → shengjie_yan@live.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.jianshu.com/u/39ec0e6b1844" title="简书 → https:&#x2F;&#x2F;www.jianshu.com&#x2F;u&#x2F;39ec0e6b1844" rel="noopener" target="_blank"><i class="fa fa-fw fa-paper-plane"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://sheng-jie.cnblogs.com/" title="博客园 → https:&#x2F;&#x2F;sheng-jie.cnblogs.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-tree"></i>博客园</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-copyright"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">291k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">4:25</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.1.0/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/theme-next/theme-next-pjax@0/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="pjax">
+  
+
+  
+
+    </div>
+</body>
+</html>

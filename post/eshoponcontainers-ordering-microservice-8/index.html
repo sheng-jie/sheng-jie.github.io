@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4">
+  <meta name="baidu-site-verification" content="Ih8zdGWlLG">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-minimal.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="订单微服务的实现细节">
+<meta property="og:type" content="article">
+<meta property="og:title" content="eShopOnContainers 知多少[8]：Ordering microservice">
+<meta property="og:url" content="https://blog.shengjie.dev/post/eshoponcontainers-ordering-microservice-8/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="订单微服务的实现细节">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-343d9d945b08bbf5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-6fc65e19772eb543.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-73fcf75187848a35.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-ef01773a3d9cf4f0.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-8a9983089971134f.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-4d370f5d388fc4b7.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-094d769f601b4785.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-8beb654e7b16903d.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-ee03b90b483b4124.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-38e6a3e13569efaf.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-40dd2ace7ba84ea4.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-1a8c9cb8dbd6a346.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-6f022e44c3817c52.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-75184d0ee8bb6fce.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-c5a83a395e6ed3b6.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-051bd572cbeaa626.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-3729c88ddb502b81.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-ca87ba8929dd58df.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-e1e2327f76bc49e1.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-5b8c260043ca3aa2.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-e937282089ecb921.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-8f6dc9d49ea2a8eb.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-6c256d17cec446e1.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-ced7a0cba0c216e0.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-acef8253cd696e68.png">
+<meta property="article:published_time" content="2019-01-24T14:15:59.000Z">
+<meta property="article:modified_time" content="2020-10-19T23:07:43.955Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content=".NET">
+<meta property="article:tag" content="eShopOnContainers">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/eshoponcontainers-ordering-microservice-8/2799767-343d9d945b08bbf5.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/post/eshoponcontainers-ordering-microservice-8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>eShopOnContainers 知多少[8]：Ordering microservice | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Code is cheap, show you my mind!</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">22</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">4</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">30</span></a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/post/eshoponcontainers-ordering-microservice-8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          eShopOnContainers 知多少[8]：Ordering microservice
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-01-24 22:15:59" itemprop="dateCreated datePublished" datetime="2019-01-24T22:15:59+08:00">2019-01-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-10-20 07:07:43" itemprop="dateModified" datetime="2020-10-20T07:07:43+08:00">2020-10-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>10k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>9 分钟</span>
+            </span>
+            <div class="post-description">订单微服务的实现细节</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>Ordering microservice（订单微服务）就是处理订单的了，它与前面讲到的几个微服务相比要复杂的多。主要涉及以下业务逻辑：</p>
+<ol>
+<li>订单的创建、取消、支付、发货</li>
+<li>库存的扣减</li>
+</ol>
+<h1 id="2-架构模式"><a href="#2-架构模式" class="headerlink" title="2. 架构模式"></a>2. 架构模式</h1><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-343d9d945b08bbf5.png" alt="简化的CQRS和DDD微服务设计"></p>
+<p>如上图所示，该服务基于CQRS 和DDD来实现。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-6fc65e19772eb543.png" alt="项目结构"></p>
+<p>从项目结构来看，主要包括7个项目：</p>
+<ol>
+<li>Ordering.API：应用层</li>
+<li>Ordering.Domain：领域层</li>
+<li>Ordering.Infrastructure：基础设施层</li>
+<li>Ordering.BackgroundTasks：后台任务</li>
+<li>Ordering.SignalrHub：基于Signalr的消息推送和实时通信</li>
+<li>Ordering.FunctionalTests：功能测试项目</li>
+<li>Ordering.UnitTests：单元测试项目</li>
+</ol>
+<p>从以上的项目定义来看，该微服务的设计并符合DDD经典的四层架构。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-73fcf75187848a35.png" alt="Ordering.API对应DDD中分层"></p>
+<p>核心技术选型：</p>
+<ol>
+<li>ASP.NET Core Web API</li>
+<li>Entity Framework Core</li>
+<li>SQL Server</li>
+<li>Swashbuckle（可选）</li>
+<li>Autofac</li>
+<li>Eventbus</li>
+<li>MediatR</li>
+<li>SignalR</li>
+<li>Dapper</li>
+<li>Polly</li>
+<li><a href="https://github.com/JeremySkinner/FluentValidation" target="_blank" rel="noopener">FluentValidator</a></li>
+</ol>
+<h1 id="3-简明DDD"><a href="#3-简明DDD" class="headerlink" title="3. 简明DDD"></a>3. 简明DDD</h1><p>领域驱动设计是一种方法论，用于解决软件复杂度问题。它强调以领域为核心驱动设计。主要包括战略和战术设计两大部分，其中战略设计指导我们在宏观层面对问题域进行识别和划分，从而将大问题划分为多个小问题，分而治之。而战术设计从微观层面指导我们如何对领域进行建模。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ef01773a3d9cf4f0.png" alt="DDD开发过程"><br>其中战术设计了引入了很多核心要素，指导我们建模：</p>
+<ol>
+<li>值对象（Value Object）</li>
+<li>实体（Entity）</li>
+<li>领域服务（Domain Service）</li>
+<li>领域事件（Domain Event）</li>
+<li>资源库（Repository）</li>
+<li>工厂（Factory）</li>
+<li>聚合（Aggregate）</li>
+<li>应用服务（Application Service）<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-8a9983089971134f.png" alt="战术要素"></li>
+</ol>
+<p>其中实体、值对象和领域服务用于表示领域模型，来实现领域逻辑。<br>聚合用于封装一到多个实体和值对象，确保业务完整性。<br>领域事件来丰富领域对象之间的交互。<br>工厂、资源库用于管理领域对象的生命周期。<br>应用服务是用来表达用例和用户故事。</p>
+<p>有了以上的战术设计要素还不够，如果它们糅合在一起，还是会很混乱，因此DDD再通过分层架构来确保关注点分离，即将领域模型相关（实体、值对象、聚合、领域服务、领域事件）放到领域层，将资源库、工厂放到基础设施层，将应用服务放到应用层。以下就是DDD经典的四层架构：<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-4d370f5d388fc4b7.png" alt="DDD经典四层架构"></p>
+<p><em>以上相关图片来源于：<a href="https://gitbook.cn/gitchat/author/5859f00b7ad84fe60dda4b28" target="_blank" rel="noopener">张逸 · 领域驱动战略设计实践</a></em></p>
+<h1 id="4-Ordering-Domain：领域层"><a href="#4-Ordering-Domain：领域层" class="headerlink" title="4. Ordering.Domain：领域层"></a>4. Ordering.Domain：领域层</h1><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-094d769f601b4785.png" alt="项目结构"></p>
+<p>如果对订单微服务应用DDD，那么要摒弃传统的面向数据库建模的思想，转向领域建模。该项目中主要定义了以下领域对象：</p>
+<ul>
+<li>Order：订单</li>
+<li>OrderItem：订单项</li>
+<li>OrderStatus：订单状态</li>
+<li>Buyer：买家</li>
+<li>Address：地址</li>
+<li>PaymentMethod：支付方式</li>
+<li>CardType：银行卡片类型</li>
+</ul>
+<p>在该示例项目中，定义了两个聚合：订单聚合和买家聚合，其中Order和Buyer分属两个聚合根，其中订单聚合通过持有买家聚合的唯一ID进行关联。如下图所示：<br> <img src="/images/eshoponcontainers-ordering-microservice-8/2799767-8beb654e7b16903d.png" alt="订单聚会和买家聚合"></p>
+<p>我们依次来看其对实体、值对象、聚合、资源库、领域事件的实现方式。</p>
+<h2 id="4-1-实体、值对象与聚合"><a href="#4-1-实体、值对象与聚合" class="headerlink" title="4.1. 实体、值对象与聚合"></a>4.1. 实体、值对象与聚合</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ee03b90b483b4124.png" alt="实体相关类图"></p>
+<p>实体与值对象最大的区别在于，实体有标识符可变，值对象不可变。为了保证领域的不变性，也就是更好的封装，所有的属性字段都设置为<code>private set</code>，集合都设置为只读的，通过构造函数进行初始化，通过暴露方法供外部调用修改。<br>从类图中我们可以看出，其主要定义了一个<code>Entity</code>抽象基类，所有的实体通过继承<code>Entity</code>来实现命名约定。这里面有两点需要说明：</p>
+<ol>
+<li>通过<code>Id</code>属性确保唯一标识符</li>
+<li>重写<code>Equals</code>和<code>GetHashCode</code>方法（hash值计算：<code>this.Id.GetHashCode() ^ 31</code>)</li>
+<li>定义<code>DomainEvents</code>来存储实体关联的领域事件（领域事件的发生归根结底是由于领域对象的状态变化引起的，而领域对象[实体、值对象和聚合]）中值对象是不可变的，而聚合往往包含多个实体，所以将领域事件关联在实体上最合适不过。）</li>
+</ol>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-38e6a3e13569efaf.png" alt="值对象相关类图"></p>
+<p>同样，值对象也是通过继承抽象基类<code>ValueObject</code>来进行约定。其主要也是重载了<code>Equals</code>和<code>GetHashCode</code>和方法。这里面有必要学习其<code>GetHashCode</code>的实现技巧：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; ValueObject.cs</span><br><span class="line">protected abstract IEnumerable&lt;object&gt; GetAtomicValues();</span><br><span class="line">public override int GetHashCode()</span><br><span class="line">&#123;</span><br><span class="line">    return GetAtomicValues()</span><br><span class="line">     .Select(x &#x3D;&gt; x !&#x3D; null ? x.GetHashCode() : 0)</span><br><span class="line">     .Aggregate((x, y) &#x3D;&gt; x ^ y);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;Address.cs</span><br><span class="line">protected override IEnumerable&lt;object&gt; GetAtomicValues()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; Using a yield return statement to return each ele</span><br><span class="line">    yield return Street;</span><br><span class="line">    yield return City;</span><br><span class="line">    yield return State;</span><br><span class="line">    yield return Country;</span><br><span class="line">    yield return ZipCode;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，通过在基类定义<code>GetAtomicValues</code>方法，用来要求子类指定需要hash的字段，然后将每个字段取hash值，然后通过异或运算再行聚合得到唯一hash值。</p>
+<p>所有对聚合中领域对象的操作都是通过聚合根来维护的。因此我们可以看到聚合根中定义了许多方法来处理领域逻辑。</p>
+<h2 id="4-2-仓储"><a href="#4-2-仓储" class="headerlink" title="4.2. 仓储"></a>4.2. 仓储</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-40dd2ace7ba84ea4.png" alt="仓储相关类图"><br>聚合中的领域对象的持久化借助仓储来完成的。其提供统一的入口来进行聚合内相关领域对象的CRUD，从而完成透明持久化。从图中看出，<code>IRepository</code>定义了一个<code>IUnitOfWork</code>属性，其代表工作单元，主要定义了两个方法<code>SaveChangesAsync</code>和<code>SaveEntitiesAsync</code>，借助事务一次性提交所有更改，以确保数据的完整性和有效性。</p>
+<h2 id="4-3-领域事件"><a href="#4-3-领域事件" class="headerlink" title="4.3. 领域事件"></a>4.3. 领域事件</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-1a8c9cb8dbd6a346.png" alt="领域事件相关类图"></p>
+<p>从类图中可以看出一个共同特征，都实现了<code>INotification</code>接口。对MediatR熟悉的肯定一眼就明白了。是的，这个是<code>MediatR</code>中定义的接口。借助MediatR，来实现事件处理管道。通过进程内事件处理管道来驱动命令接收，并将它们（在内存中）路由到正确的事件处理器。<br>关于MeidatR可以参考我的这篇博文：<a href="https://www.jianshu.com/p/583bcba352ec" target="_blank" rel="noopener">MediatR 知多少</a></p>
+<p>而关于领域事件的处理，是通过继承<code>INotificationHanlder</code>接口来实现，这样<code>INotification</code>与<code>INotificationHandler</code>通过Ioc容器的服务注册，自动完成事件的订阅。而领域事件的处理其下放到了<code>Ordering.Api</code>中处理了。这里大家可能会有疑惑，既然叫领域事件，那为什么领域事件的处理不放到领域层呢？我们可以这样理解，事件是领域内触发，但对事件的处理，其并非都是业务逻辑的相关处理，比如订单创建成功后发送短信、邮件等就不属于业务逻辑。</p>
+<p>eShopOnContainers中领域事件的触发时机并非是即时触发，选择的是延迟触发模式。具体的实现，后面会讲到。</p>
+<h1 id="5-Ordering-Infrastructure：基础设施层"><a href="#5-Ordering-Infrastructure：基础设施层" class="headerlink" title="5. Ordering.Infrastructure：基础设施层"></a>5. Ordering.Infrastructure：基础设施层</h1><p>基础设施层主要用于提供基础服务，主要是用来实体映射和持久化。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-6f022e44c3817c52.png" alt="Ordering.Infrastructure 代码结构"></p>
+<p>从图中可以看到，主要包含以下业务处理：</p>
+<ol>
+<li>实体类型映射</li>
+<li>幂等性控制器的实现</li>
+<li>仓储的具体实现</li>
+<li>数据库上下文的实现（UnitOfWork的实现）</li>
+<li>领域事件的批量派发</li>
+</ol>
+<p>这里着重下第2、4、5点的介绍。</p>
+<h2 id="5-1-幂等性控制器"><a href="#5-1-幂等性控制器" class="headerlink" title="5.1. 幂等性控制器"></a>5.1. 幂等性控制器</h2><p>幂等性是指某个操作多次执行但结果相同，换句话说，多次执行操作而不改变结果。举例来说：我们在写预插脚本时，会添加条件判断，当表中不存在数据时才将数据插入到表中。无论重复运行多少次 SQL 语句，结果一定是相同的，并且结果数据会包含在表中。</p>
+<p>那怎样确保幂等性呢？一种方式就是确保操作本身的幂等性，比如可以创建一个表示“将产品价格设置为￥25”而不是“将产品价格增加￥5”的事件。此时可以安全地处理第一条消息，无论处理多少次结果都一样，而第二个消息则完全不同。<br>但是假设价格是一个时刻在变的，而你当前的操作就是要将产品价格增加￥5怎么办呢？显然这个操作是不能重复执行的。那我如何确保当前的操作只执行一次呢？<br>一种简便的方法就是记录每次执行的操作。该项目中的<code>Idempotency</code>文件夹就是来做这件事的。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-75184d0ee8bb6fce.png" alt="Idempotency 类图"></p>
+<p>从类图来看很简单，就是每次发送事件时生成一个唯一的Guid，然后构造一个<code>ClientRequest</code>对象实例持久化到数据库中，每次借助MediatR发送消息时都去检测消息是否已经发送。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-c5a83a395e6ed3b6.png" alt="幂等性处理"></p>
+<h2 id="5-2-UnitOfWork（工作单元的实现）"><a href="#5-2-UnitOfWork（工作单元的实现）" class="headerlink" title="5.2. UnitOfWork（工作单元的实现）"></a>5.2. UnitOfWork（工作单元的实现）</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-051bd572cbeaa626.png" alt="Uow实现逻辑"></p>
+<p>从代码来看，主要干了两件事：</p>
+<ol>
+<li>在提交变更之前，触发所有的领域事件</li>
+<li>批量提交变更</li>
+</ol>
+<p>这里需要解释的一点是，为什么要在持久化之前而不是之后进行领域事件的触发呢？<br>这种触发就是延迟触发，将领域事件的发布与领域实体的持久化放到一个事务中来达到一致性。<br>当然这有利有弊，弊端就是当领域事件的处理非常耗时，很有可能会导致事务超时，最终导致提交失败。而避免这一问题，也只有做事务拆分，这时就要考虑最终一致性和相应的补偿措施，显然更复杂。</p>
+<p>至此，我们可以总结下聚合、仓储与数据库之间的关系，如下图所示。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-3729c88ddb502b81.png" alt=""></p>
+<h1 id="6-Ordering-Api：应用层"><a href="#6-Ordering-Api：应用层" class="headerlink" title="6. Ordering.Api：应用层"></a>6. Ordering.Api：应用层</h1><p>应用层通过应用服务接口来暴露系统的全部功能。在这里主要涉及到：</p>
+<ol>
+<li>领域事件的处理</li>
+<li>集成事件的处理</li>
+<li>CQRS的实现</li>
+<li>服务注册</li>
+<li>认证授权</li>
+<li>集成事件的订阅</li>
+</ol>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ca87ba8929dd58df.png" alt="项目结构"></p>
+<h2 id="6-1-领域事件和集成事件"><a href="#6-1-领域事件和集成事件" class="headerlink" title="6.1. 领域事件和集成事件"></a>6.1. 领域事件和集成事件</h2><p>对于领域事件和集成事件的处理，我们需要先明白二者的区别。领域事件是发生在领域内的通信（同步或异步均可），而集成事件是基于多个微服务（其他限界上下文）甚至外部系统或应用间的异步通信。<br>领域事件是借助于MediatR的<code>INotification 和 INotificationHandler</code>的接口来实现。</p>
+<p>其中<code>Application/Behaviors</code>文件夹中是实现MediatR中的<code>IPipelineBehavior</code>接口而定义的请求处理管道。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-e1e2327f76bc49e1.png" alt=""></p>
+<p>集成事件的发布订阅是借助事件总线来完成的，关于事件总线之前有文章详述，这里不再赘述。在此，仅代码举例其订阅方式。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">private void ConfigureEventBus(IApplicationBuilder app)</span><br><span class="line">&#123;</span><br><span class="line">    var eventBus &#x3D; app.ApplicationServices.GetRequiredService&lt;BuildingBlocks.EventBus.Abstractions.IEventBus&gt;();</span><br><span class="line"></span><br><span class="line">    eventBus.Subscribe&lt;UserCheckoutAcceptedIntegrationEvent, IIntegrationEventHandler&lt;UserCheckoutAcceptedIntegrationEvent&gt;&gt;();</span><br><span class="line">&#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="6-2-基于MediatR实现的CQRS"><a href="#6-2-基于MediatR实现的CQRS" class="headerlink" title="6.2. 基于MediatR实现的CQRS"></a>6.2. 基于MediatR实现的CQRS</h2><p><a href="https://martinfowler.com/bliki/CQRS.html" target="_blank" rel="noopener">CQRS</a>（Command Query Responsibility Separation）：命令查询职责分离。是一种用来实现数据模型读写分离的架构模式。顾名思义，分为两大职责：</p>
+<ol>
+<li>命令职责</li>
+<li>查询职责</li>
+</ol>
+<p>其核心思想是：在客户端就将数据的新增修改删除等动作和查询进行分离，前者称为Command，通过Command Bus对领域模型进行操作，而查询则从另外一条路径直接对数据进行操作，比如报表输出等。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-5b8c260043ca3aa2.png" alt="CQRS"></p>
+<p>对于命令职责，其是借助于MediatR充当的CommandBus，使用<code>IRequest</code>来定义命令，使用<code>IRequestHandler</code>来定义命令处理程序。我们可以看下<code>CancelOrderCommand</code>和<code>CancelOrderCommandHandler</code>的实现。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">public class CancelOrderCommand : IRequest&lt;bool&gt;</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">    [DataMember]</span><br><span class="line">    public int OrderNumber &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public CancelOrderCommand(int orderNumber)</span><br><span class="line">    &#123;</span><br><span class="line">        OrderNumber &#x3D; orderNumber;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class CancelOrderCommandHandler : IRequestHandler&lt;CancelOrderCommand, bool&gt;</span><br><span class="line">&#123;</span><br><span class="line">    private readonly IOrderRepository _orderRepository;</span><br><span class="line"></span><br><span class="line">    public CancelOrderCommandHandler(IOrderRepository orderRepository)</span><br><span class="line">    &#123;</span><br><span class="line">        _orderRepository &#x3D; orderRepository;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public async Task&lt;bool&gt; Handle(CancelOrderCommand command, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        var orderToUpdate &#x3D; await _orderRepository.GetAsync(command.OrderNumber);</span><br><span class="line">        if(orderToUpdate &#x3D;&#x3D; null)</span><br><span class="line">        &#123;</span><br><span class="line">            return false;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        orderToUpdate.SetCancelledStatus();</span><br><span class="line">        return await _orderRepository.UnitOfWork.SaveEntitiesAsync();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上代码中，有一点需要指出，就是所有Command中的属性都定义为<code>private set</code>，通过构造函数进行赋值，以确保Command的不变性。</p>
+<p>对于查询职责，通过定义查询接口，借助Dapper直接写SQL语句来完成对数据库的直接读取。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-e937282089ecb921.png" alt="查询示例"></p>
+<p>而对于定义的命令，为了确保每个命令的合法性，通过引入第三方Nuget包<code>FluentValdiation</code>来进行命令的合法性校验。其代码也很简单，参考下图。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-8f6dc9d49ea2a8eb.png" alt="校验器的定义和注册"></p>
+<h2 id="6-3-服务注册"><a href="#6-3-服务注册" class="headerlink" title="6.3. 服务注册"></a>6.3. 服务注册</h2><p>整个订单微服务中所有服务的注册，都是放到应用层来做的，在<code>Ordering.Api\Infrastructure\AutofacModules</code>文件夹下通过继承<code>Autofac.Module</code>定义了两个Module来进行服务注册：</p>
+<ul>
+<li>ApplicationModule：自定义接口相关服务的注册</li>
+<li>MediatorModule：Mediator相关接口服务的注册</li>
+</ul>
+<p>将所有的服务注册都放到高层模块来进行注册，有点违背关注点分离，各层应该关注本层的服务注册，所以这中实现方式是有待改进的。而具体如何改进，这里给大家提供一个线索，可参考ABP是如何实现进行服务注册的分离和整合的。</p>
+<p><em>这里顺带提一下<code>Autofac</code>这个Ioc容器的一个限制，就是所有的服务注册必须在程序启动时完成注册，不允许运行时动态注册。</em></p>
+<h1 id="7-Ordering-BackgroundTasks：后台任务"><a href="#7-Ordering-BackgroundTasks：后台任务" class="headerlink" title="7. Ordering.BackgroundTasks：后台任务"></a>7. Ordering.BackgroundTasks：后台任务</h1><p>后台任务，顾名思义，后台静默运行的任务，也称计划任务。在.NET Core 中，我们将这些类型的任务称为托管服务，因为它们是在主机/应用程序/微服务中托管的服务/逻辑。请注意，这种情况下托管服务仅简单表示具有后台任务逻辑类。</p>
+<p>那我们如何实现托管服务了，一种简单的方式就是使用.NET Core 2.0之后版本中提供了一个名为<code>IHostedService</code>的新接口。当然也可以选择其他的一些后台任务框架，比如HangFire、Quartz。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-6c256d17cec446e1.png" alt=""></p>
+<p>该示例项目就是基于<code>BackgroundService</code>定义的一个后台任务。该任务主要用于轮询订单表中处于已提交超过1分钟的订单，然后发布集成事件到事件总线，最终用来将订单状态更新为待核验（库存）状态。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public abstract class BackgroundService : IHostedService, IDisposable</span><br><span class="line">&#123;</span><br><span class="line">    protected BackgroundService();</span><br><span class="line"></span><br><span class="line">    public virtual void Dispose();</span><br><span class="line">    public virtual Task StartAsync(CancellationToken cancellationToken);</span><br><span class="line">    [AsyncStateMachine(typeof(&lt;StopAsync&gt;d__4))]</span><br><span class="line">    public virtual Task StopAsync(CancellationToken cancellationToken);</span><br><span class="line">    protected abstract Task ExecuteAsync(CancellationToken stoppingToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从<code>BackgroundService</code>的方法申明中我们可以看出仅需实现<code>ExecuteAsync</code>方法即可。</p>
+<p>完成后台任务的定义后，将服务注册到Ioc容器中即可。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public IServiceProvider ConfigureServices(IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line"> &#x2F;&#x2F;Other DI registrations;</span><br><span class="line"> &#x2F;&#x2F; Register Hosted Services</span><br><span class="line"> services.AddSingleton&lt;IHostedService, GracePeriodManagerService&gt;();</span><br><span class="line"> services.AddSingleton&lt;IHostedService, MyHostedServiceB&gt;();</span><br><span class="line"> services.AddSingleton&lt;IHostedService, MyHostedServiceC&gt;();</span><br><span class="line"> &#x2F;&#x2F;...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ced7a0cba0c216e0.png" alt=""></p>
+<p>总之，<code>IHostedService</code>接口为 ASP.NET Core Web 应用程序启动后台任务提供了一种便捷的方法。它的优势主要在于：当主机本身关闭时，可以利用取消令牌来优雅的清理后台任务。</p>
+<h1 id="8-Ordering-SignalrHub：即时通信"><a href="#8-Ordering-SignalrHub：即时通信" class="headerlink" title="8. Ordering.SignalrHub：即时通信"></a>8. Ordering.SignalrHub：即时通信</h1><p>在订单微服务中，当订单状态变更时，需要实时推送订单状态变更消息给客户端。而这就涉及到实时通信。实时 HTTP 通信意味着，当数据可用时，服务端代码会推送内容到已连接的客户端，而不是服务端等待客户端来请求新数据。</p>
+<p>而对于实时通信，ASP.NET Core中<a href="https://github.com/aspnet/AspNetCore/tree/master/src/SignalR" target="_blank" rel="noopener">SignalR</a>可以满足我们的需求，其支持几种处理实时通信的技术以确保实时通信的可靠传输。 </p>
+<ul>
+<li><a href="https://tools.ietf.org/html/rfc7118" target="_blank" rel="noopener">WebSockets</a></li>
+<li>Server-Sent Events</li>
+<li>Long Polling</li>
+</ul>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-acef8253cd696e68.png" alt=""></p>
+<p>该示例项目的实现思路很简单：</p>
+<ol>
+<li>订阅订单状态变更相关的集成事件</li>
+<li>继承<code>SignalR.Hub</code>定义一个<code>NotificationsHub</code></li>
+<li>在集成事件处理程序中调用Hub进行消息的实时推送</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 订阅集成事件</span><br><span class="line">private void ConfigureEventBus(IApplicationBuilder app)</span><br><span class="line">&#123;</span><br><span class="line">    var eventBus &#x3D; app.ApplicationServices.GetRequiredService&lt;IEventBus&gt;()；  </span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToAwaitingValidationIntegrationEvent, OrderStatusChangedToAwaitingValidationIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToPaidIntegrationEvent, OrderStatusChangedToPaidIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToStockConfirmedIntegrationEvent, OrderStatusChangedToStockConfirmedIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToShippedIntegrationEvent, OrderStatusChangedToShippedIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToCancelledIntegrationEvent, OrderStatusChangedToCancelledIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToSubmittedIntegrationEvent, OrderStatusChangedToSubmittedIntegrationEventHandler&gt;();  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 定义SignalR.Hub</span><br><span class="line">[Authorize]</span><br><span class="line">public class NotificationsHub : Hub</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">    public override async Task OnConnectedAsync()</span><br><span class="line">    &#123;</span><br><span class="line">        await Groups.AddToGroupAsync(Context.ConnectionId, Context.User.Identity.Name);</span><br><span class="line">        await base.OnConnectedAsync();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public override async Task OnDisconnectedAsync(Exception ex)</span><br><span class="line">    &#123;</span><br><span class="line">        await Groups.AddToGroupAsync(Context.ConnectionId, Context.User.Identity.Name);</span><br><span class="line">        await base.OnDisconnectedAsync(ex);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 在集成事件处理器中调用Hub进行消息的实时推送</span><br><span class="line">public class OrderStatusChangedToPaidIntegrationEventHandler : IIntegrationEventHandler&lt;OrderStatusChangedToPaidIntegrationEvent&gt;</span><br><span class="line">&#123;</span><br><span class="line">    private readonly IHubContext&lt;NotificationsHub&gt; _hubContext;</span><br><span class="line"></span><br><span class="line">    public OrderStatusChangedToPaidIntegrationEventHandler(IHubContext&lt;NotificationsHub&gt; hubContext)</span><br><span class="line">    &#123;</span><br><span class="line">        _hubContext &#x3D; hubContext ?? throw new ArgumentNullException(nameof(hubContext));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public async Task Handle(OrderStatusChangedToPaidIntegrationEvent @event)</span><br><span class="line">    &#123;</span><br><span class="line">        await _hubContext.Clients</span><br><span class="line">            .Group(@event.BuyerName)</span><br><span class="line">            .SendAsync(&quot;UpdatedOrderState&quot;, new &#123; OrderId &#x3D; @event.OrderId, Status &#x3D; @event.OrderStatus &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="8-最后"><a href="#8-最后" class="headerlink" title="8. 最后"></a>8. 最后</h1><p>订单微服务在整个eShopOnContainers中属于最复杂的一个微服务了。<br>通过对DDD的简要介绍，以及对每一层的技术选型以及实现的思路和逻辑的梳理，希望对你有所帮助。</p>
+
+    </div>
+
+    
+    
+    
+      
+  <div class="popular-posts-header">猜你喜欢</div>
+  <ul class="popular-posts">
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/post/eshoponcontainers-basket-microservice-7/" rel="bookmark">eShopOnContainers 知多少[7]：Basket microservice</a></div>
+    </li>
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/post/eshoponcontainers-catalog-microservice-4/" rel="bookmark">eShopOnContainers 知多少[4]：Catalog microservice</a></div>
+    </li>
+    <li class="popular-posts-item">
+      <div class="popular-posts-title"><a href="/post/eshoponcontainers-communication-with-grpc-11/" rel="bookmark">eShopOnContainers 知多少[11]：服务间通信之gRPC</a></div>
+    </li>
+  </ul>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/post/eshoponcontainers-ordering-microservice-8/" title="eShopOnContainers 知多少[8]：Ordering microservice">https://blog.shengjie.dev/post/eshoponcontainers-ordering-microservice-8/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+        
+
+  <div class="followme">
+    <p>扫码关注我的公众号-「微服务知多少」</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <img src="/images/subscribe-dotnet-microservices.png" alt="">
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/NET/" rel="tag"><i class="fa fa-tag"></i> .NET</a>
+              <a href="/tags/eShopOnContainers/" rel="tag"><i class="fa fa-tag"></i> eShopOnContainers</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/post/how-much-you-know-about-the-reactive-programming-in-dotnet/" rel="prev" title="反应式编程知多少 | Rx.NET了解下">
+      <i class="fa fa-chevron-left"></i> 反应式编程知多少 | Rx.NET了解下
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/post/how-much-you-know-about-the-MediatR/" rel="next" title="MediatR 知多少">
+      MediatR 知多少 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ol class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ol>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-引言"><span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-架构模式"><span class="nav-text">2. 架构模式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-简明DDD"><span class="nav-text">3. 简明DDD</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-Ordering-Domain：领域层"><span class="nav-text">4. Ordering.Domain：领域层</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-实体、值对象与聚合"><span class="nav-text">4.1. 实体、值对象与聚合</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-仓储"><span class="nav-text">4.2. 仓储</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-3-领域事件"><span class="nav-text">4.3. 领域事件</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-Ordering-Infrastructure：基础设施层"><span class="nav-text">5. Ordering.Infrastructure：基础设施层</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#5-1-幂等性控制器"><span class="nav-text">5.1. 幂等性控制器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-2-UnitOfWork（工作单元的实现）"><span class="nav-text">5.2. UnitOfWork（工作单元的实现）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-Ordering-Api：应用层"><span class="nav-text">6. Ordering.Api：应用层</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#6-1-领域事件和集成事件"><span class="nav-text">6.1. 领域事件和集成事件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-2-基于MediatR实现的CQRS"><span class="nav-text">6.2. 基于MediatR实现的CQRS</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-3-服务注册"><span class="nav-text">6.3. 服务注册</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#7-Ordering-BackgroundTasks：后台任务"><span class="nav-text">7. Ordering.BackgroundTasks：后台任务</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#8-Ordering-SignalrHub：即时通信"><span class="nav-text">8. Ordering.SignalrHub：即时通信</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#8-最后"><span class="nav-text">8. 最后</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/shengjie_yan@live.com" title="E-Mail → shengjie_yan@live.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.jianshu.com/u/39ec0e6b1844" title="简书 → https:&#x2F;&#x2F;www.jianshu.com&#x2F;u&#x2F;39ec0e6b1844" rel="noopener" target="_blank"><i class="fa fa-fw fa-paper-plane"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://sheng-jie.cnblogs.com/" title="博客园 → https:&#x2F;&#x2F;sheng-jie.cnblogs.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-tree"></i>博客园</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-copyright"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">291k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">4:25</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.1.0/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/theme-next/theme-next-pjax@0/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="pjax">
+  
+
+  
+
+    </div>
+</body>
+</html>

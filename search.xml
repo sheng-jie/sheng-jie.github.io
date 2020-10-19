@@ -55,6 +55,983 @@
       </tags>
   </entry>
   <entry>
+    <title>eShopOnContainers 知多少[7]：Basket microservice</title>
+    <url>/post/eshoponcontainers-basket-microservice-7/</url>
+    <content><![CDATA[<p><img src="/images/eshoponcontainers-basket-microservice-7/2799767-e68642329ba6030a.png" alt="购物车界面"></p>
+<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>Basket microservice（购物车微服务）主要用于处理购物车的业务逻辑，包括：</p>
+<ol>
+<li>购物车商品的CRUD</li>
+<li>订阅商品价格更新事件，进行购物车商品同步处理 </li>
+<li>购物车结算事件发布</li>
+<li>订阅订单成功创建事件，进行购物车的清空操作</li>
+</ol>
+<h1 id="架构模式"><a href="#架构模式" class="headerlink" title="架构模式"></a>架构模式</h1><p><img src="/images/eshoponcontainers-basket-microservice-7/2799767-f68552c8a7b5811b.png" alt="数据驱动/CRUD 微服务设计"></p>
+<p>如上图所示，本微服务采用数据驱动的CRUD微服务架构，并使用Redis数据库进行持久化。<br>这种类型的服务在单个 ASP.NET Core Web API 项目中即可实现所有功能，该项目包括数据模型类、业务逻辑类及其数据访问类。其项目结构如下：<br><img src="/images/eshoponcontainers-basket-microservice-7/2799767-8225ec1545ea179e.png" alt=""></p>
+<p>核心技术选型：</p>
+<ol>
+<li>ASP.NET Core Web API</li>
+<li>Entity Framework Core</li>
+<li>Redis </li>
+<li>Swashbuckle（可选）</li>
+<li>Autofac</li>
+<li>Eventbus</li>
+<li>Newtonsoft.Json<h1 id="实体建模和持久化"><a href="#实体建模和持久化" class="headerlink" title="实体建模和持久化"></a>实体建模和持久化</h1>该微服务的核心领域实体是购物车，其类图如下：<img src="/images/eshoponcontainers-basket-microservice-7/2799767-3b8c1bcfce3e88e7.png" alt=""></li>
+</ol>
+<p>其中<code>CustomerBasket</code>与<code>BasketItem</code>为一对多关系，使用仓储模式进行持久化。</p>
+<ol>
+<li>通过对<code>CustomerBasket</code>对象进行json格式的序列化和反序列化来完成在redis中的持久化和读取。</li>
+<li>以单例模式注入redis连接<code>ConnectionMultiplexer</code>，该对象最终通过构造函数注入到<code>RedisBasketRepository</code>中。<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">services.AddSingleton&lt;ConnectionMultiplexer&gt;(sp &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var settings &#x3D; sp.GetRequiredService&lt;IOptions&lt;BasketSettings&gt;&gt;().Value;</span><br><span class="line">    var configuration &#x3D; ConfigurationOptions.Parse(settings.ConnectionString, true);</span><br><span class="line"></span><br><span class="line">    configuration.ResolveDns &#x3D; true;</span><br><span class="line"></span><br><span class="line">    return ConnectionMultiplexer.Connect(configuration);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<h1 id="事件的注册和消费"><a href="#事件的注册和消费" class="headerlink" title="事件的注册和消费"></a>事件的注册和消费</h1><p>在本服务中主要需要处理以下事件的发布和消费：</p>
+<ol>
+<li>事件发布：当用户点击购物车结算时，发布用户结算事件。</li>
+<li>事件消费：订单创建成功后，进行购物车的清空</li>
+<li>事件消费：商品价格更新后，进行购物车相关商品的价格同步</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private void ConfigureEventBus(IApplicationBuilder app)</span><br><span class="line">&#123;</span><br><span class="line">    var eventBus &#x3D; app.ApplicationServices.GetRequiredService&lt;IEventBus&gt;();</span><br><span class="line"></span><br><span class="line">    eventBus.Subscribe&lt;ProductPriceChangedIntegrationEvent, ProductPriceChangedIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStartedIntegrationEvent, OrderStartedIntegrationEventHandler&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上都是基于<strong>事件总线</strong>来达成。</p>
+<h1 id="认证和授权"><a href="#认证和授权" class="headerlink" title="认证和授权"></a>认证和授权</h1><p>购物车管理界面是需要认证和授权。那自然需要与上游的<code>Identity Microservice</code>进行衔接。在启动类进行认证中间件的配置。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private void ConfigureAuthService(IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; prevent from mapping &quot;sub&quot; claim to nameidentifier.</span><br><span class="line">    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();</span><br><span class="line">    var identityUrl &#x3D; Configuration.GetValue&lt;string&gt;(&quot;IdentityUrl&quot;); </span><br><span class="line">        </span><br><span class="line">    services.AddAuthentication(options &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        options.DefaultAuthenticateScheme &#x3D; JwtBearerDefaults.AuthenticationScheme;</span><br><span class="line">        options.DefaultChallengeScheme &#x3D; JwtBearerDefaults.AuthenticationScheme;</span><br><span class="line">    &#125;).AddJwtBearer(options &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        options.Authority &#x3D; identityUrl;</span><br><span class="line">        options.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">        options.Audience &#x3D; &quot;basket&quot;;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line">protected virtual void ConfigureAuth(IApplicationBuilder app)</span><br><span class="line">&#123;</span><br><span class="line">    if (Configuration.GetValue&lt;bool&gt;(&quot;UseLoadTest&quot;))</span><br><span class="line">    &#123;</span><br><span class="line">        app.UseMiddleware&lt;ByPassAuthMiddleware&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">    app.UseAuthentication();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="手动启用断路器"><a href="#手动启用断路器" class="headerlink" title="手动启用断路器"></a>手动启用断路器</h1><p>在该微服务中，定义了一个<strong>中断中间件</strong>：<code>FailingMiddleware</code>，通过访问<code>http://localhost:5103/failing</code>获取该中间件的启用状态，通过请求参数指定：即通过<code>http://localhost:5103/failing?enable</code>和<code>http://localhost:5103/failing?disable</code>来手动中断和恢复服务，来模拟断路，以便用于测试断路器模式。<br>开启断路后，当访问购物车页面时，<strong>Polly在重试指定次数依然无法访问服务时，就会抛出<code>BrokenCircuitException</code>异常</strong>，通过捕捉该异常告知用户稍后再试。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class CartController : Controller</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;…</span><br><span class="line">    public async Task&lt;IActionResult&gt; Index()</span><br><span class="line">    &#123;</span><br><span class="line">        try</span><br><span class="line">        &#123;          </span><br><span class="line">            var user &#x3D; _appUserParser.Parse(HttpContext.User);</span><br><span class="line">            &#x2F;&#x2F;Http requests using the Typed Client (Service Agent)</span><br><span class="line">            var vm &#x3D; await _basketSvc.GetBasket(user);</span><br><span class="line">            return View(vm);</span><br><span class="line">        &#125;</span><br><span class="line">        catch (BrokenCircuitException)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F; Catches error when Basket.api is in circuit-opened mode                 </span><br><span class="line">            HandleBrokenCircuitException();</span><br><span class="line">        &#125;</span><br><span class="line">        return View();</span><br><span class="line">    &#125;       </span><br><span class="line">    private void HandleBrokenCircuitException()</span><br><span class="line">    &#123;</span><br><span class="line">        TempData[&quot;BasketInoperativeMsg&quot;] &#x3D; &quot;Basket Service is inoperative, please try later on. (Business message due to Circuit-Breaker)&quot;;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="/images/eshoponcontainers-basket-microservice-7/2799767-f7c710c41e174f94.png" alt="提示购物车服务暂时不可用"></p>
+<h1 id="注入过滤器"><a href="#注入过滤器" class="headerlink" title="注入过滤器"></a>注入过滤器</h1><p>在配置MVC服务时指定了两个过滤器：全局异常过滤器和模型验证过滤器。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; Add framework services.</span><br><span class="line">services.AddMvc(options &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    options.Filters.Add(typeof(HttpGlobalExceptionFilter));</span><br><span class="line">    options.Filters.Add(typeof(ValidateModelStateFilter));</span><br><span class="line"></span><br><span class="line">&#125;).AddControllersAsServices();</span><br></pre></td></tr></table></figure>
+<ol>
+<li>全局异常过滤器是通过定义<code>BasketDomainException</code>异常和<code>HttpGlobalExceptionFilter</code>过滤器来实现的。</li>
+<li>模型验证过滤器是通过继承<code>ActionFilterAttribute</code>特性实现的<code>ValidateModelStateFilter</code>来获取模型状态中的错误。</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class ValidateModelStateFilter : ActionFilterAttribute</span><br><span class="line">&#123;</span><br><span class="line">    public override void OnActionExecuting(ActionExecutingContext context)</span><br><span class="line">    &#123;</span><br><span class="line">        if (context.ModelState.IsValid)</span><br><span class="line">        &#123;</span><br><span class="line">            return;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        var validationErrors &#x3D; context.ModelState</span><br><span class="line">            .Keys</span><br><span class="line">            .SelectMany(k &#x3D;&gt; context.ModelState[k].Errors)</span><br><span class="line">            .Select(e &#x3D;&gt; e.ErrorMessage)</span><br><span class="line">            .ToArray();</span><br><span class="line"></span><br><span class="line">        var json &#x3D; new JsonErrorResponse</span><br><span class="line">        &#123;</span><br><span class="line">            Messages &#x3D; validationErrors</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        context.Result &#x3D; new BadRequestObjectResult(json);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="SwaggerUI认证授权集成"><a href="#SwaggerUI认证授权集成" class="headerlink" title="SwaggerUI认证授权集成"></a>SwaggerUI认证授权集成</h1><p>因为默认启用了安全认证，所以为了方便在SwaggerUI界面进行测试，那么我们就必须为其集成认证授权。代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">services.AddSwaggerGen(options &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    options.DescribeAllEnumsAsStrings();</span><br><span class="line">    options.SwaggerDoc(&quot;v1&quot;, new Info</span><br><span class="line">    &#123;</span><br><span class="line">        Title &#x3D; &quot;Basket HTTP API&quot;,</span><br><span class="line">        Version &#x3D; &quot;v1&quot;,</span><br><span class="line">        Description &#x3D; &quot;The Basket Service HTTP API&quot;,</span><br><span class="line">        TermsOfService &#x3D; &quot;Terms Of Service&quot;</span><br><span class="line">    &#125;);</span><br><span class="line">    options.AddSecurityDefinition(&quot;oauth2&quot;, new OAuth2Scheme</span><br><span class="line">    &#123;</span><br><span class="line">        Type &#x3D; &quot;oauth2&quot;,</span><br><span class="line">        Flow &#x3D; &quot;implicit&quot;,</span><br><span class="line">        AuthorizationUrl &#x3D; $&quot;&#123;Configuration.GetValue&lt;string&gt;(&quot;IdentityUrlExternal&quot;)&#125;&#x2F;connect&#x2F;authorize&quot;,</span><br><span class="line">        TokenUrl &#x3D; $&quot;&#123;Configuration.GetValue&lt;string&gt;(&quot;IdentityUrlExternal&quot;)&#125;&#x2F;connect&#x2F;token&quot;,</span><br><span class="line">        Scopes &#x3D; new Dictionary&lt;string, string&gt;()</span><br><span class="line">        &#123;</span><br><span class="line">            &#123; &quot;basket&quot;, &quot;Basket API&quot; &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">    options.OperationFilter&lt;AuthorizeCheckOperationFilter&gt;();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>其中有主要做了三件事：</p>
+<ol>
+<li>配置授权Url</li>
+<li>配置TokenUrl</li>
+<li>指定授权范围</li>
+<li>注入授权检查过滤器<code>AuthorizeCheckOperationFilter</code>用于拦截需要授权的请求<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class AuthorizeCheckOperationFilter : IOperationFilter</span><br><span class="line">&#123;</span><br><span class="line">    public void Apply(Operation operation, OperationFilterContext context)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F; Check for authorize attribute</span><br><span class="line">        var hasAuthorize &#x3D; context.ApiDescription.ControllerAttributes().OfType&lt;AuthorizeAttribute&gt;().Any() ||</span><br><span class="line">                           context.ApiDescription.ActionAttributes().OfType&lt;AuthorizeAttribute&gt;().Any();</span><br><span class="line">        if (hasAuthorize)</span><br><span class="line">        &#123;</span><br><span class="line">            operation.Responses.Add(&quot;401&quot;, new Response &#123; Description &#x3D; &quot;Unauthorized&quot; &#125;);</span><br><span class="line">            operation.Responses.Add(&quot;403&quot;, new Response &#123; Description &#x3D; &quot;Forbidden&quot; &#125;);</span><br><span class="line">            operation.Security &#x3D; new List&lt;IDictionary&lt;string, IEnumerable&lt;string&gt;&gt;&gt;();</span><br><span class="line">            operation.Security.Add(new Dictionary&lt;string, IEnumerable&lt;string&gt;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                &#123; &quot;oauth2&quot;, new [] &#123; &quot;basketapi&quot; &#125; &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1>本服务较之前讲的Catalog microservice 而言，主要是多了一个认证和redis存储。</li>
+</ol>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[4]：Catalog microservice</title>
+    <url>/post/eshoponcontainers-catalog-microservice-4/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>Catalog microservice（目录微服务）维护着所有产品信息，包括库存、价格。所以该微服务的核心业务为：</p>
+<ol>
+<li>产品信息的维护</li>
+<li>库存的更新</li>
+<li>价格的维护</li>
+</ol>
+<h1 id="架构模式"><a href="#架构模式" class="headerlink" title="架构模式"></a>架构模式</h1><p><img src="/images/eshoponcontainers-catalog-microservice-4/2799767-8ee92fc413d17822.png" alt="数据驱动/CRUD 微服务设计"></p>
+<p>如上图所示，本微服务采用简单的数据驱动的CRUD微服务架构，来执行产品信息的创建、读取、更新和删除（CRUD）操作。<br>这种类型的服务在单个 ASP.NET Core Web API 项目中即可实现所有功能，该项目包括数据模型类、业务逻辑类及其数据访问类。其项目结构如下：<br><img src="/images/eshoponcontainers-catalog-microservice-4/2799767-2283cbfdcc9a7271.png" alt=""></p>
+<p>核心技术选型：</p>
+<ol>
+<li>ASP.NET Core Web API</li>
+<li>Entity Framework Core</li>
+<li>SQL Server </li>
+<li>Swashbuckle（可选）</li>
+<li>Autofac</li>
+<li>Eventbus</li>
+<li>Polly<h1 id="实体建模"><a href="#实体建模" class="headerlink" title="实体建模"></a>实体建模</h1>该微服务的核心领域实体是商品，其类图如下：<img src="/images/eshoponcontainers-catalog-microservice-4/2799767-0ffd78f8c096b32d.png" alt=""></li>
+</ol>
+<p>对于实体这一块，有两个小知识点需要说明一下：</p>
+<ol>
+<li>进行数据库字段映射时，主键都使用了<code>ForSqlServerUseSequenceHiLo</code>指定使用<code>HI-LO</code>高低位序列进行主键生成。</li>
+<li>在进行种子数据的预置时，使用了<code>Polly</code>开启了Retry机制。</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private Policy CreatePolicy( ILogger&lt;CatalogContextSeed&gt; logger, string prefix,int retries &#x3D; 3)</span><br><span class="line">&#123;</span><br><span class="line">    return Policy.Handle&lt;SqlException&gt;().</span><br><span class="line">        WaitAndRetryAsync(</span><br><span class="line">            retryCount: retries,</span><br><span class="line">            sleepDurationProvider: retry &#x3D;&gt; TimeSpan.FromSeconds(5),</span><br><span class="line">            onRetry: (exception, timeSpan, retry, ctx) &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                logger.LogTrace($&quot;[&#123;prefix&#125;] Exception &#123;exception.GetType().Name&#125; with message $&#123;exception.Message&#125; detected on attempt &#123;retry&#125; of &#123;retries&#125;&quot;);</span><br><span class="line">            &#125;</span><br><span class="line">        );</span><br><span class="line">&#125;</span><br><span class="line">public async Task SeedAsync(CatalogContext context,IHostingEnvironment env,IOptions&lt;CatalogSettings&gt; settings,ILogger&lt;CatalogContextSeed&gt; logger)</span><br><span class="line">&#123;</span><br><span class="line">    var policy &#x3D; CreatePolicy(logger, nameof(CatalogContextSeed));</span><br><span class="line"></span><br><span class="line">    await policy.ExecuteAsync(async () &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;...</span><br><span class="line">    &#125;);       </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>使用NoTracking提升查询速度<br>在<code>CatalogController</code>的构造方法中，明确指定以下代码来进行查询优化，这一点也是我们值得学习的地方。<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">((DbContext)context).ChangeTracker.QueryTrackingBehavior &#x3D; QueryTrackingBehavior.NoTracking;</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<h1 id="数据库表结构"><a href="#数据库表结构" class="headerlink" title="数据库表结构"></a>数据库表结构</h1><p><img src="/images/eshoponcontainers-catalog-microservice-4/2799767-fda90fdfdbaec4bb.png" alt="CatalogDb"><br>你肯定会好奇为什么会多了一张<code>IntegrationEventLog</code>表，这里先按住不表。</p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>如果eShopOnContainers采用的是单体式应用架构而非微服务架构，那么以上业务逻辑的实现并不复杂，使用简单的CRUD再辅以ACID事务就能很好的完成业务需求。本文的介绍也就可以到此为止了。</p>
+<p>然而将其抽取出来成为独立的基础微服务，那么我们要考虑的问题就多了。比如：</p>
+<ol>
+<li>修改产品价格时，需要同步更新购物车中保存的产品信息的价格。</li>
+<li>下订单时，需要验证当前商品库存是否充足，进行锁库抢占，以避免库存不足导致的订单无效。</li>
+</ol>
+<p>而这一切我们都不能再享受单体应用中直接使用ACID事务的便利了。因为在微服务应用里，产品表和购物篮表被各自的微服务所占有。任何微服务不应该在自己的事务中包含其他微服务的表或存储，即使是直接查询也是不可以的。目录微服务不能直接更新购物篮表，因为购物篮表被购物篮微服务占有。要更新购物篮微服务，产品微服务应该使用基于异步通信，如集成事件（消息和基于事件的通信）来实现最终一致性。</p>
+<p>那下一节我们就来详细阐述eShopOnContainers是如何通过事件机制完成最终一致性的。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[11]：服务间通信之gRPC</title>
+    <url>/post/eshoponcontainers-communication-with-grpc-11/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>最近翻看最新3.0 eShopOncontainers源码，发现其在架构选型中补充了 gRPC 进行服务间通信。那就索性也写一篇，作为系列的补充。</p>
+<h1 id="gRPC"><a href="#gRPC" class="headerlink" title="gRPC"></a>gRPC</h1><p>老规矩，先来理一下gRPC的基本概念。gRPC是Google开源的RPC框架，比肩dubbo、thrift、brpc。其优势在于：</p>
+<ol>
+<li>基于proto buffer：二进制协议，具有高性能的序列化机制。相较于JSON（文本协议）而言，首先从数据包上就有60%-80%的减小，其次其解包速度仅需要简单的数学运算完成，无需复杂的词法语法分析，具有8倍以上的性能提升。</li>
+<li>支持数据流。</li>
+<li>基于proto 文件：可以更方便的在客户端和服务端之间进行交互。</li>
+<li>gRPC语言无关性： 所有服务都是使用原型文件定义的。这些文件基于protobuffer语言，并定义服务的接口。基于原型文件，可以为每种语言生成用于创建服务端和客户端的代码。其中protoc编译工具就支持将其生成C #代码。从.NET Core 3 中，gRPC在工具和框架中深度集成，开发者会有更好的开发体验。</li>
+</ol>
+<h1 id="gRPC-在-eShopOncontainers-的应用"><a href="#gRPC-在-eShopOncontainers-的应用" class="headerlink" title="gRPC 在 eShopOncontainers 的应用"></a>gRPC 在 eShopOncontainers 的应用</h1><p>首先来理一下eShopOncontainers 中服务间同步通信的技术选型，主要还是是基于HTTP/REST，gRPC作为补充。</p>
+<p>在eShopOncontainers中Ordering API、Catalog API、Basket API微服务通过gRPC端点暴露服务。其中Mobile Shopping、Web Shopping BFFs使用gRPC客户端访问服务。以下以Ordering API gRPC 服务举例说明。</p>
+<p>订单微服务中定义了一个gRPC服务，用于从购物车创建订单。</p>
+<h2 id="服务端实现"><a href="#服务端实现" class="headerlink" title="服务端实现"></a>服务端实现</h2><p>proto文件定义如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">syntax &#x3D; &quot;proto3&quot;;</span><br><span class="line">option csharp_namespace &#x3D; &quot;GrpcOrdering&quot;;</span><br><span class="line">package OrderingApi;</span><br><span class="line">service OrderingGrpc &#123;</span><br><span class="line">  rpc CreateOrderDraftFromBasketData(CreateOrderDraftCommand) returns (OrderDraftDTO) &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line">message CreateOrderDraftCommand &#123;</span><br><span class="line">  string buyerId &#x3D; 1;</span><br><span class="line">    repeated BasketItem items &#x3D; 2;</span><br><span class="line">&#125;</span><br><span class="line">message BasketItem &#123;</span><br><span class="line">    string id &#x3D; 1;</span><br><span class="line">    int32 productId &#x3D; 2;</span><br><span class="line">    string productName &#x3D; 3;</span><br><span class="line">    double unitPrice &#x3D; 4;</span><br><span class="line">    double oldUnitPrice &#x3D; 5;</span><br><span class="line">    int32 quantity &#x3D; 6;</span><br><span class="line">    string pictureUrl &#x3D; 7;</span><br><span class="line">&#125;</span><br><span class="line">message OrderDraftDTO &#123;</span><br><span class="line">    double total &#x3D; 1;</span><br><span class="line">    repeated OrderItemDTO orderItems &#x3D; 2;</span><br><span class="line">&#125;</span><br><span class="line">message OrderItemDTO &#123;</span><br><span class="line">    int32 productId &#x3D; 1;</span><br><span class="line">    string productName &#x3D; 2;</span><br><span class="line">    double unitPrice &#x3D; 3;</span><br><span class="line">    double discount &#x3D; 4;</span><br><span class="line">    int32 units &#x3D; 5;</span><br><span class="line">    string pictureUrl &#x3D; 6;</span><br><span class="line">&#125;</span><br><span class="line">&#96;</span><br></pre></td></tr></table></figure>
+<p>服务实现，主要是借助Mediator充当CommandBus进行命令分发，具体实现如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">namespace GrpcOrdering</span><br><span class="line">&#123;</span><br><span class="line">    public class OrderingService : OrderingGrpc.OrderingGrpcBase</span><br><span class="line">    &#123;</span><br><span class="line">        private readonly IMediator _mediator;</span><br><span class="line">        private readonly ILogger&lt;OrderingService&gt; _logger;</span><br><span class="line"></span><br><span class="line">        public OrderingService(IMediator mediator, ILogger&lt;OrderingService&gt; logger)</span><br><span class="line">        &#123;</span><br><span class="line">            _mediator &#x3D; mediator;</span><br><span class="line">            _logger &#x3D; logger;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public override async Task&lt;OrderDraftDTO&gt; CreateOrderDraftFromBasketData(CreateOrderDraftCommand createOrderDraftCommand, ServerCallContext context)</span><br><span class="line">        &#123;</span><br><span class="line">            _logger.LogInformation(&quot;Begin gRPC call from method &#123;Method&#125; for ordering get order draft &#123;CreateOrderDraftCommand&#125;&quot;, context.Method, createOrderDraftCommand);</span><br><span class="line">            _logger.LogTrace(</span><br><span class="line">                &quot;----- Sending command: &#123;CommandName&#125; - &#123;IdProperty&#125;: &#123;CommandId&#125; (&#123;@Command&#125;)&quot;,</span><br><span class="line">                createOrderDraftCommand.GetGenericTypeName(),</span><br><span class="line">                nameof(createOrderDraftCommand.BuyerId),</span><br><span class="line">                createOrderDraftCommand.BuyerId,</span><br><span class="line">                createOrderDraftCommand);</span><br><span class="line"></span><br><span class="line">            var command &#x3D; new AppCommand.CreateOrderDraftCommand(</span><br><span class="line">                            createOrderDraftCommand.BuyerId,</span><br><span class="line">                            this.MapBasketItems(createOrderDraftCommand.Items));</span><br><span class="line">            var data &#x3D; await _mediator.Send(command);</span><br><span class="line"></span><br><span class="line">            if (data !&#x3D; null)</span><br><span class="line">            &#123;</span><br><span class="line">                context.Status &#x3D; new Status(StatusCode.OK, $&quot; ordering get order draft &#123;createOrderDraftCommand&#125; do exist&quot;);</span><br><span class="line"></span><br><span class="line">                return this.MapResponse(data);</span><br><span class="line">            &#125;</span><br><span class="line">            else</span><br><span class="line">            &#123;</span><br><span class="line">                context.Status &#x3D; new Status(StatusCode.NotFound, $&quot; ordering get order draft &#123;createOrderDraftCommand&#125; do not exist&quot;);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            return new OrderDraftDTO();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public OrderDraftDTO MapResponse(AppCommand.OrderDraftDTO order)</span><br><span class="line">        &#123;</span><br><span class="line">            var result &#x3D; new OrderDraftDTO()</span><br><span class="line">            &#123;</span><br><span class="line">                Total &#x3D; (double)order.Total,</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            order.OrderItems.ToList().ForEach(i &#x3D;&gt; result.OrderItems.Add(new OrderItemDTO()</span><br><span class="line">            &#123;</span><br><span class="line">                Discount &#x3D; (double)i.Discount,</span><br><span class="line">                PictureUrl &#x3D; i.PictureUrl,</span><br><span class="line">                ProductId &#x3D; i.ProductId,</span><br><span class="line">                ProductName &#x3D; i.ProductName,</span><br><span class="line">                UnitPrice &#x3D; (double)i.UnitPrice,</span><br><span class="line">                Units &#x3D; i.Units,</span><br><span class="line">            &#125;));</span><br><span class="line"></span><br><span class="line">            return result;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        public IEnumerable&lt;ApiModels.BasketItem&gt; MapBasketItems(RepeatedField&lt;BasketItem&gt; items)</span><br><span class="line">        &#123;</span><br><span class="line">            return items.Select(x &#x3D;&gt; new ApiModels.BasketItem()</span><br><span class="line">            &#123;</span><br><span class="line">                Id &#x3D; x.Id,</span><br><span class="line">                ProductId &#x3D; x.ProductId,</span><br><span class="line">                ProductName &#x3D; x.ProductName,</span><br><span class="line">                UnitPrice &#x3D; (decimal)x.UnitPrice,</span><br><span class="line">                OldUnitPrice &#x3D; (decimal)x.OldUnitPrice,</span><br><span class="line">                Quantity &#x3D; x.Quantity,</span><br><span class="line">                PictureUrl &#x3D; x.PictureUrl,</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>同时，服务端还要注册gRPC的请求处理管道：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">app.UseEndpoints(endpoints &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    endpoints.MapDefaultControllerRoute();</span><br><span class="line">    endpoints.MapControllers();</span><br><span class="line">    endpoints.MapGrpcService&lt;OrderingService&gt;();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h2 id="客户端调用"><a href="#客户端调用" class="headerlink" title="客户端调用"></a>客户端调用</h2><p>接下来看下客户端[web.bff.shopping]怎么消费的：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class OrderingService : IOrderingService</span><br><span class="line">    &#123;</span><br><span class="line">        private readonly UrlsConfig _urls;</span><br><span class="line">        private readonly ILogger&lt;OrderingService&gt; _logger;</span><br><span class="line">        public readonly HttpClient _httpClient;</span><br><span class="line"></span><br><span class="line">        public OrderingService(HttpClient httpClient, IOptions&lt;UrlsConfig&gt; config, ILogger&lt;OrderingService&gt; logger)</span><br><span class="line">        &#123;</span><br><span class="line">            _urls &#x3D; config.Value;</span><br><span class="line">            _httpClient &#x3D; httpClient;</span><br><span class="line">            _logger &#x3D; logger;</span><br><span class="line">        &#125;</span><br><span class="line">        public async Task&lt;OrderData&gt; GetOrderDraftAsync(BasketData basketData)</span><br><span class="line">        &#123;</span><br><span class="line">            return await GrpcCallerService.CallService(_urls.GrpcOrdering, async channel &#x3D;&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                var client &#x3D; new OrderingGrpc.OrderingGrpcClient(channel);</span><br><span class="line">                _logger.LogDebug(&quot; gRPC client created, basketData&#x3D;&#123;@basketData&#125;&quot;, basketData);</span><br><span class="line">                var command &#x3D; MapToOrderDraftCommand(basketData);</span><br><span class="line">                var response &#x3D; await client.CreateOrderDraftFromBasketDataAsync(command);</span><br><span class="line">                _logger.LogDebug(&quot; gRPC response: &#123;@response&#125;&quot;, response);</span><br><span class="line"></span><br><span class="line">                return MapToResponse(response, basketData);</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">        private OrderData MapToResponse(GrpcOrdering.OrderDraftDTO orderDraft, BasketData basketData)</span><br><span class="line">        &#123;</span><br><span class="line">            if (orderDraft &#x3D;&#x3D; null)</span><br><span class="line">            &#123;</span><br><span class="line">                return null;</span><br><span class="line">            &#125;</span><br><span class="line">            var data &#x3D; new OrderData</span><br><span class="line">            &#123;</span><br><span class="line">                Buyer &#x3D; basketData.BuyerId,</span><br><span class="line">                Total &#x3D; (decimal)orderDraft.Total,</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            orderDraft.OrderItems.ToList().ForEach(o &#x3D;&gt; data.OrderItems.Add(new OrderItemData</span><br><span class="line">            &#123;</span><br><span class="line">                Discount &#x3D; (decimal)o.Discount,</span><br><span class="line">                PictureUrl &#x3D; o.PictureUrl,</span><br><span class="line">                ProductId &#x3D; o.ProductId,</span><br><span class="line">                ProductName &#x3D; o.ProductName,</span><br><span class="line">                UnitPrice &#x3D; (decimal)o.UnitPrice,</span><br><span class="line">                Units &#x3D; o.Units,</span><br><span class="line">            &#125;));</span><br><span class="line">            return data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        private CreateOrderDraftCommand MapToOrderDraftCommand(BasketData basketData)</span><br><span class="line">        &#123;</span><br><span class="line">            var command &#x3D; new CreateOrderDraftCommand</span><br><span class="line">            &#123;</span><br><span class="line">                BuyerId &#x3D; basketData.BuyerId,</span><br><span class="line">            &#125;;</span><br><span class="line"></span><br><span class="line">            basketData.Items.ForEach(i &#x3D;&gt; command.Items.Add(new BasketItem</span><br><span class="line">            &#123;</span><br><span class="line">                Id &#x3D; i.Id,</span><br><span class="line">                OldUnitPrice &#x3D; (double)i.OldUnitPrice,</span><br><span class="line">                PictureUrl &#x3D; i.PictureUrl,</span><br><span class="line">                ProductId &#x3D; i.ProductId,</span><br><span class="line">                ProductName &#x3D; i.ProductName,</span><br><span class="line">                Quantity &#x3D; i.Quantity,</span><br><span class="line">                UnitPrice &#x3D; (double)i.UnitPrice,</span><br><span class="line">            &#125;));</span><br><span class="line"></span><br><span class="line">            return command;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>其中，<code>GrpcCallerService</code>是对gRPC Client的一层封装，主要是为了解决未启用TLS无法使用gRPC的问题。</p>
+<h2 id="不启用TLS使用gRPC"><a href="#不启用TLS使用gRPC" class="headerlink" title="不启用TLS使用gRPC"></a>不启用TLS使用gRPC</h2><p>我们已经知道gRpc 是基于HTTP2.0 协议。然而，连接的建立，默认并不是一步到位直接基于HTTP2.0建立连接的。客户端是先基于HTTP1.1进行协议协商，协商成功后，确认服务端支持HTTP2.0后，才会建立HTT2.0连接，协议协商需要TLS的ALPN协议来实现。流程如下：<br><img src="/images/eshoponcontainers-communication-with-grpc-11/2799767-0f9c300f468bd458.png" alt="HTTP2.0 协议协商"></p>
+<p>这意味着，默认情况下，您需要启用TLS协议才能完成HTTP2.0协议协商，进而才能使用gRPC。</p>
+<p>然而，在微服务架构中，并不是所有服务都需要启用安全传输层协议，尤其是微服务间的内部调用。那么在微服务内部如何使用gRPC进行通信呢？</p>
+<p><strong>客户端绕过协议协商，直连HTTP2.0（前提是：服务端必须支持HTTP2.0）</strong>。</p>
+<p>服务端配置如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">WebHost.CreateDefaultBuilder(args)</span><br><span class="line">    .ConfigureKestrel(options &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        options.Listen(IPAddress.Any, ports.httpPort, listenOptions &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            listenOptions.Protocols &#x3D; HttpProtocols.Http1AndHttp2; &#x2F;&#x2F;同时监听协议HTTP1，HTTP2</span><br><span class="line">        &#125;);</span><br><span class="line">        options.Listen(IPAddress.Any, ports.gRPCPort, listenOptions &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            listenOptions.Protocols &#x3D; HttpProtocols.Http2; &#x2F;&#x2F; gRPC端口仅监听HTTP2.0</span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure>
+<p>客户端需要添加以下设置，这些设置只能在客户端开始时设置一次：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport&quot;, true);</span><br><span class="line">AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2Support&quot;, true);</span><br></pre></td></tr></table></figure>
+<p>知道了这些，再回过来看<code>GrpcCallerService</code>的实现，就一目了然了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static class GrpcCallerService</span><br><span class="line">&#123;</span><br><span class="line">    public static async Task&lt;TResponse&gt; CallService&lt;TResponse&gt;(string urlGrpc, Func&lt;GrpcChannel, Task&lt;TResponse&gt;&gt; func)</span><br><span class="line">    &#123;</span><br><span class="line">        AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport&quot;, true);</span><br><span class="line">        AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2Support&quot;, true);</span><br><span class="line"></span><br><span class="line">        var channel &#x3D; GrpcChannel.ForAddress(urlGrpc);</span><br><span class="line"></span><br><span class="line">        &#x2F;*</span><br><span class="line">        using var httpClientHandler &#x3D; new HttpClientHandler</span><br><span class="line">        &#123;</span><br><span class="line">            ServerCertificateCustomValidationCallback &#x3D; (message, cert, chain, errors) &#x3D;&gt; &#123; return true; &#125;</span><br><span class="line">        &#125;;</span><br><span class="line">        *&#x2F;</span><br><span class="line"></span><br><span class="line">        Log.Information(@&quot;Creating gRPC client base address urlGrpc &#x3D;&#123;@urlGrpc&#125;, </span><br><span class="line">                          BaseAddress&#x3D;&#123;@BaseAddress&#125; &quot;, urlGrpc, channel.Target);</span><br><span class="line"></span><br><span class="line">        try</span><br><span class="line">        &#123;</span><br><span class="line">            return await func(channel);</span><br><span class="line">        &#125;</span><br><span class="line">        catch (RpcException e)</span><br><span class="line">        &#123;</span><br><span class="line">            Log.Error(&quot;Error calling via gRPC: &#123;Status&#125; - &#123;Message&#125;&quot;, e.Status, e.Message);</span><br><span class="line">            return default;</span><br><span class="line">        &#125;</span><br><span class="line">        finally</span><br><span class="line">        &#123;</span><br><span class="line">            AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport&quot;, false);</span><br><span class="line">            AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2Support&quot;, false);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public static async Task CallService(string urlGrpc, Func&lt;GrpcChannel, Task&gt; func)</span><br><span class="line">    &#123;</span><br><span class="line">        AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport&quot;, true);</span><br><span class="line">        AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2Support&quot;, true);</span><br><span class="line"></span><br><span class="line">        &#x2F;*</span><br><span class="line">        using var httpClientHandler &#x3D; new HttpClientHandler</span><br><span class="line">        &#123;</span><br><span class="line">            ServerCertificateCustomValidationCallback &#x3D; (message, cert, chain, errors) &#x3D;&gt; &#123; return true; &#125;</span><br><span class="line">        &#125;;</span><br><span class="line">        *&#x2F;</span><br><span class="line"></span><br><span class="line">        var channel &#x3D; GrpcChannel.ForAddress(urlGrpc);</span><br><span class="line"></span><br><span class="line">        Log.Debug(&quot;Creating gRPC client base address &#123;@httpClient.BaseAddress&#125; &quot;, channel.Target);</span><br><span class="line"></span><br><span class="line">        try</span><br><span class="line">        &#123;</span><br><span class="line">            await func(channel);</span><br><span class="line">        &#125;</span><br><span class="line">        catch (RpcException e)</span><br><span class="line">        &#123;</span><br><span class="line">            Log.Error(&quot;Error calling via gRPC: &#123;Status&#125; - &#123;Message&#125;&quot;, e.Status, e.Message);</span><br><span class="line">        &#125;</span><br><span class="line">        finally</span><br><span class="line">        &#123;</span><br><span class="line">            AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport&quot;, false);</span><br><span class="line">            AppContext.SetSwitch(&quot;System.Net.Http.SocketsHttpHandler.Http2Support&quot;, false);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>本文简要介绍了 eShopOnContainers 如何通过集成 gRPC 来完善服务间同步通信机制，希望对你在对微服务进行RPC相关技术选型时有一定的启示和帮助。</p>
+<blockquote>
+<p>参考资料：</p>
+<ol>
+<li><a href="http://www.blogjava.net/yongboy/archive/2015/03/18/423570.html" target="_blank" rel="noopener">HTTP2.0笔记之连接建立</a></li>
+<li><a href="https://github.com/dotnet-architecture/eShopOnContainers/wiki/gRPC" target="_blank" rel="noopener">eShopOnContainers/wiki/gRPC</a></li>
+<li><a href="https://www.ibm.com/developerworks/cn/linux/l-cn-gpb/index.html" target="_blank" rel="noopener">Google Protocol Buffer 的使用和原理</a></li>
+</ol>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[10]：部署到 K8S | AKS</title>
+    <url>/post/eshoponcontainers-deploy-to-k8s-10/</url>
+    <content><![CDATA[<p><img src="/images/eshoponcontainers-deploy-to-k8s-10/2799767-e4080255dfd1a8e3.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>断断续续，感觉这个系列又要半途而废了。趁着假期，赶紧再更一篇，介绍下如何将eShopOnContainers部署到K8S上，进而实现大家常说的微服务上云。</p>
+<h1 id="2-先了解下-Helm"><a href="#2-先了解下-Helm" class="headerlink" title="2. 先了解下 Helm"></a>2. 先了解下 Helm</h1><p>读过我上篇文章<a href="https://www.jianshu.com/p/6d39e935e66f" target="_blank" rel="noopener">ASP.NET Core 借助 K8S 玩转容器编排</a>的同学，想必对K8S有了个大致了解。K8S引入了Pod、Service、ReplicationSet等概念，来简化容器的编排工作。然而，发布一个应用，依旧很繁琐，比如要定义Pod，要关心如何暴露Service，如何自动伸缩。更不用说一个包括多个模块（Web、DB）的的复杂应用了，想一想要维护一堆<code>yaml</code>文件，就很奔溃。为了解决这一个问题，Helm横空出世。<br>Helm 简单来说就像NuGet包管理器，通过NuGet包管理器，我们可以很容易的管理依赖，借助它可以很方便的查找、安装、卸载、升级、降级需要的包。只不过Helm管理的包，叫做Helm Chart。<br>Chart 的包定义结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">$ helm create mongodb</span><br><span class="line">$ tree mongodb</span><br><span class="line">mongodb</span><br><span class="line">├── Chart.yaml #Chart本身的版本和配置信息</span><br><span class="line">├── charts #依赖的chart</span><br><span class="line">├── templates #配置模板目录</span><br><span class="line">│   ├── NOTES.txt #helm提示信息</span><br><span class="line">│   ├── _helpers.tpl #用于修改kubernetes objcet配置的模板</span><br><span class="line">│   ├── deployment.yaml #kubernetes Deployment object</span><br><span class="line">│   └── service.yaml #kubernetes Serivce</span><br><span class="line">└── values.yaml #kubernetes object configuration</span><br></pre></td></tr></table></figure>
+<p>对于Helm，还有两个基本概念：Repository和Release。Repository是Helm Chart的存储仓库，Release是指Chart的部署实例。</p>
+<p>另外，Helm包括两个部分：Client（客户端）和Tiller（服务端）。客户端用于管理Chart，服务端用于管理Release。</p>
+<p><img src="/images/eshoponcontainers-deploy-to-k8s-10/2799767-73142a628a0eb701.png" alt="Helm Architecture"></p>
+<p>从上面这张图中我们可以看到Tiller通过API与Kubernetes进行交互，来完成Chart包的部署。</p>
+<p>以上就是Helm的简单介绍，若需深入了解，请访问官网<a href="www.helm.sh">Helm</a>。</p>
+<h1 id="3-使用Helm-Chart-部署-eShopOnContainers-到-K8S"><a href="#3-使用Helm-Chart-部署-eShopOnContainers-到-K8S" class="headerlink" title="3. 使用Helm Chart 部署 eShopOnContainers 到 K8S"></a>3. 使用Helm Chart 部署 eShopOnContainers 到 K8S</h1><p>下面就直接按照装官方文档<a href="[https://github.com/dotnet-architecture/eShopOnContainers/wiki/10.-Deploying-to-Kubernetes-(AKS-and-local)-using-Helm-Charts](https://github.com/dotnet-architecture/eShopOnContainers/wiki/10.-Deploying-to-Kubernetes-(AKS-and-local)-using-Helm-Charts)">Deploying-to-Kubernetes-(AKS-and-local)-using-Helm-Charts</a>进行实操。</p>
+<h2 id="3-1-安装Helm"><a href="#3-1-安装Helm" class="headerlink" title="3.1. 安装Helm"></a>3.1. 安装Helm</h2><p>毫无疑问，我们首先得本地安装Helm，建议直接使用<code>Chocolatey</code>安装，命令如下</p>
+<figure class="highlight plain"><figcaption><span>install kubernetes-helm```。</span></figcaption><table><tr><td class="code"><pre><span class="line">在K8S中提供了认证机制，以确保应用程序的安全访问。Tiller要想与K8S建立连接进行交互，就必须提前在K8S中创建一个ServiceAccount并分配给Tiller以完成基于角色的访问控制（RBAC）。</span><br></pre></td></tr></table></figure>
+<h1 id="在k8s目录下执行以下命令，完成ServiceAccount的创建"><a href="#在k8s目录下执行以下命令，完成ServiceAccount的创建" class="headerlink" title="在k8s目录下执行以下命令，完成ServiceAccount的创建"></a>在k8s目录下执行以下命令，完成ServiceAccount的创建</h1><p>$ kubectl apply -f helm-rbac.yaml # 创建名为tiller的ServiceAccount</p>
+<h1 id="安装Tiller（Helm服务端），并指定使用上面创建的ServiceAccount"><a href="#安装Tiller（Helm服务端），并指定使用上面创建的ServiceAccount" class="headerlink" title="安装Tiller（Helm服务端），并指定使用上面创建的ServiceAccount"></a>安装Tiller（Helm服务端），并指定使用上面创建的ServiceAccount</h1><p>$ helm init –service-account tiller</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">## 3.2. 安装 Nginx ingress controller</span><br><span class="line">Ingress是用来暴露服务的，本质上和Service类似，但是一个Service只可以暴露一个服务，而一个Ingress可以暴露多个服务，Ingress可以根据请求的主机名和路径进行请求转发。但创建Ingress的前提是K8S必须已经有相应的Ingress Controller运行。然而，Dockers-For-Windows中默认并未提供Ingress Controller。我们可以在&#96;&#x2F;k8s&#96;目录下执行以下脚本，以安装&#96;Nginx ingress controller。</span><br></pre></td></tr></table></figure>
+<p>$ .\deploy-ingress.ps1<br>$ .\deploy-ingress-dockerlocal.ps1</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">## 3.3. 使用 Helm 部署 eShopOnContainers</span><br><span class="line">在项目&#96;k8s\Helm&#96;文件夹下，已经分别为eShopOnContainers的各个部分定义了相应的Chart，如下图所示。</span><br><span class="line">![Chart List](&#x2F;images&#x2F;eshoponcontainers-deploy-to-k8s-10&#x2F;2799767-33d157d074a86372.png)</span><br><span class="line"></span><br><span class="line">仅需执行&#96;.\deploy-all.ps1 -imageTag dev -useLocalk8s $true&#96;</span><br><span class="line">脚本，即可一键部署。等脚本执行完毕，可以执行&#96;helm list&#96;来查看所有的release。</span><br></pre></td></tr></table></figure>
+<p>$ helm list<br>NAME                            REVISION        UPDATED                         STATUS          CHART                           APP VERSION     NAMESPACE<br>eshop-apigwmm                   1               Fri Apr  5 16:55:45 2019        DEPLOYED        apigwmm-0.1.0                   1.0             default<br>eshop-apigwms                   1               Fri Apr  5 16:55:46 2019        DEPLOYED        apigwms-0.1.0                   1.0             default<br>eshop-apigwwm                   1               Fri Apr  5 16:55:47 2019        DEPLOYED        apigwwm-0.1.0                   1.0             default<br>eshop-apigwws                   1               Fri Apr  5 16:55:48 2019        DEPLOYED        apigwws-0.1.0                   1.0             default<br>eshop-basket-api                1               Fri Apr  5 16:55:49 2019        DEPLOYED        basket-api-0.1.0                1.0             default<br>eshop-basket-data               1               Fri Apr  5 16:55:44 2019        DEPLOYED        basket-data-0.1.0               1.0             default<br>eshop-catalog-api               1               Fri Apr  5 16:55:50 2019        DEPLOYED        catalog-api-0.1.0               1.0             default<br>eshop-identity-api              1               Fri Apr  5 16:55:51 2019        DEPLOYED        identity-api-0.1.0              1.0             default<br>eshop-keystore-data             1               Fri Apr  5 16:55:43 2019        DEPLOYED        keystore-data-0.1.0             1.0             default<br>eshop-locations-api             1               Fri Apr  5 16:55:52 2019        DEPLOYED        locations-api-0.1.0             1.0             default<br>eshop-marketing-api             1               Fri Apr  5 16:55:53 2019        DEPLOYED        marketing-api-0.1.0             1.0             default<br>eshop-mobileshoppingagg         1               Fri Apr  5 16:55:54 2019        DEPLOYED        mobileshoppingagg-0.1.0         1.0             default<br>eshop-nosql-data                1               Fri Apr  5 16:55:42 2019        DEPLOYED        nosql-data-0.1.0                1.0             default<br>eshop-ordering-api              1               Fri Apr  5 16:55:55 2019        DEPLOYED        ordering-api-0.1.0              1.0             default<br>eshop-ordering-backgroundtasks  1               Fri Apr  5 16:55:56 2019        DEPLOYED        ordering-backgroundtasks-0.1.0  1.0             default<br>eshop-ordering-signalrhub       1               Fri Apr  5 16:55:57 2019        DEPLOYED        ordering-signalrhub-0.1.0       1.0             default<br>eshop-payment-api               1               Fri Apr  5 16:55:58 2019        DEPLOYED        payment-api-0.1.0               1.0             default<br>eshop-rabbitmq                  1               Fri Apr  5 16:55:42 2019        DEPLOYED        rabbitmq-0.1.0                  1.0             default<br>eshop-sql-data                  1               Fri Apr  5 16:55:41 2019        DEPLOYED        sql-data-0.1.0                  1.0             default<br>eshop-webhooks-api              1               Fri Apr  5 16:56:03 2019        DEPLOYED        webhooks-api-0.1.0              1.0             default<br>eshop-webhooks-web              1               Fri Apr  5 16:56:04 2019        DEPLOYED        webhooks-web-0.1.0              1.0             default<br>eshop-webmvc                    1               Fri Apr  5 16:55:59 2019        DEPLOYED        webmvc-0.1.0                    1.0             default<br>eshop-webshoppingagg            1               Fri Apr  5 16:56:00 2019        DEPLOYED        webshoppingagg-0.1.0            1.0             default<br>eshop-webspa                    1               Fri Apr  5 16:56:01 2019        DEPLOYED        webspa-0.1.0                    1.0             default<br>eshop-webstatus                 1               Fri Apr  5 16:56:02 2019        DEPLOYED        webstatus-0.1.0                 1.0             default</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">## 3.4. 验证部署</span><br><span class="line">使用&#96;kubectl get deployment&#96;可以查看所有的弹性部署，使用&#96;kubectl get ingress&#96;可以查看通过ingress暴露的所有服务，使用&#96;kubectl get pod&#96;，可以查看所有运行的pod，等所有的pod的STATUS均为Running时，就可以直接通过[http:&#x2F;&#x2F;localhost](http:&#x2F;&#x2F;localhost)访问应用了，也可以访问[http:&#x2F;&#x2F;localhost&#x2F;webstatus](http:&#x2F;&#x2F;localhost&#x2F;webstatus)监控应用运行状态。</span><br><span class="line"></span><br><span class="line">至此，已成功部署eShopOnContainers到本地K8S集群。</span><br><span class="line"></span><br><span class="line"># 4. 上云</span><br><span class="line">微服务不上云简直就是浪费感情。有了本地部署的经验，那么部署上云也就简单了。除了需要额外创建并配置AKS（Azure Kubernetes Service）外，其他步骤都如出一辙。</span><br><span class="line">下面就来梳理下如何部署应用到AKS集群上。</span><br><span class="line"></span><br><span class="line">*首先你得有Azure账号，这是第一步，如果没有请自行前往[https:&#x2F;&#x2F;azure.microsoft.com&#x2F;zh-cn&#x2F;](https:&#x2F;&#x2F;azure.microsoft.com&#x2F;zh-cn&#x2F;)申请免费账号把玩。*</span><br><span class="line"></span><br><span class="line">## 4.1. 创建AKS</span><br><span class="line">创建AKS有两种方式一种是基于&#96;Azure CLI&#96;，一种是直接通过门户网站直接创建。这里使用第一种方式。</span><br><span class="line">首先确保本地安装Azure CLI，可使用&#96;choco install azure-cli&#96;安装。下面直接通过命令演示。</span><br></pre></td></tr></table></figure>
+<p>$ az login #登录Azure，完成客户端认证<br>$ az group create –name aks-group –location eastasia #在East Asia 创建资源组<br>$ az aks create <code>--resource-group aks-group</code><br>–name eshop <code>--node-count 1</code><br>–enable-addons http_application_routing,monitoring ` # 启用Http Routing（包含Ingress Controller和External-DNS)和监控<br>–generate-ssh-keys # 创建 ask 集群<br>$ az aks get-credentials –resource-group aks-group –name eshop # 获取证书以便从本地连接到AKS集群<br>$ kubectl config current-context # 查看当前上下文是不是eshop<br>$ kubectl get nodes # 获取aks集群节点</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">## 4.2. AKS 中安装 Helm</span><br><span class="line">AKS上和本机一样需要安装Helm，不过AKS上主要是要用到服务端（Tiller）以便进行Release的管理。不过好消息是AKS上Helm Client默认已经安装好了，所以只需要安装Tiller就Ok了。</span><br><span class="line">1. 首先创建ServiceAccount，用于K8S与Tiller的认证</span><br><span class="line">我们可以简单使用项目k8s文件夹下现有的&#96;helm-rbac.yaml&#96;来创建ServiceAccount。直接执行&#96;kubectl apply -f .\helm-rbac.yaml&#96;。</span><br><span class="line">2. 创建Tiller</span><br><span class="line">&#96;&#96;&#96;helm init --service-account tiller #指定使用上面创建的ServiceAccount</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-3-部署-eShopOnContainers-到-AKS"><a href="#4-3-部署-eShopOnContainers-到-AKS" class="headerlink" title="4.3. 部署 eShopOnContainers 到 AKS"></a>4.3. 部署 eShopOnContainers 到 AKS</h2><p><code>k8s/helm</code>文件夹打开Powershell执行以下脚本即可一键部署：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">$ .\deploy-all.ps1 -externalDns aks -aksName eshop -aksRg aks-group -imageTag dev</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-4-验证部署"><a href="#4-4-验证部署" class="headerlink" title="4.4. 验证部署"></a>4.4. 验证部署</h2><p>执行<code>kubectl get ingress</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">$ kubectl get ingress</span><br><span class="line">NAME                 HOSTS                                           ADDRESS       PORTS     AGE</span><br><span class="line">eshop-apigwmm        eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        45s</span><br><span class="line">eshop-apigwms        eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        44s</span><br><span class="line">eshop-apigwwm        eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        42s</span><br><span class="line">eshop-apigwws        eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        41s</span><br><span class="line">eshop-identity-api   eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        38s</span><br><span class="line">eshop-webhooks-api   eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        24s</span><br><span class="line">eshop-webhooks-web   eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        23s</span><br><span class="line">eshop-webmvc         eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        29s</span><br><span class="line">eshop-webspa         eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        27s</span><br><span class="line">eshop-webstatus      eshop.23a0868cb60a45e18d24.eastasia.aksapp.io   13.70.31.45   80        25s</span><br></pre></td></tr></table></figure>
+<p>等所有的pod都处于Running状态时，就可以直接通过Hosts：<a href="http://eshop.23a0868cb60a45e18d24.eastasia.aksapp.io/" target="_blank" rel="noopener">eshop.23a0868cb60a45e18d24.eastasia.aksapp.io</a><br>来访问应用了。<br>如果测试登录，可能会遭遇<code>502 Bad Gateway</code>，这是因为Identity Server 发送的请求头数据包超过了AKS中Nginx Ingress Controller的默认设置，可以直接<code>/k8s/helm</code>目录执行<code>kubectl apply -f aks-httpaddon-cfg.yaml</code>来解决这个问题。</p>
+<p>玩耍了一段时间后，别忘了清理资源，毕竟上云是要RMB的啊。执行<code>az group delete -n aks-group</code>，删除最开始创建的资源组。</p>
+<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h1><p>That’s all？<br>虽然成功将eShopOnContainers部署到云上，但一点也高兴不起来。从开发到部署再到运维，发现到处都是学不完的技术债。哎，谁让你当初非要当程序员呢？</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[12]：Envoy gateway</title>
+    <url>/post/eshoponcontainers-envoy-gateway-12/</url>
+    <content><![CDATA[<p><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-907fa556a105bc40.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>在最新的eShopOnContainers  3.0 中Ocelot 网关被Envoy Proxy 替换。下面就来简要带大家了解下Envoy，并尝试梳理下为什么要使用Envoy替代Ocelot。</p>
+<h1 id="2-Hello-Envoy"><a href="#2-Hello-Envoy" class="headerlink" title="2. Hello Envoy"></a>2. Hello Envoy</h1><blockquote>
+<p><strong><a href="https://www.envoyproxy.io" target="_blank" rel="noopener">ENVOY</a></strong> IS AN OPEN SOURCE EDGE AND SERVICE PROXY, DESIGNED FOR CLOUD-NATIVE APPLICATIONS.<br><em>Enovy(信使) 是一款开源的专为云原生应用设计的服务代理</em>。</p>
+</blockquote>
+<h2 id="2-1-快速体验"><a href="#2-1-快速体验" class="headerlink" title="2.1. 快速体验"></a>2.1. 快速体验</h2><p>首先基于本地Dockers快速体验以下，先启动本地Docker-Desktop，拉取Envoy镜像：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&gt; docker search envoy-dev</span><br><span class="line">NAME                        DESCRIPTION                                     STARS               OFFICIAL            AUTOMATED</span><br><span class="line">envoyproxy&#x2F;envoy            Images for tagged releases. Use envoy-dev fo…   96</span><br><span class="line">&gt; docker image pull envoyproxy:envoy-dev</span><br><span class="line">latest: Pulling from envoyproxy&#x2F;envoy-dev</span><br><span class="line">171857c49d0f: Pull complete</span><br><span class="line">419640447d26: Pull complete</span><br><span class="line">61e52f862619: Pull complete</span><br><span class="line">3f2a8c910457: Pull complete</span><br><span class="line">b2ce823b3fd3: Pull complete</span><br><span class="line">ec09faba9bc7: Pull complete</span><br><span class="line">b0b9168845d0: Pull complete</span><br><span class="line">39a220277151: Pull complete</span><br><span class="line">9081a11f5983: Pull complete</span><br><span class="line">1880b475bc3a: Pull complete</span><br><span class="line">Digest: sha256:cd8dbbbd8ce4c8c6eb52e4f8eebf55f29d1e597ca8311fecf9eda08b8cca813a</span><br><span class="line">Status: Downloaded newer image for envoyproxy&#x2F;envoy-dev:latest</span><br><span class="line">docker.io&#x2F;envoyproxy&#x2F;envoy-dev:latest</span><br></pre></td></tr></table></figure>
+<p>该Docker 镜像将包含最新版本的 Envoy 和一个基本的 Envoy 配置，可以将10000端口的入站请求路由到<code>www.google.com</code>。<br>下面启动容器测试：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&gt; docker run -d --name envoy -p 10000:10000 envoyproxy&#x2F;envoy-dev:latest</span><br><span class="line">27e422f34b389d99e9180e47d8109a19975ccd139f42ac2f4fa9f724906b72f6</span><br><span class="line">&gt; docker ps | findstr &#39;envoy&#39;</span><br><span class="line">27e422f34b38        envoyproxy&#x2F;envoy-dev:latest   &quot;&#x2F;docker-entrypoint.??   2 minutes ago        Up 2 minutes       0.0.0.0:10000-&gt;10000&#x2F;tcp   envoy</span><br><span class="line">&gt; curl -I http:&#x2F;&#x2F;localhost:10000</span><br><span class="line">HTTP&#x2F;1.1 200 OK</span><br><span class="line">content-type: text&#x2F;html; charset&#x3D;ISO-8859-1</span><br><span class="line">p3p: CP&#x3D;&quot;This is not a P3P policy! See g.co&#x2F;p3phelp for more info.&quot;</span><br><span class="line">date: Sat, 17 Oct 2020 04:38:38 GMT</span><br><span class="line">server: envoy</span><br><span class="line">x-xss-protection: 0</span><br><span class="line">x-frame-options: SAMEORIGIN</span><br><span class="line">expires: Sat, 17 Oct 2020 04:38:38 GMT</span><br><span class="line">cache-control: private</span><br><span class="line">set-cookie: 1P_JAR&#x3D;2020-10-17-04; expires&#x3D;Mon, 16-Nov-2020 04:38:38 GMT; path&#x3D;&#x2F;; domain&#x3D;.google.com; Secure</span><br><span class="line">set-cookie: NID&#x3D;204&#x3D;h0EoJXNOTbQA11L-tVowqcwloS0-BCTR71IeN4irsmpubdPIIS4sU8Gco79pt1NhONAxxFdUJ46SKvbX4Ni-jKMWbSW0k_kn3fFkVrfLm7OOBbAtUWtxGGOCRJGbSNIRyOPfDB7_wMngEWW3yoFEs9diSCtZK9DWFZdtJJZtWuI; expires&#x3D;Sun, 18-Apr-2021 04:38:38 GMT; path&#x3D;&#x2F;; domain&#x3D;.google.com; HttpOnly</span><br><span class="line">alt-svc: h3-Q050&#x3D;&quot;:443&quot;; ma&#x3D;2592000,h3-29&#x3D;&quot;:443&quot;; ma&#x3D;2592000,h3-27&#x3D;&quot;:443&quot;; ma&#x3D;2592000,h3-T051&#x3D;&quot;:443&quot;; ma&#x3D;2592000,h3-T050&#x3D;&quot;:443&quot;; ma&#x3D;2592000,h3-Q046&#x3D;&quot;:443&quot;; ma&#x3D;2592000,h3-Q043&#x3D;&quot;:443&quot;; ma&#x3D;2592000,quic&#x3D;&quot;:443&quot;; ma&#x3D;2592000; v&#x3D;&quot;46,43&quot;</span><br><span class="line">x-envoy-upstream-service-time: 37</span><br><span class="line">transfer-encoding: chunked</span><br></pre></td></tr></table></figure>
+<p><em>PS: 请确保本地机器能访问Google，否则<code>curl -I http://localhost:10000</code> 会出错。</em></p>
+<p>接下来我们进入容器内部，查看下配置文件，默认路径为<code>/etc/envoy/envoy.yaml</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">docker exec -it envoy &#x2F;bin&#x2F;bash</span><br><span class="line">root@27e422f34b38:&#x2F;# cat &#x2F;etc&#x2F;envoy&#x2F;envoy.yaml</span><br><span class="line">admin:</span><br><span class="line">  access_log_path: &#x2F;tmp&#x2F;admin_access.log</span><br><span class="line">  address:</span><br><span class="line">    socket_address:</span><br><span class="line">      protocol: TCP</span><br><span class="line">      address: 127.0.0.1</span><br><span class="line">      port_value: 9901</span><br><span class="line">static_resources:</span><br><span class="line">  listeners:</span><br><span class="line">  - name: listener_0</span><br><span class="line">    address:</span><br><span class="line">      socket_address:</span><br><span class="line">        protocol: TCP</span><br><span class="line">        address: 0.0.0.0</span><br><span class="line">        port_value: 10000</span><br><span class="line">    filter_chains:</span><br><span class="line">    - filters:</span><br><span class="line">      - name: envoy.filters.network.http_connection_manager</span><br><span class="line">        typed_config:</span><br><span class="line">          &quot;@type&quot;: type.googleapis.com&#x2F;envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager</span><br><span class="line">          stat_prefix: ingress_http</span><br><span class="line">          route_config:</span><br><span class="line">            name: local_route</span><br><span class="line">            virtual_hosts:</span><br><span class="line">            - name: local_service</span><br><span class="line">              domains: [&quot;*&quot;]</span><br><span class="line">              routes:</span><br><span class="line">              - match:</span><br><span class="line">                  prefix: &quot;&#x2F;&quot;</span><br><span class="line">                route:</span><br><span class="line">                  host_rewrite_literal: www.google.com</span><br><span class="line">                  cluster: service_google</span><br><span class="line">          http_filters:</span><br><span class="line">          - name: envoy.filters.http.router</span><br><span class="line">  clusters:</span><br><span class="line">  - name: service_google</span><br><span class="line">    connect_timeout: 30s</span><br><span class="line">    type: LOGICAL_DNS</span><br><span class="line">    # Comment out the following line to test on v6 networks</span><br><span class="line">    dns_lookup_family: V4_ONLY</span><br><span class="line">    lb_policy: ROUND_ROBIN</span><br><span class="line">    load_assignment:</span><br><span class="line">      cluster_name: service_google</span><br><span class="line">      endpoints:</span><br><span class="line">      - lb_endpoints:</span><br><span class="line">        - endpoint:</span><br><span class="line">            address:</span><br><span class="line">              socket_address:</span><br><span class="line">                address: www.google.com</span><br><span class="line">                port_value: 443</span><br><span class="line">    transport_socket:</span><br><span class="line">      name: envoy.transport_sockets.tls</span><br><span class="line">      typed_config:</span><br><span class="line">        &quot;@type&quot;: type.googleapis.com&#x2F;envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext</span><br><span class="line">        sni: www.google.com</span><br></pre></td></tr></table></figure>
+
+<p>我们把上面的配置文件拷贝到本地，将上面的<code>www.google.com</code>改为<code>www.baidu.com</code>，将<code>admin.address.socket_address.address: 127.0.0.1</code>该为<code>0.0.0.0</code>，然后把配置文件命名为<code>envoy-baidu.yaml</code>，然后挂载到容器的<code>/etc/envoy/envoy.yaml</code>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&gt; docker run --rm -d --name envoy-baidu -v $Home&#x2F;k8s&#x2F;envoy-baidu.yaml:&#x2F;etc&#x2F;envoy&#x2F;envoy.yaml -p 9901:9901 -p 15001:15001 envoyproxy&#x2F;envoy-dev:latest</span><br><span class="line">&gt; docker ps | findstr &#39;envoy&#39;</span><br><span class="line">f07f6a1e9305        envoyproxy&#x2F;envoy-dev:latest   &quot;&#x2F;docker-entrypoint.??   2 minutes ago       Up 2 minutes        10000&#x2F;tcp, 0.0.0.0:9901-&gt;9901&#x2F;tcp, 0.0.0.0:15001-&gt;15001&#x2F;tcp   envoy-baidu</span><br><span class="line">3cd12b5f6ddd        envoyproxy&#x2F;envoy-dev:latest   &quot;&#x2F;docker-entrypoint.??   About an hour ago   Up About an hour    0.0.0.0:10000-&gt;10000&#x2F;tcp              envoy</span><br><span class="line">&gt; curl -I http:&#x2F;&#x2F;localhost:15001</span><br><span class="line">HTTP&#x2F;1.1 200 OK</span><br><span class="line">accept-ranges: bytes</span><br><span class="line">cache-control: private, no-cache, no-store, proxy-revalidate, no-transform</span><br><span class="line">content-length: 277</span><br><span class="line">content-type: text&#x2F;html</span><br><span class="line">date: Sat, 17 Oct 2020 05:41:01 GMT</span><br><span class="line">etag: &quot;575e1f65-115&quot;</span><br><span class="line">last-modified: Mon, 13 Jun 2016 02:50:13 GMT</span><br><span class="line">pragma: no-cache</span><br><span class="line">server: envoy</span><br><span class="line">x-envoy-upstream-service-time: 24</span><br></pre></td></tr></table></figure>
+<p>使用浏览器访问<a href="http://localhost:9901即可访问envoy管理页面，如下图所示：">http://localhost:9901即可访问envoy管理页面，如下图所示：</a><br><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-799930f950c87a20.png" alt="envoy admin page"></p>
+<h2 id="2-2-配置简介"><a href="#2-2-配置简介" class="headerlink" title="2.2. 配置简介"></a>2.2. 配置简介</h2><p>第一次看Envoy的配置文件，和第一次接触Nginx的配置文件一样，绝对一脸懵逼。没关系，咱们来理一理。</p>
+<p>作为一个代理，不管是Nginx、HAProxy，还是Envoy，其处理流程都是一样的。其首先都是要监听指定端口获取请求流量，然后分析请求数据，进行请求转发。脑补完大致流程后，再来看 Envoy 是如何组织配置信息的。先来了几个核心配置：</p>
+<ul>
+<li><strong>listener</strong> : Envoy 的监听地址，用来接收请求，处理入站请求。Envoy 会暴露一个或多个 Listener 来监听客户端的请求。</li>
+<li><strong>filter</strong> : 过滤器是处理入站和出站流量的链式结构的一部分。在过滤器链上可以集成很多特定功能的过滤器，例如，通过集成 GZip 过滤器可以在数据发送到客户端之前压缩数据。</li>
+<li><strong>route_config</strong> : 路由规则配置。即将请求路由到后端的哪个集群。</li>
+<li><strong>cluster</strong> : 集群定义了流量的目标端点，同时还包括一些其他可选配置，如负载均衡策略等。</li>
+</ul>
+<p>整体流程如下图所示：</p>
+<p><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-51ed0f50d336c308.png" alt="图片来源：https://fuckcloudnative.io/envoy-handbook/docs/gettingstarted/quick-start/"></p>
+<h2 id="2-3-代理-ASP-NET-Core-WebApi"><a href="#2-3-代理-ASP-NET-Core-WebApi" class="headerlink" title="2.3. 代理 ASP.NET Core WebApi"></a>2.3. 代理 ASP.NET Core WebApi</h2><p>有了上面的基础，下面尝试使用Envoy代理ASP.NET Core WebApi。<br>首先创建两个简单API，然后创建一个Envoy配置文件，最后通过docker compose启动三个容器进行测试。由于项目文件结构简单，这里不再过多阐述，主要包含四个部分：</p>
+<ol>
+<li>City Api</li>
+<li>Weather Api</li>
+<li>Envoy 代理配置</li>
+<li>docker compose 配置</li>
+</ol>
+<p>整体解决方案如下图所示。源码路径：<a href="https://github.com/sheng-jie/dotnet.on.k8s/tree/master/K8S.NET.Envoy" target="_blank" rel="noopener">K8S.NET.Envoy</a>。</p>
+<p><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-dcab57e426d6dcc0.png" alt=""></p>
+<p>Envoy 代理配置基于第一节的基础上进行修改，如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">admin:</span><br><span class="line">  access_log_path: &#x2F;tmp&#x2F;admin_access.log</span><br><span class="line">  address:</span><br><span class="line">    socket_address:</span><br><span class="line">      protocol: TCP</span><br><span class="line">      address: 0.0.0.0</span><br><span class="line">      port_value: 9903</span><br><span class="line">static_resources:</span><br><span class="line">  listeners:</span><br><span class="line">    - name: listener_0</span><br><span class="line">      address:</span><br><span class="line">        socket_address:</span><br><span class="line">          protocol: TCP</span><br><span class="line">          address: 0.0.0.0</span><br><span class="line">          port_value: 10003</span><br><span class="line">      filter_chains:</span><br><span class="line">        - filters:</span><br><span class="line">            - name: envoy.filters.network.http_connection_manager</span><br><span class="line">              typed_config:</span><br><span class="line">                &quot;@type&quot;: type.googleapis.com&#x2F;envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager</span><br><span class="line">                stat_prefix: ingress_http</span><br><span class="line">                route_config:</span><br><span class="line">                  name: local_route</span><br><span class="line">                  virtual_hosts:</span><br><span class="line">                    - name: local_service</span><br><span class="line">                      domains: [&quot;*&quot;]</span><br><span class="line">                      routes:</span><br><span class="line">                        - match:</span><br><span class="line">                            prefix: &quot;&#x2F;c&quot;</span><br><span class="line">                          route:</span><br><span class="line">                            prefix_rewrite: &quot;&#x2F;city&quot;</span><br><span class="line">                            cluster: city_service</span><br><span class="line">                        - match:</span><br><span class="line">                            prefix: &quot;&#x2F;w&quot;</span><br><span class="line">                          route:</span><br><span class="line">                            prefix_rewrite: &quot;&#x2F;weather&quot;</span><br><span class="line">                            cluster: weather_service</span><br><span class="line">                http_filters:</span><br><span class="line">                  - name: envoy.filters.http.router</span><br><span class="line">  clusters:</span><br><span class="line">    - name: city_service</span><br><span class="line">      connect_timeout: 0.25s</span><br><span class="line">      type: LOGICAL_DNS</span><br><span class="line">      # Comment out the following line to test on v6 networks</span><br><span class="line">      dns_lookup_family: V4_ONLY</span><br><span class="line">      lb_policy: ROUND_ROBIN</span><br><span class="line">      load_assignment:</span><br><span class="line">        cluster_name: city_service</span><br><span class="line">        endpoints:</span><br><span class="line">          - lb_endpoints:</span><br><span class="line">              - endpoint:</span><br><span class="line">                  address:</span><br><span class="line">                    socket_address:</span><br><span class="line">                      address: cityapi</span><br><span class="line">                      port_value: 80</span><br><span class="line">    - name: weather_service</span><br><span class="line">      connect_timeout: 0.25s</span><br><span class="line">      type: LOGICAL_DNS</span><br><span class="line">      # Comment out the following line to test on v6 networks</span><br><span class="line">      dns_lookup_family: V4_ONLY</span><br><span class="line">      lb_policy: ROUND_ROBIN</span><br><span class="line">      load_assignment:</span><br><span class="line">        cluster_name: weather_service</span><br><span class="line">        endpoints:</span><br><span class="line">          - lb_endpoints:</span><br><span class="line">              - endpoint:</span><br><span class="line">                  address:</span><br><span class="line">                    socket_address:</span><br><span class="line">                      address: weatherapi</span><br><span class="line">                      port_value: 80</span><br></pre></td></tr></table></figure>
+<p>以上配置Envoy监听<code>10003</code>端口，通过指定<code>prefix_rewrite</code>重写前缀，将<code>/c</code>路由至<code>cityapi</code>的<code>/city</code>路径，将<code>/w</code>路由至<code>weatherapi</code>的<code>/weather</code>路径。</p>
+<p>docker-compose配置如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">version: &#39;3&#39;</span><br><span class="line">services:</span><br><span class="line">  envoygateway:</span><br><span class="line">    build: Envoy&#x2F;</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;9903:9903&quot;</span><br><span class="line">      - &quot;10003:10003&quot;</span><br><span class="line">    volumes:</span><br><span class="line">      - .&#x2F;Envoy&#x2F;envoy.yaml:&#x2F;etc&#x2F;envoy&#x2F;envoy.yaml</span><br><span class="line">  cityapi:</span><br><span class="line">    build: K8S.NET.CityApi&#x2F;</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;8080:80&quot;</span><br><span class="line">    environment:</span><br><span class="line">      ASPNETCORE_URLS: &quot;http:&#x2F;&#x2F;+&quot;</span><br><span class="line">      ASPNETCORE_ENVIRONMENT: &quot;Development&quot;</span><br><span class="line"></span><br><span class="line">  weatherapi:</span><br><span class="line">    build: K8S.NET.WeatherApi&#x2F;</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;8082:80&quot;</span><br><span class="line">    environment:</span><br><span class="line">      ASPNETCORE_URLS: &quot;http:&#x2F;&#x2F;+&quot;</span><br><span class="line">      ASPNETCORE_ENVIRONMENT: &quot;Development&quot;</span><br></pre></td></tr></table></figure>
+<p>从上可以看到，主要用来启动三个服务：</p>
+<ol>
+<li>envoy gateway：其中将项目路径下<code>/Envoy/envoy.yaml</code>挂载到容器目录<code>/etc/envoy/envoy.yaml</code>。同时暴露2个端口，9903，10003。</li>
+<li>city api</li>
+<li>weather api</li>
+</ol>
+<p>因此最终可以通过以下路径进行访问：</p>
+<ol>
+<li><a href="http://localhost:10003/c" target="_blank" rel="noopener">http://localhost:10003/c</a> 访问city api。</li>
+<li><a href="http://localhost:10003/w" target="_blank" rel="noopener">http://localhost:10003/w</a> 访问weather api。</li>
+</ol>
+<p>执行以下命令，启动应用和代理，并测试：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&gt; docker-compose up -d</span><br><span class="line">Starting k8snetenvoy_envoygateway_1 ... done</span><br><span class="line">Starting k8snetenvoy_cityapi_1      ... done</span><br><span class="line">Starting k8snetenvoy_weatherapi_1   ... done</span><br><span class="line">&gt; docker-compose ps</span><br><span class="line">           Name                         Command               State                         Ports</span><br><span class="line">-----------------------------------------------------------------------------------------------------------------------</span><br><span class="line">k8snetenvoy_cityapi_1        dotnet K8S.NET.CityApi.dll       Up      443&#x2F;tcp, 0.0.0.0:8080-&gt;80&#x2F;tcp</span><br><span class="line">k8snetenvoy_envoygateway_1   &#x2F;docker-entrypoint.sh envo ...   Up      10000&#x2F;tcp, 0.0.0.0:10003-&gt;10003&#x2F;tcp,</span><br><span class="line">                                                                      0.0.0.0:9903-&gt;9903&#x2F;tcp</span><br><span class="line">k8snetenvoy_weatherapi_1     dotnet K8S.NET.WeatherApi.dll    Up      443&#x2F;tcp, 0.0.0.0:8082-&gt;80&#x2F;tcp</span><br><span class="line"></span><br><span class="line">&gt; curl http:&#x2F;&#x2F;localhost:10003&#x2F;c</span><br><span class="line">Shanghai</span><br><span class="line">&gt; curl http:&#x2F;&#x2F;localhost:10003&#x2F;w</span><br><span class="line">Cool</span><br></pre></td></tr></table></figure>
+
+<h1 id="3-eShopOnContainers-中的应用"><a href="#3-eShopOnContainers-中的应用" class="headerlink" title="3. eShopOnContainers 中的应用"></a>3. eShopOnContainers 中的应用</h1><p>eShopOnContainer 中主要定义了四个API 网关（BFF 模式），服务间通信方式主要有两种，一种是HTTP，一种是gRPC。如果启用Service Mesh并且部署至K8S，服务整体通信架构如下图所示：</p>
+<p><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-47be05d0bd32c83d.png" alt=""></p>
+<p>有两点需要补充说明：</p>
+<ol>
+<li><a href="https://linkerd.io" target="_blank" rel="noopener">Linkerd</a>是一种Service Mesh，其核心思想是借助<strong>Sidecar</strong>模式无侵入式对应用进行服务治理，包括服务发现、流量管理、负载均衡、路由等。</li>
+<li>了解过Istio（目前比较流行的Service Mesh）应该知道，Envoy在Istio中作为Sidecar而存在，而在eShopOnContainers中Envoy被充当API Gateways。</li>
+</ol>
+<p>基于上面的基础，再来看eShopOnContainers中的配置，其实就很明白了，主要是配置文件从Ocelot 转变到envoy.yaml，配置如下图所示。<br><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-5425c94996b90bd5.png" alt="eShopOnContainers  envoy proxy configuration"></p>
+<p>路由配置如下：</p>
+<ol>
+<li>/m/ 、/marketing-api/ 路由至：marketing api</li>
+<li>/c/、/catalog-api/ 路由至：catalog api</li>
+<li>/o/、/ordering-api/ 路由至：ordering api</li>
+<li>/b/、/basket-api/ 路由至：basket api</li>
+<li>/ 路由至：web bff aggregator api</li>
+</ol>
+<p>部署时，基于helm将<code>envoy.yaml</code>保存至<code>ConfigMap</code>，在基于<code>envoyproxy/enovy</code>镜像构建容器，将配置从<code>ConfigMap</code>挂载到容器中，容器内部即可基于配置启动Envoy 网关了。<br><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-7166fb7fafa25e35.png" alt=""></p>
+<h1 id="4-Why-Envoy"><a href="#4-Why-Envoy" class="headerlink" title="4. Why Envoy"></a>4. Why Envoy</h1><p>经过上面的了解发现，Envoy还是充当的网关角色，那为什么要替换呢？ 先来了解下Envoy的优势：</p>
+<ul>
+<li><p><strong>非侵入式架构</strong> : <code>Envoy</code> 基于<code>Sidecar</code>模式，是一个独立进程，对应用透明。（在eShopOnContainer中还是独立的网关项目，并非以<code>Sidecar</code>模式注入到服务中。）</p>
+<p><img src="/images/eshoponcontainers-envoy-gateway-12/2799767-d4f4df96d0ad4b1a.png" alt=""></p>
+</li>
+<li><p><strong>基于C++开发实现</strong>：拥有强大的定制化能力和优异的性能。</p>
+</li>
+<li><p><strong>L3/L4/L7 架构</strong> : 传统的网络代理，要么在 <code>HTTP</code> 层工作，要么在 <code>TCP</code> 层工作。而<code>Envoy</code> 同时支持 3/4 层和 7 层代理。</p>
+</li>
+<li><p><strong>顶级 HTTP/2 支持</strong> : 它将 <code>HTTP/2</code> 视为一等公民，并且可以在 <code>HTTP/2</code> 和 <code>HTTP/1.1</code> 之间相互转换（双向），建议使用 <code>HTTP/2</code>。</p>
+</li>
+<li><p><strong>gRPC 支持</strong> : Envoy 完美支持 HTTP/2，也可以很方便地支持 <code>gRPC</code> (<a href="http://www.grpc.io/" target="_blank" rel="noopener">gRPC</a> 使用 <code>HTTP/2</code> 作为底层多路复用传输协议)。</p>
+</li>
+<li><p><strong>服务发现和动态配置</strong> : 与 <code>Nginx</code> 等代理的热加载不同，<code>Envoy</code> 可以通过 <code>API</code> 接口动态更新配置，无需重启代理。</p>
+</li>
+<li><p><strong>特殊协议支持</strong> : Envoy 支持对特殊协议在 L7 进行嗅探和统计，包括：<a href="https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/mongo_proxy_filter#" target="_blank" rel="noopener">MongoDB</a>、<a href="https://www.servicemesher.com/envoy/intro/arch_overview/dynamo.html#arch-overview-dynamo" target="_blank" rel="noopener">DynamoDB</a> 等。</p>
+</li>
+<li><p><strong>可观测性</strong> : <code>Envoy</code> 内置 <code>stats</code> 模块，可以集成诸如 <code>prometheus/statsd</code> 等监控方案。还可以集成分布式追踪系统，对请求进行追踪。</p>
+</li>
+</ul>
+<p>再来看下Ocelot：其本质还是ASP.NET Core中的一个请求中间件。只能进行7层代理，不支持 gRPC，不支持监控。因此总体而言，Envoy更契合云原生对网络代理的诉求。</p>
+<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h1><p>本文简要梳理了Envoy的基本用法，以及其在eShopOnContainers中的运用。Envoy作为一个比肩Nginx的服务代理，其特性在Service Mesh中有着灵活的运用。本文就讲到这里了，下次有机会在和大家分享下Envoy在Service Mesh中的应用。</p>
+<blockquote>
+<p>参考资料：</p>
+<ol>
+<li><a href="https://fuckcloudnative.io/envoy-handbook/docs/overview/overview/" target="_blank" rel="noopener">Envoy 介绍 - Envoy 中文指南</a></li>
+<li><a href="https://www.youtube.com/watch?v=UsoH5cqE1OA" target="_blank" rel="noopener">Build an API Gateway with Envoy and use with .NET Core APIs</a></li>
+</ol>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[5]：EventBus With RabbitMQ</title>
+    <url>/post/eshoponcontainers-eventbus-with-rabbitmq-5/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线这个概念对你来说可能很陌生，但提到观察者（发布-订阅）模式，你也许就很熟悉。事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。<br><img src="/images/eshoponcontainers-eventbus-with-rabbitmq-5/2799767-6f44bdefa88a23a2.png" alt=""><br>从上图可知，核心就4个角色：</p>
+<ol>
+<li>事件（事件源+事件处理）</li>
+<li>事件发布者</li>
+<li>事件订阅者</li>
+<li>事件总线</li>
+</ol>
+<p>实现事件总线的关键是：</p>
+<ol>
+<li>事件总线维护一个事件源与事件处理的映射字典；</li>
+<li>通过单例模式，确保事件总线的唯一入口；</li>
+<li>利用反射完成事件源与事件处理的初始化绑定；</li>
+<li>提供统一的事件注册、取消注册和触发接口。</li>
+</ol>
+<p>以上源于我在<a href="https://www.jianshu.com/p/22fbe7a7c120" target="_blank" rel="noopener">事件总线知多少（1）</a>中对于EventBus的分析和简单总结。基于以上的简单认知，我们来梳理下eShopOnContainers中EventBus的实现机制·。</p>
+<h1 id="2-高屋建瓴–看类图"><a href="#2-高屋建瓴–看类图" class="headerlink" title="2. 高屋建瓴–看类图"></a>2. 高屋建瓴–看类图</h1><p>我们直接以上帝视角，来看下其实现机制，上类图。<br><img src="/images/eshoponcontainers-eventbus-with-rabbitmq-5/2799767-ffc77b39b8c56084.png" alt="EventBus Class Diagram"></p>
+<p>我们知道事件的本质是：<strong>事件源+事件处理</strong>。<br>针对事件源，其定义了<code>IntegrationEvent</code>基类来处理。默认仅包含一个guid和一个创建日期，具体的事件可以通过继承该类，来完善事件的描述信息。</p>
+<blockquote>
+<p>这里有必要解释下<strong>Integration Event（集成事件）</strong>。因为在微服务中事件的消费不再局限于当前领域内，而是多个微服务可能共享同一个事件，所以这里要和DDD中的领域事件区分开来。集成事件可用于跨多个微服务或外部系统同步领域状态，这是通过在微服务之外发布集成事件来实现的。</p>
+</blockquote>
+<p>针对事件处理，其本质是对事件的反应，一个事件可引起多个反应，所以，它们之间是一对多的关系。<br>eShopOnContainers中抽象了两个事件处理的接口：</p>
+<ol>
+<li>IIntegrationEventHandler</li>
+<li>IDynamicIntegrationEventHandler</li>
+</ol>
+<p>二者都定义了一个<code>Handle</code>方法用于响应事件。不同之处在于方法参数的类型：<br>第一个接受的是一个强类型的<code>IntegrationEvent</code>。第二个接收的是一个动态类型<code>dynamic</code>。<br>为什么要单独提供一个事件源为<code>dynamic</code>类型的接口呢？<br>不是每一个事件源都需要详细的事件信息，所以一个强类型的参数约束就没有必要，通过<code>dynamic</code>可以简化事件源的构建，更趋于灵活。</p>
+<p>有了事件源和事件处理，接下来就是事件的注册和订阅了。为了方便进行订阅管理，系统提供了额外的一层抽象<code>IEventBusSubscriptionsManager</code>，其用于维护事件的订阅和注销，以及订阅信息的持久化。其默认的实现<code>InMemoryEventBusSubscriptionsManager</code>就是使用内存进行存储事件源和事件处理的映射字典。<br>从类图中看<code>InMemoryEventBusSubscriptionsManager</code>中定义了一个内部类<code>SubscriptionInfo</code>，其主要用于表示事件订阅方的订阅类型和事件处理的类型。</p>
+<p>我们来近距离看下<code>InMemoryEventBusSubscriptionsManager</code>的定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;InMemoryEventBusSubscriptionsManager.cs</span><br><span class="line">&#x2F;&#x2F;定义的事件名称和事件订阅的字典映射（1:N）</span><br><span class="line">private readonly Dictionary&lt;string, List&lt;SubscriptionInfo&gt;&gt; _handlers;</span><br><span class="line">&#x2F;&#x2F;保存所有的事件处理类型</span><br><span class="line">private readonly List&lt;Type&gt; _eventTypes;</span><br><span class="line">&#x2F;&#x2F;定义事件移除后事件</span><br><span class="line">public event EventHandler&lt;string&gt; OnEventRemoved;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;构造函数初始化</span><br><span class="line">public InMemoryEventBusSubscriptionsManager()</span><br><span class="line">&#123;</span><br><span class="line">    _handlers &#x3D; new Dictionary&lt;string, List&lt;SubscriptionInfo&gt;&gt;();</span><br><span class="line">    _eventTypes &#x3D; new List&lt;Type&gt;();</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;添加动态类型事件订阅（需要手动指定事件名称）</span><br><span class="line">public void AddDynamicSubscription&lt;TH&gt;(string eventName)</span><br><span class="line">    where TH : IDynamicIntegrationEventHandler</span><br><span class="line">&#123;</span><br><span class="line">    DoAddSubscription(typeof(TH), eventName, isDynamic: true);</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;添加强类型事件订阅（事件名称为事件源类型）</span><br><span class="line">public void AddSubscription&lt;T, TH&gt;()</span><br><span class="line">    where T : IntegrationEvent</span><br><span class="line">    where TH : IIntegrationEventHandler&lt;T&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var eventName &#x3D; GetEventKey&lt;T&gt;();</span><br><span class="line"></span><br><span class="line">    DoAddSubscription(typeof(TH), eventName, isDynamic: false);</span><br><span class="line"></span><br><span class="line">    if (!_eventTypes.Contains(typeof(T)))</span><br><span class="line">    &#123;</span><br><span class="line">        _eventTypes.Add(typeof(T));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;移除动态类型事件订阅</span><br><span class="line">public void RemoveDynamicSubscription&lt;TH&gt;(string eventName)</span><br><span class="line">    where TH : IDynamicIntegrationEventHandler</span><br><span class="line">&#123;</span><br><span class="line">    var handlerToRemove &#x3D; FindDynamicSubscriptionToRemove&lt;TH&gt;(eventName);</span><br><span class="line">    DoRemoveHandler(eventName, handlerToRemove);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;移除强类型事件订阅</span><br><span class="line">public void RemoveSubscription&lt;T, TH&gt;()</span><br><span class="line">    where TH : IIntegrationEventHandler&lt;T&gt;</span><br><span class="line">    where T : IntegrationEvent</span><br><span class="line">&#123;</span><br><span class="line">    var handlerToRemove &#x3D; FindSubscriptionToRemove&lt;T, TH&gt;();</span><br><span class="line">    var eventName &#x3D; GetEventKey&lt;T&gt;();</span><br><span class="line">    DoRemoveHandler(eventName, handlerToRemove);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>添加了这么一层抽象，即符合了单一职责原则，又完成了代码重用。<code>IEventBus</code>的具体实现通过注入对<code>IEventBusSubscriptionsManager</code>的依赖，即可完成订阅管理。<br>你这里可能会好奇，为什么要暴露一个<code>OnEventRemoved</code>事件？这里先按住不表，留给大家思考。</p>
+<h1 id="3-使用RabbitMQ实现EventBus"><a href="#3-使用RabbitMQ实现EventBus" class="headerlink" title="3. 使用RabbitMQ实现EventBus"></a>3. 使用RabbitMQ实现EventBus</h1><p><img src="/images/eshoponcontainers-eventbus-with-rabbitmq-5/2799767-e755a64504de3add.png" alt=""></p>
+<h2 id="3-1-为什么需要RabbitMQ"><a href="#3-1-为什么需要RabbitMQ" class="headerlink" title="3.1. 为什么需要RabbitMQ?"></a>3.1. 为什么需要RabbitMQ?</h2><p>微服务的一大特点就是分布式。若需要做到<strong>动一发而牵全身</strong>，就需要一个持久化的集中式的EventBus。这就要求<strong>各个微服务内部虽然分别持有一个对EventBus的引用，但它们背后都必须连接着同一个用于持久化的数据源。</strong></p>
+<p>那你可能会说：那这个很好实现，使用同一个数据库就好了。为什么非要用个什么RabbitMQ？问的好！这就要去探讨下RabbitMQ是为了解决什么问题了。</p>
+<blockquote>
+<p>RabbitMQ提供了可靠的消息机制、跟踪机制和灵活的消息路由，支持消息集群和分布式部署。适用于排队算法、秒杀活动、消息分发、异步处理、数据同步、处理耗时任务、CQRS等应用场景。</p>
+</blockquote>
+<p>而关于RabbitMQ的具体使用，这里不再展开，可参考<a href="https://www.jianshu.com/p/ca6736de9511" target="_blank" rel="noopener">RabbitMQ知多少</a>。</p>
+<h2 id="3-2-EventBus集成RabbitMQ的核心"><a href="#3-2-EventBus集成RabbitMQ的核心" class="headerlink" title="3.2. EventBus集成RabbitMQ的核心"></a>3.2. EventBus集成RabbitMQ的核心</h2><p>集成RabbitMQ的关键在于理解其对消息的处理机制：</p>
+<ol>
+<li>消息的生产者和消费者通过与服务器（Broker）建立连接，然后基于创建的信道（Chanel）进行消息的发生和接收。</li>
+<li>消息的生产者可以通过声明指定的队列（queue）或交换机（exchange）以及路由（routingKey）进行消息的发送。</li>
+<li>消息的消费者通过绑定到相应的队列（queue）或交换机（exchange）监听相应的路由（routingKey），进行消息的接收。</li>
+<li>消息的消费者通过构造消费者实例绑定消息接收后的事件委托来进行消息消费。</li>
+</ol>
+<h2 id="3-3-源码一览"><a href="#3-3-源码一览" class="headerlink" title="3.3. 源码一览"></a>3.3. 源码一览</h2><p>基于以上的认知，我们再与<code>EventBusRabbitMQ</code>源码亲密接触。</p>
+<h3 id="3-3-1-构造函数定义"><a href="#3-3-1-构造函数定义" class="headerlink" title="3.3.1. 构造函数定义"></a>3.3.1. 构造函数定义</h3><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class EventBusRabbitMQ : IEventBus, IDisposable</span><br><span class="line">&#123;</span><br><span class="line">    const string BROKER_NAME &#x3D; &quot;eshop_event_bus&quot;;</span><br><span class="line"></span><br><span class="line">    private readonly IRabbitMQPersistentConnection _persistentConnection;</span><br><span class="line">    private readonly ILogger&lt;EventBusRabbitMQ&gt; _logger;</span><br><span class="line">    private readonly IEventBusSubscriptionsManager _subsManager;</span><br><span class="line">    private readonly ILifetimeScope _autofac;</span><br><span class="line">    private readonly string AUTOFAC_SCOPE_NAME &#x3D; &quot;eshop_event_bus&quot;;</span><br><span class="line">    private readonly int _retryCount;</span><br><span class="line"></span><br><span class="line">    private IModel _consumerChannel;</span><br><span class="line">    private string _queueName;</span><br><span class="line"></span><br><span class="line">    public EventBusRabbitMQ(IRabbitMQPersistentConnection persistentConnection, ILogger&lt;EventBusRabbitMQ&gt; logger,</span><br><span class="line">        ILifetimeScope autofac, IEventBusSubscriptionsManager subsManager, string queueName &#x3D; null, int retryCount &#x3D; 5)</span><br><span class="line">    &#123;</span><br><span class="line">        _persistentConnection &#x3D; persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));</span><br><span class="line">        _logger &#x3D; logger ?? throw new ArgumentNullException(nameof(logger));</span><br><span class="line">        _subsManager &#x3D; subsManager ?? new InMemoryEventBusSubscriptionsManager();</span><br><span class="line">        _queueName &#x3D; queueName;</span><br><span class="line">        _consumerChannel &#x3D; CreateConsumerChannel();</span><br><span class="line">        _autofac &#x3D; autofac;</span><br><span class="line">        _retryCount &#x3D; retryCount;</span><br><span class="line">        _subsManager.OnEventRemoved +&#x3D; SubsManager_OnEventRemoved;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private void SubsManager_OnEventRemoved(object sender, string eventName)</span><br><span class="line">    &#123;</span><br><span class="line">        if (!_persistentConnection.IsConnected)</span><br><span class="line">        &#123;</span><br><span class="line">            _persistentConnection.TryConnect();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        using (var channel &#x3D; _persistentConnection.CreateModel())</span><br><span class="line">        &#123;</span><br><span class="line">            channel.QueueUnbind(queue: _queueName, exchange: BROKER_NAME, routingKey: eventName);</span><br><span class="line"></span><br><span class="line">            if (_subsManager.IsEmpty)</span><br><span class="line">            &#123;</span><br><span class="line">                _queueName &#x3D; string.Empty;</span><br><span class="line">                _consumerChannel.Close();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#x2F;&#x2F;....</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>构造函数主要做了以下几件事：</p>
+<ol>
+<li>注入<code>IRabbitMQPersistentConnection</code>以便连接到对应的Broke。</li>
+<li>使用空对象模式注入<code>IEventBusSubscriptionsManager</code>，进行订阅管理。</li>
+<li>创建消费者信道，用于消息消费。</li>
+<li>注册<code>OnEventRemoved</code>事件，取消队列的绑定。（这也就回答了上面遗留的问题）</li>
+</ol>
+<h3 id="3-3-2-事件订阅的逻辑："><a href="#3-3-2-事件订阅的逻辑：" class="headerlink" title="3.3.2. 事件订阅的逻辑："></a>3.3.2. 事件订阅的逻辑：</h3><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private void DoInternalSubscription(string eventName)</span><br><span class="line">&#123;</span><br><span class="line">    var containsKey &#x3D; _subsManager.HasSubscriptionsForEvent(eventName);</span><br><span class="line">    if (!containsKey)</span><br><span class="line">    &#123;</span><br><span class="line">        if (!_persistentConnection.IsConnected)</span><br><span class="line">        &#123;</span><br><span class="line">            _persistentConnection.TryConnect();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        using (var channel &#x3D; _persistentConnection.CreateModel())</span><br><span class="line">        &#123;</span><br><span class="line">            channel.QueueBind(queue: _queueName,</span><br><span class="line">                              exchange: BROKER_NAME,</span><br><span class="line">                              routingKey: eventName);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面我们可以看到事件的订阅主要是进行rabbitmq队列的绑定。以eventName为routingKey进行路由。</p>
+<h3 id="3-3-3-事件的发布逻辑"><a href="#3-3-3-事件的发布逻辑" class="headerlink" title="3.3.3. 事件的发布逻辑"></a>3.3.3. 事件的发布逻辑</h3><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void Publish(IntegrationEvent @event)</span><br><span class="line">&#123;</span><br><span class="line">    if (!_persistentConnection.IsConnected)</span><br><span class="line">    &#123;</span><br><span class="line">        _persistentConnection.TryConnect();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    var policy &#x3D; RetryPolicy.Handle&lt;BrokerUnreachableException&gt;()</span><br><span class="line">        .Or&lt;SocketException&gt;()</span><br><span class="line">        .WaitAndRetry(_retryCount, retryAttempt &#x3D;&gt; TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            _logger.LogWarning(ex.ToString());</span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">    using (var channel &#x3D; _persistentConnection.CreateModel())</span><br><span class="line">    &#123;</span><br><span class="line">        var eventName &#x3D; @event.GetType()</span><br><span class="line">            .Name;</span><br><span class="line"></span><br><span class="line">        channel.ExchangeDeclare(exchange: BROKER_NAME, type: &quot;direct&quot;);</span><br><span class="line"></span><br><span class="line">        var message &#x3D; JsonConvert.SerializeObject(@event);</span><br><span class="line">        var body &#x3D; Encoding.UTF8.GetBytes(message);</span><br><span class="line"></span><br><span class="line">        policy.Execute(() &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            var properties &#x3D; channel.CreateBasicProperties();</span><br><span class="line">            properties.DeliveryMode &#x3D; 2; &#x2F;&#x2F; persistent</span><br><span class="line"></span><br><span class="line">            channel.BasicPublish(exchange: BROKER_NAME, routingKey: eventName, mandatory:true, basicProperties: properties, body: body);</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里面有以下几个知识点：</p>
+<ol>
+<li>使用Polly，以2的阶乘的时间间隔进行重试。（第一次2s后，第二次4s后，第三次8s后…重试）</li>
+<li>使用direct全匹配、单播形式的路由机制进行消息分发</li>
+<li>消息主体是格式化的json字符串</li>
+<li>指定<code>DeliveryMode = 2</code>进行消息持久化</li>
+<li>指定<code>mandatory: true</code>告知服务器当根据指定的routingKey和消息找不到对应的队列时，直接返回消息给生产者。</li>
+</ol>
+<h3 id="3-3-4-然后看看事件消息的监听"><a href="#3-3-4-然后看看事件消息的监听" class="headerlink" title="3.3.4. 然后看看事件消息的监听"></a>3.3.4. 然后看看事件消息的监听</h3><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private IModel CreateConsumerChannel()</span><br><span class="line">&#123;</span><br><span class="line">    if (!_persistentConnection.IsConnected)</span><br><span class="line">    &#123;</span><br><span class="line">        _persistentConnection.TryConnect();</span><br><span class="line">    &#125;</span><br><span class="line">    var channel &#x3D; _persistentConnection.CreateModel();</span><br><span class="line">    channel.ExchangeDeclare(exchange: BROKER_NAME, type: &quot;direct&quot;);</span><br><span class="line">    channel.QueueDeclare(queue: _queueName, durable: true, exclusive: false,autoDelete: false, arguments: null);</span><br><span class="line">    var consumer &#x3D; new EventingBasicConsumer(channel);</span><br><span class="line">    consumer.Received +&#x3D; async (model, ea) &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        var eventName &#x3D; ea.RoutingKey;</span><br><span class="line">        var message &#x3D; Encoding.UTF8.GetString(ea.Body);</span><br><span class="line">        await ProcessEvent(eventName, message);</span><br><span class="line">        channel.BasicAck(ea.DeliveryTag, multiple:false);</span><br><span class="line">    &#125;;</span><br><span class="line">    channel.BasicConsume(queue: _queueName, autoAck: false, consumer: consumer);</span><br><span class="line">    channel.CallbackException +&#x3D; (sender, ea) &#x3D;&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        _consumerChannel.Dispose();</span><br><span class="line">        _consumerChannel &#x3D; CreateConsumerChannel();</span><br><span class="line">    &#125;;</span><br><span class="line">    return channel;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上代码演示了如创建消费信道进行消息处理的步骤：</p>
+<ol>
+<li>创建信道Channel</li>
+<li>并申明Exchange</li>
+<li>实例化绑定Channel的消费者实例</li>
+<li>注册<code>Received</code>事件委托处理消息接收事件</li>
+<li>调用<code>channel.BasicConsume</code>启动监听</li>
+</ol>
+<h3 id="3-3-5-具体的事件处理"><a href="#3-3-5-具体的事件处理" class="headerlink" title="3.3.5. 具体的事件处理"></a>3.3.5. 具体的事件处理</h3><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private async Task ProcessEvent(string eventName, string message)</span><br><span class="line">&#123;</span><br><span class="line">    if (_subsManager.HasSubscriptionsForEvent(eventName))</span><br><span class="line">    &#123;</span><br><span class="line">        using (var scope &#x3D; _autofac.BeginLifetimeScope(AUTOFAC_SCOPE_NAME))</span><br><span class="line">        &#123;</span><br><span class="line">            var subscriptions &#x3D; _subsManager.GetHandlersForEvent(eventName);</span><br><span class="line">            foreach (var subscription in subscriptions)</span><br><span class="line">            &#123;</span><br><span class="line">                if (subscription.IsDynamic)</span><br><span class="line">                &#123; </span><br><span class="line">                    var handler &#x3D; scope.ResolveOptional(subscription.HandlerType) as IDynamicIntegrationEventHandler;</span><br><span class="line">                    dynamic eventData &#x3D; JObject.Parse(message);</span><br><span class="line">                    await handler.Handle(eventData);</span><br><span class="line">                &#125;</span><br><span class="line">                else</span><br><span class="line">                &#123;</span><br><span class="line">                    var eventType &#x3D; _subsManager.GetEventTypeByName(eventName);</span><br><span class="line">                    var integrationEvent &#x3D; JsonConvert.DeserializeObject(message, eventType);</span><br><span class="line">                    var handler &#x3D; scope.ResolveOptional(subscription.HandlerType);</span><br><span class="line">                    var concreteType &#x3D; typeof(IIntegrationEventHandler&lt;&gt;).MakeGenericType(eventType);</span><br><span class="line">                    await (Task)concreteType.GetMethod(&quot;Handle&quot;).Invoke(handler, new object[] &#123; integrationEvent &#125;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上代码主要包括以下知识点：</p>
+<ol>
+<li>Json字符串的反序列化</li>
+<li>利用依赖注入容器解析集成事件（Integration Event）和事件处理（Event Handler）类型</li>
+<li>反射调用具体的事件处理方法</li>
+</ol>
+<h1 id="4-EventBus的集成和使用"><a href="#4-EventBus的集成和使用" class="headerlink" title="4. EventBus的集成和使用"></a>4. EventBus的集成和使用</h1><p>以上介绍了EventBus的实现要点，那各个微服务是如何集成呢？<br><strong>1. 注册<code>IRabbitMQPersistentConnection</code>服务用于设置RabbitMQ连接</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">services.AddSingleton&lt;IRabbitMQPersistentConnection&gt;(sp &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var logger &#x3D; sp.GetRequiredService&lt;ILogger&lt;DefaultRabbitMQPersistentConnection&gt;&gt;();</span><br><span class="line">    &#x2F;&#x2F;...</span><br><span class="line">    return new DefaultRabbitMQPersistentConnection(factory, logger, retryCount);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><strong>2. 注册单例模式的<code>IEventBusSubscriptionsManager</code>用于订阅管理</strong><br><code>services.AddSingleton&lt;IEventBusSubscriptionsManager, InMemoryEventBusSubscriptionsManager&gt;();</code></p>
+<p><strong>3. 注册单例模式的<code>EventBusRabbitMQ</code></strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">services.AddSingleton&lt;IEventBus, EventBusRabbitMQ&gt;(sp &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var rabbitMQPersistentConnection &#x3D; sp.GetRequiredService&lt;IRabbitMQPersistentConnection&gt;();</span><br><span class="line">    var iLifetimeScope &#x3D; sp.GetRequiredService&lt;ILifetimeScope&gt;();</span><br><span class="line">    var logger &#x3D; sp.GetRequiredService&lt;ILogger&lt;EventBusRabbitMQ&gt;&gt;();</span><br><span class="line">    var eventBusSubcriptionsManager &#x3D; sp.GetRequiredService&lt;IEventBusSubscriptionsManager&gt;();</span><br><span class="line"></span><br><span class="line">    var retryCount &#x3D; 5;</span><br><span class="line">    if (!string.IsNullOrEmpty(Configuration[&quot;EventBusRetryCount&quot;]))</span><br><span class="line">    &#123;</span><br><span class="line">        retryCount &#x3D; int.Parse(Configuration[&quot;EventBusRetryCount&quot;]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return new EventBusRabbitMQ(rabbitMQPersistentConnection, logger, iLifetimeScope, eventBusSubcriptionsManager, subscriptionClientName, retryCount);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>完成了以上集成，就可以在代码中使用事件总线，进行事件的发布和订阅。</p>
+<p><strong>4. 发布事件</strong><br>若要发布事件，需要根据是否需要事件源（参数传递）来决定是否需要申明相应的集成事件，需要则继承自<code>IntegrationEvent</code>进行申明。然后在需要发布事件的地方进行实例化，并通过调用<code>IEventBus</code>的实例的<code>Publish</code>方法进行发布。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;事件源的声明</span><br><span class="line">public class ProductPriceChangedIntegrationEvent : IntegrationEvent</span><br><span class="line">&#123;        </span><br><span class="line">    public int ProductId &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public decimal NewPrice &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public decimal OldPrice &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public ProductPriceChangedIntegrationEvent(int productId, decimal newPrice, decimal oldPrice)</span><br><span class="line">    &#123;</span><br><span class="line">        ProductId &#x3D; productId;</span><br><span class="line">        NewPrice &#x3D; newPrice;</span><br><span class="line">        OldPrice &#x3D; oldPrice;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;声明事件源</span><br><span class="line">var priceChangedEvent &#x3D; new ProductPriceChangedIntegrationEvent(1001, 200.00, 169.00)</span><br><span class="line">&#x2F;&#x2F;发布事件</span><br><span class="line">_eventBus.Publish(priceChangedEvent）</span><br></pre></td></tr></table></figure>
+<p><strong>5. 订阅事件</strong><br>若要订阅事件，需要根据需要处理的事件类型，申明对应的事件处理类，继承自<code>IIntegrationEventHandler</code>或<code>IDynamicIntegrationEventHandler</code>，并注册到IOC容器。然后创建<code>IEventBus</code>的实例调用<code>Subscribe</code>方法进行显式订阅。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;定义事件处理</span><br><span class="line">public class ProductPriceChangedIntegrationEventHandler : IIntegrationEventHandler&lt;ProductPriceChangedIntegrationEvent&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public async Task Handle(ProductPriceChangedIntegrationEvent @event)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;do something</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;事件订阅</span><br><span class="line">var eventBus &#x3D; app.ApplicationServices.GetRequiredService&lt;IEventBus&gt;();</span><br><span class="line">eventBus.Subscribe&lt;ProductPriceChangedIntegrationEvent, ProductPriceChangedIntegrationEventHandler&gt;();</span><br></pre></td></tr></table></figure>
+<p><strong>6. 跨服务事件消费</strong><br>在微服务中跨服务事件消费很普遍，这里有一点需要说明的是如果订阅的强类型事件非当前微服务中订阅的事件，需要复制定义订阅的事件类型。换句话说，比如在A服务发布的<code>TestEvent</code>事件，B服务订阅该事件，同样需要在B服务复制定义一个<code>TestEvent</code>。<br>这也是微服务的一个通病，重复代码。</p>
+<h1 id="5-最后"><a href="#5-最后" class="headerlink" title="5. 最后"></a>5. 最后</h1><p>通过一步一步的源码梳理，我们发现eShopOnContainers中事件总线的总体实现思路与引言部分的介绍十分契合。所以对于事件总线，不要觉得高深，明确参与的几个角色以及基本的实现步骤，那么不管是基于RabbitMQ实现也好还是基于Azure Service Bus也好，万变不离其宗！</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[3]：Identity microservice</title>
+    <url>/post/eshoponcontainers-identity-microservice-3/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>通常，服务所公开的资源和 API 必须仅限受信任的特定用户和客户端访问。那进行 API 级别信任决策的第一步就是身份认证——确定用户身份是否可靠。</p>
+<p>在微服务场景中，身份认证通常统一处理。一般有两种实现形式：</p>
+<ol>
+<li><p><strong>基于API 网关中心化认证</strong>：要求客户端必须都通过网关访问微服务。（这就要求提供一种安全机制来认证请求是来自于网关。）<br><img src="/images/eshoponcontainers-identity-microservice-3/2799767-c144a034f31f618a.png" alt="基于API 网关中心化认证"></p>
+</li>
+<li><p><strong>基于安全令牌服务（STS）认证</strong>：所有的客户端先从STS获取令牌，然后请求时携带令牌完成认证。<br><img src="/images/eshoponcontainers-identity-microservice-3/2799767-5fd11c4964526d9e.png" alt="基于安全令牌服务（STS）认证"></p>
+</li>
+</ol>
+<p>而本节所讲的Identity microservice就是使用第二种身份认证方式。</p>
+<h1 id="服务简介"><a href="#服务简介" class="headerlink" title="服务简介"></a>服务简介</h1><p>Identity microservice 主要用于统一的身份认证和授权，为其他服务提供支撑。</p>
+<p>提到认证，大家最熟悉不过的当属Cookie认证了，它也是目前使用最多的认证方式。但Cookie认证也有其局限性：不支持跨域、移动端不友好等。而从当前的架构来看，需要支持移动端、Web端、微服务间的交叉认证授权，所以传统的基于Cookie的本地认证方案就行不通了。我们就需要使用远程认证的方式来提供统一的认证授权机制。<br>而远程认证方式当属：OAuth2.0和OpenID Connect了。借助OAuth2.0和OpenID Connect即可实现类似下图的认证体系：<br><img src="/images/eshoponcontainers-identity-microservice-3/2799767-e11fee58768082b6.png" alt=""></p>
+<p>而如何实现呢，借助：</p>
+<ol>
+<li>ASP.NET Core Identity</li>
+<li>IdentityServer4</li>
+</ol>
+<p>基于Cookie的认证和基于Token的认证的差别如下所示：</p>
+<p><img src="/images/eshoponcontainers-identity-microservice-3/2799767-94fe62157ce8bc16.png" alt="Cookie-Based Auth VS Token-Based Auth"></p>
+<h1 id="架构模式"><a href="#架构模式" class="headerlink" title="架构模式"></a>架构模式</h1><p>该微服务作为支撑服务，并没有选择复杂的架构模式，使用了MVC单层架构，使用EF Core ORM框架用于数据持久化，SQL Server数据库。使用Autofac IOC框架替换了默认依赖注入框架。</p>
+<p>项目结构如下所示：<br><img src="/images/eshoponcontainers-identity-microservice-3/2799767-1f015f6381e5178f.png" alt="Identity.API 项目结构"></p>
+<p>核心技术选型：</p>
+<ol>
+<li>MVC单层架构</li>
+<li>EF Core</li>
+<li><a href="https://github.com/aspnet/Identity" target="_blank" rel="noopener">ASP.NET Core Identity</a></li>
+<li><a href="https://github.com/IdentityServer/IdentityServer4" target="_blank" rel="noopener">IdentityServer4</a></li>
+<li>SQL Server 数据库</li>
+<li>Autofac</li>
+</ol>
+<p>PS：对ASP.NET Core Identity、IdentityServer4以及OAuth2.0不了解的，请先行阅读文末参考资料补课！！！</p>
+<p>下面就着重讲解ASP.NET Core Identity和IdentityServer4在本服务中的使用。</p>
+<h1 id="ASP-NET-Core-Identity-amp-amp-IdentityServer4简介"><a href="#ASP-NET-Core-Identity-amp-amp-IdentityServer4简介" class="headerlink" title="ASP.NET Core Identity &amp;&amp; IdentityServer4简介"></a>ASP.NET Core Identity &amp;&amp; IdentityServer4简介</h1><p>ASP.NET Core Identity用于构建ASP.NET Core Web应用程序的成员资格系统，包括成员资格，登录和用户数据（包括登录信息、角色和声明）。<br>ASP.NET Core Identity封装了User、Role、Claim等身份信息，便于我们快速完成登录功能的实现，并且支持第三方登录（Google、Facebook、QQ、Weixin等，支持开箱即用[<a href="https://github.com/aspnet-contrib/AspNet.Security.OAuth.Providers/tree/dev/src" target="_blank" rel="noopener">第三方身份提供商列表</a>]），以及双重验证，同时内置支持Bearer 认证（令牌认证）。</p>
+<p>虽然ASP.NET Core Identity已经完成了绝大多数的功能，且支持第三方登录（第三方为其用户颁发令牌），但若要为本地用户颁发令牌，则需要自己实现令牌的颁发和验证逻辑。换句话说，我们需要自行实现OpenId Connect协议。</p>
+<blockquote>
+<p>OpenID Connect 1.0 是基于OAuth 2.0协议之上的简单身份层，它允许客户端根据授权服务器的认证结果最终确认终端用户的身份，以及获取基本的用户信息。</p>
+</blockquote>
+<p>而IdentityServer4就是为ASP.NET Core量身定制的实现了OpenId Connect和OAuth2.0协议的认证授权中间件。IdentityServer4在ASP.NET Core Identity的基础上，提供令牌的颁发验证等。</p>
+<h1 id="认证流程简介"><a href="#认证流程简介" class="headerlink" title="认证流程简介"></a>认证流程简介</h1><p>在ASP.NET Core中使用的是<strong>基于申明（Claim）的认证</strong>，而什么是申明（Cliam）呢？</p>
+<blockquote>
+<p>Claim 是关于一个人或组织的某个主题的陈述，比如：一个人的名称，角色，个人喜好，种族，特权，社团，能力等等。它本质上就是一个键值对，是一种非常通用的保存用户信息的方式，可以很容易的将认证和授权分离开来，前者用来表示用户是/不是什么，后者用来表示用户能/不能做什么。在认证阶段我们通过用户信息获取到用户的Claims，而授权便是对这些的Claims的验证，如：是否拥有Admin的角色，姓名是否叫XXX等等。</p>
+</blockquote>
+<p>认证主要与以下几个核心对象打交道：</p>
+<ol>
+<li>Claim（身份信息）</li>
+<li>ClaimsIdentity（身份证）</li>
+<li>ClaimsPrincipal （身份证持有者）</li>
+<li>AuthorizationToken （授权令牌）</li>
+<li>IAuthenticationScheme（认证方案）</li>
+<li>IAuthenticationHandler（与认证方案对应的认证处理器）</li>
+<li>IAuthenticationService （向外提供统一的认证服务接口）</li>
+</ol>
+<p>那其认证流程是怎样的呢？</p>
+<blockquote>
+<p>用户打开登录界面，输入用户名密码先行登录，服务端先行校验用户名密码是否有效，有效则返回用户实例（User），这时进入认证准备阶段，根据用户实例携带的身份信息（Claim），创建身份证（ClaimsIdentity），然后将身份证交给身份证持有者（ClaimsPrincipal）持有。接下来进入真正的认证阶段，根据配置的认证方案（IAuthenticationScheme），使用相对应的认证处理器（IAuthenticationHandler）进行认证 。认证成功后发放授权令牌（AuthorizationToken）。该授权令牌包含后续授权阶段需要的全部信息。</p>
+</blockquote>
+<h1 id="授权流程简介"><a href="#授权流程简介" class="headerlink" title="授权流程简介"></a>授权流程简介</h1><p>授权就是对于用户身份信息（Claims）的验证，，授权又分以下几种种：</p>
+<ol>
+<li>基于Role的授权</li>
+<li>基于Scheme的授权</li>
+<li>基于Policy的授权</li>
+</ol>
+<p>授权主要与以下几个核心对象打交道：</p>
+<ol>
+<li>IAuthorizationRequirement（授权条件）</li>
+<li>IAuthorizationService（授权服务）</li>
+<li>AuthorizationPolicy（授权策略）</li>
+<li>IAuthorizationHandler （授权处理器）</li>
+<li>AuthorizationResult（授权结果）</li>
+</ol>
+<p>那授权流程是怎样的呢？</p>
+<blockquote>
+<p>当收到授权请求后，由授权服务（IAuthorizationService）根据资源上指定的授权策略（AuthorizationPolicy）中包含的授权条件（IAuthorizationRequirement），找到相对应的授权处理器（IAuthorizationHandler ）来判断授权令牌中包含的身份信息是否满足授权条件，并返回授权结果。</p>
+</blockquote>
+<p><img src="/images/eshoponcontainers-identity-microservice-3/2799767-3e02fb3a7f95ef00.png" alt="核心对象"></p>
+<h1 id="中间件集成"><a href="#中间件集成" class="headerlink" title="中间件集成"></a>中间件集成</h1><p>简单了解了下认证和授权流程后，我们来了解Identity microservice是如何集成相关中间件的。</p>
+<h2 id="1-首先是映射自定义扩展的User和Role"><a href="#1-首先是映射自定义扩展的User和Role" class="headerlink" title="1. 首先是映射自定义扩展的User和Role"></a>1. 首先是映射自定义扩展的User和Role</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"> &#x2F;&#x2F; 映射自定义的User，Role</span><br><span class="line">services.AddIdentity&lt;ApplicationUser, IdentityRole&gt;()</span><br><span class="line">    .AddEntityFrameworkStores&lt;ApplicationDbContext&gt;()&#x2F;&#x2F;配置使用EF持久化存储</span><br><span class="line">    .AddDefaultTokenProviders();&#x2F;&#x2F;配置默认的TokenProvider用于变更密码和修改email时生成Token</span><br></pre></td></tr></table></figure>
+<h2 id="2-配置IdentityServer服务"><a href="#2-配置IdentityServer服务" class="headerlink" title="2. 配置IdentityServer服务"></a>2. 配置IdentityServer服务</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; Adds IdentityServer</span><br><span class="line">services.AddIdentityServer(x &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    x.IssuerUri &#x3D; &quot;null&quot;;</span><br><span class="line">    x.Authentication.CookieLifetime &#x3D; TimeSpan.FromHours(2);</span><br><span class="line">&#125;)</span><br><span class="line">.AddSigningCredential(Certificate.Get())</span><br><span class="line">.AddAspNetIdentity&lt;ApplicationUser&gt;()</span><br><span class="line">.AddConfigurationStore(options &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    options.ConfigureDbContext &#x3D; builder &#x3D;&gt; builder.UseSqlServer(connectionString,</span><br><span class="line">     sqlServerOptionsAction: sqlOptions &#x3D;&gt;</span><br><span class="line">     &#123;</span><br><span class="line">         sqlOptions.MigrationsAssembly(migrationsAssembly);</span><br><span class="line">         &#x2F;&#x2F;Configuring Connection Resiliency: https:&#x2F;&#x2F;docs.microsoft.com&#x2F;en-us&#x2F;ef&#x2F;core&#x2F;miscellaneous&#x2F;connection-resiliency </span><br><span class="line">         sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);</span><br><span class="line">     &#125;);</span><br><span class="line">&#125;)</span><br><span class="line">.AddOperationalStore(options &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    options.ConfigureDbContext &#x3D; builder &#x3D;&gt; builder.UseSqlServer(connectionString,</span><br><span class="line">     sqlServerOptionsAction: sqlOptions &#x3D;&gt;</span><br><span class="line">     &#123;</span><br><span class="line">         sqlOptions.MigrationsAssembly(migrationsAssembly);</span><br><span class="line">         &#x2F;&#x2F;Configuring Connection Resiliency: https:&#x2F;&#x2F;docs.microsoft.com&#x2F;en-us&#x2F;ef&#x2F;core&#x2F;miscellaneous&#x2F;connection-resiliency </span><br><span class="line">         sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);</span><br><span class="line">     &#125;);</span><br><span class="line">&#125;)</span><br><span class="line">.Services.AddTransient&lt;IProfileService, ProfileService&gt;();</span><br></pre></td></tr></table></figure>
+<p>IdentityServer默认直接在内存中存储配置数据（客户端和资源）和操作数据（令牌，代码和和用户的授权信息consents）。这显然在生产环境是不合适的，如果服务所在主机宕机，那么内存中的数据就会丢失，所以有必要持久化到数据库。<br>其中<code>AddConfigurationStore</code>和<code>AddOperationalStore</code>扩展方法就是用来来指定配置数据和操作数据基于EF进行持久化。</p>
+<h2 id="3-添加IdentityServer中间件"><a href="#3-添加IdentityServer中间件" class="headerlink" title="3. 添加IdentityServer中间件"></a>3. 添加IdentityServer中间件</h2><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)</span><br><span class="line">&#123;</span><br><span class="line">     &#x2F;&#x2F; .....</span><br><span class="line">    &#x2F;&#x2F; Adds IdentityServer</span><br><span class="line">    app.UseIdentityServer();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-预置种子数据"><a href="#4-预置种子数据" class="headerlink" title="4. 预置种子数据"></a>4. 预置种子数据</h2><p>从已知的体系结构来说，我们需要预置Client和Resource：</p>
+<ol>
+<li><p>Client</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static IEnumerable&lt;Client&gt; GetClients(Dictionary&lt;string,string&gt; clientsUrl)</span><br><span class="line">&#123;</span><br><span class="line">    return new List&lt;Client&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F; SPA OpenId Client Client(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Xamarin Client(Hybrid)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; MVC Client(Hybrid)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; MVC TEST Client(Hybrid)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Locations Swagger UI(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Marketing Swagger UI(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Basket Swagger UI(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Ordering Swagger UI(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Mobile Shopping Aggregattor Swagger UI(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">        &#x2F;&#x2F; Web Shopping Aggregattor Swagger UI(Implicit)</span><br><span class="line">        new Client</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>IdentityResources</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static IEnumerable&lt;IdentityResource&gt; GetResources()</span><br><span class="line">&#123;</span><br><span class="line">    return new List&lt;IdentityResource&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        new IdentityResources.OpenId(),</span><br><span class="line">        new IdentityResources.Profile()</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>ApiResources</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static IEnumerable&lt;ApiResource&gt; GetApis()</span><br><span class="line">&#123;</span><br><span class="line">    return new List&lt;ApiResource&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        new ApiResource(&quot;orders&quot;, &quot;Orders Service&quot;),</span><br><span class="line">        new ApiResource(&quot;basket&quot;, &quot;Basket Service&quot;),</span><br><span class="line">        new ApiResource(&quot;marketing&quot;, &quot;Marketing Service&quot;),</span><br><span class="line">        new ApiResource(&quot;locations&quot;, &quot;Locations Service&quot;),</span><br><span class="line">        new ApiResource(&quot;mobileshoppingagg&quot;, &quot;Mobile Shopping Aggregator&quot;),</span><br><span class="line">        new ApiResource(&quot;webshoppingagg&quot;, &quot;Web Shopping Aggregator&quot;),</span><br><span class="line">        new ApiResource(&quot;orders.signalrhub&quot;, &quot;Ordering Signalr Hub&quot;)</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="5-迁移数据库上下文"><a href="#5-迁移数据库上下文" class="headerlink" title="5. 迁移数据库上下文"></a>5. 迁移数据库上下文</h2><p>下面就把提前在代码预置的种子数据迁移到数据库中，我们如何做呢？IdentityServer为配置数据和操作数据分别定义了<code>DBContext</code>用于持久化，配置数据对应<code>ConfigurationDbContext</code>，操作数据对应<code>PersistedGrantDbContext</code>。代码如下所示：</p>
+</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static void Main(string[] args)</span><br><span class="line">&#123;</span><br><span class="line">    BuildWebHost(args)</span><br><span class="line">        .MigrateDbContext&lt;PersistedGrantDbContext&gt;((_, __) &#x3D;&gt; &#123; &#125;)&#x2F;&#x2F;迁移操作数据库</span><br><span class="line">        .MigrateDbContext&lt;ApplicationDbContext&gt;((context, services) &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            var env &#x3D; services.GetService&lt;IHostingEnvironment&gt;();</span><br><span class="line">            var logger &#x3D; services.GetService&lt;ILogger&lt;ApplicationDbContextSeed&gt;&gt;();</span><br><span class="line">            var settings &#x3D; services.GetService&lt;IOptions&lt;AppSettings&gt;&gt;();</span><br><span class="line"></span><br><span class="line">            new ApplicationDbContextSeed()</span><br><span class="line">                .SeedAsync(context, env, logger, settings)</span><br><span class="line">                .Wait();</span><br><span class="line">        &#125;)&#x2F;&#x2F;迁移用户数据库</span><br><span class="line">        .MigrateDbContext&lt;ConfigurationDbContext&gt;((context,services)&#x3D;&gt; </span><br><span class="line">        &#123;</span><br><span class="line">            var configuration &#x3D; services.GetService&lt;IConfiguration&gt;();</span><br><span class="line"></span><br><span class="line">            new ConfigurationDbContextSeed()</span><br><span class="line">                .SeedAsync(context, configuration)</span><br><span class="line">                .Wait();</span><br><span class="line">        &#125;)&#x2F;&#x2F;迁移配置数据库</span><br><span class="line">        .Run();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>至此，本服务的核心代码已解析完毕。</p>
+<p>最终的生成的数据库如下图所示：<br><img src="/images/eshoponcontainers-identity-microservice-3/2799767-7f7adefcc2ac323d.png" alt="IdentityDb"></p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>本文从业务和技术上对本服务进行剖析，介绍了其技术选型，并紧接着简要介绍了ASP.NET Core Identity和IdentityServer4，最后分析源码，一步步揭开其神秘的面纱。至于客户端和其他微服务服务如何使用Identity microservice进行认证和授权，我将在后续文章再行讲解。</p>
+<p>如果对ASP.NET Core Idenity和IdentityServer4不太了解，建议大家博客园阅读<strong><a href="https://www.cnblogs.com/RainingNight" target="_blank" rel="noopener">雨夜朦胧</a>、<a href="https://www.cnblogs.com/stulzq/" target="_blank" rel="noopener">晓晨Master</a>和<a href="https://www.cnblogs.com/savorboard/p/aspnetcore-identity.html" target="_blank" rel="noopener">Savorboard </a></strong><br>的博客进行系统学习后，再重读本文，相信你对Identity microservice的实现机制豁然开朗。</p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p><a href="https://www.cnblogs.com/RainingNight/p/introduce-basic-authentication-in-asp-net-core.html" target="_blank" rel="noopener">雨夜朦胧 – ASP.NET Core 认证与授权:初识认证/授权</a><br><a href="https://www.cnblogs.com/savorboard/p/aspnetcore-identity.html" target="_blank" rel="noopener">Savorboard – ASP.NET Core 之 Identity 入门（一）</a><br><a href="https://www.cnblogs.com/stulzq/p/8120518.html" target="_blank" rel="noopener">晓晨Master – IdentityServer（14）- 通过EntityFramework Core持久化配置和操作数据</a><br><a href="https://www.cnblogs.com/sheng-jie/p/9430920.html" target="_blank" rel="noopener">IdentityServer4 知多少</a><br><a href="https://www.cnblogs.com/sheng-jie/p/6564520.html" target="_blank" rel="noopener">OAuth2.0 知多少</a></p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[9]：Ocelot gateways</title>
+    <url>/post/eshoponcontainers-ocelot-gateway-9/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>客户端与微服务的通信问题永远是一个绕不开的问题，对于小型微服务应用，客户端与微服务可以使用直连的方式进行通信，但对于对于大型的微服务应用我们将不得不面对以下问题：</p>
+<ol>
+<li>如何降低客户端到后台的请求数量，并减少与多个微服务的无效交互？</li>
+<li>如何处理微服务间的交叉问题，比如授权、数据转换和动态请求派发？</li>
+<li>客户端如何与使用非互联网友好协议的服务进行交互？</li>
+<li>如何打造移动端友好的服务？</li>
+</ol>
+<p>而解决这一问题的方法之一就是借助API网关，其允许我们按需组合某些微服务以提供单一入口。</p>
+<p>接下来，本文就来梳理一下eShopOnContainers是如何集成Ocelot网关来进行通信的。</p>
+<p><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-6df888bfb800d24b.png" alt="使用自定义的API 网关服务"></p>
+<h1 id="Hello-Ocelot"><a href="#Hello-Ocelot" class="headerlink" title="Hello Ocelot"></a>Hello Ocelot</h1><p>关于Ocelot，张队在Github上贴心的整理了<strong><a href="https://github.com/geffzhang/awesome-ocelot" target="_blank" rel="noopener">awesome-ocelot</a></strong>系列以便于我们学习。这里就简单介绍下Ocelot，不过多展开。<br>Ocelot是一个开源的轻量级的基于ASP.NET Core构建的快速且可扩展的API网关，核心功能包括路由、请求聚合、限速和负载均衡，集成了IdentityServer4以提供身份认证和授权，基于Consul提供了服务发现能力，借助Polly实现了服务熔断，能够很好的和k8s和Service Fabric集成。</p>
+<h1 id="Ocelot-集成"><a href="#Ocelot-集成" class="headerlink" title="Ocelot 集成"></a>Ocelot 集成</h1><p>eShopOnContainers中的以下六个微服务都是通过网关API进行发布的。<br><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-11e65f8b4d35c06d.png" alt=""></p>
+<p>引入网关层后，eShopOnContainers的整体架构如下图所示：<br><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-cddf9d8899d1b5e2.png" alt="引入网关层后的整体架构设计"></p>
+<p>从代码结构来看，其基于业务边界（Marketing和Shopping）分别为Mobile和Web端建立多个网关项目，这样做利于隔离变化，降低耦合，且保证开发团队的独立自主性。所以我们在设计网关时也应注意到这一点，切忌设计大一统的单一API网关，以避免整个微服务架构体系的过度耦合。在网关设计中应当根据业务和领域去决定API网关的边界，尽量设计细粒度而非粗粒度的API网关。</p>
+<p>eShopOnContainers中<code>ApiGateways</code>文件下是相关的网关项目。相关项目结构如下图所示。</p>
+<p><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-d7346fe9e4650a78.png" alt="ApiGateways 代码结构"></p>
+<p>从代码结构看，有四个<code>configuration.json</code>文件，该文件就是ocelot的配置文件，其中主要包含两个节点：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line"> &quot;ReRoutes&quot;: [],</span><br><span class="line"> &quot;GlobalConfiguration&quot;: &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那4个独立的配置文件是怎样设计成4个独立的API网关的呢？<br>在eShopOnContainers中，首先基于<code>OcelotApiGw</code>项目构建单个Ocelot API网关Docker容器镜像，然后在运行时，通过使用<code>docker volume</code>分别挂载不同路径下的<code>configuration.json</code>文件来启动不同类型的API-Gateway容器。示意图如下：<br><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-97b8124b36117983.png" alt="重用Ocelot Docker镜像启动多个网关容器服务"></p>
+<p><code>docker-compse.yml</code>中相关配置如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; docker-compse.yml</span><br><span class="line">mobileshoppingapigw:</span><br><span class="line"> image: eshop&#x2F;ocelotapigw:$&#123;TAG:-latest&#125;</span><br><span class="line"> build:</span><br><span class="line"> context: .</span><br><span class="line"> dockerfile: src&#x2F;ApiGateways&#x2F;ApiGw-Base&#x2F;Dockerfile</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; docker-compse.override.yml</span><br><span class="line">mobileshoppingapigw:</span><br><span class="line"> environment:</span><br><span class="line"> - ASPNETCORE_ENVIRONMENT&#x3D;Development</span><br><span class="line"> - IdentityUrl&#x3D;http:&#x2F;&#x2F;identity.api</span><br><span class="line"> ports:</span><br><span class="line"> - &quot;5200:80&quot;</span><br><span class="line"> volumes:</span><br><span class="line"> - .&#x2F;src&#x2F;ApiGateways&#x2F;Mobile.Bff.Shopping&#x2F;apigw:&#x2F;app&#x2F;configuration</span><br></pre></td></tr></table></figure>
+<p>通过这种方式将API网关分成多个API网关，不仅可以同时重复使用相同的Ocelot Docker镜像，而且开发团队可以专注于团队所属微服务的开发，并通过独立的Ocelot配置文件来管理自己的API网关。</p>
+<p>而关于Ocelot的代码集成，主要就是指定配置文件以及注册Ocelot中间件。核心代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void ConfigureServices(IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;..</span><br><span class="line">    services.AddOcelot (new ConfigurationBuilder ()</span><br><span class="line">    .AddJsonFile (Path.Combine (&quot;configuration&quot;, &quot;configuration.json&quot;))</span><br><span class="line">    .Build ());</span><br><span class="line">&#125;</span><br><span class="line">public void Configure(IApplicationBuilder app, IHostingEnvironment env)</span><br><span class="line">&#123;</span><br><span class="line">     &#x2F;&#x2F;...</span><br><span class="line">    app.UseOcelot().Wait();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="请求聚合"><a href="#请求聚合" class="headerlink" title="请求聚合"></a>请求聚合</h1><p>在单体应用中时，进行页面展示时，可以一次性关联查询所需的对象并返回，但是对于微服务应用来说，某一个页面的展示可能需要涉及多个微服务的数据，那如何进行将多个微服务的数据进行聚合呢？首先，不可否认的是，Ocelot提供了请求聚合功能，但是就其灵活性而言，远不能满足我们的需求。因此，一般会选择自定义聚合器来完成灵活的聚合功能。在eShopOnContainers中就是通过独立ASP.NET Core Web API项目来提供明确的聚合服务。<code>Mobile.Shopping.HttpAggregator</code>和<code>Web.Shopping.HttpAggregator</code>即是用于提供自定义的请求聚合服务。</p>
+<p><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-6303c1e408d91ec0.png" alt="使用聚合服务的架构"></p>
+<p>下面就以<code>Web.Shopping.HttpAggregator</code>项目为例来讲解自定义聚合的实现思路。<br>首先，该网关项目是基于ASP.NET Web API构建。其代码结构如下图所示：<br><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-9ff01f34b16ae3bb.png" alt="Web.Shopping.HttpAggregator 自定义聚合服务代码结构"></p>
+<p>其核心思路是自定义网关服务借助HttpClient发起请求。我们来看一下<code>BasketService</code>的实现代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class BasketService : IBasketService</span><br><span class="line">&#123;</span><br><span class="line">    private readonly HttpClient _apiClient;</span><br><span class="line">    private readonly ILogger&lt;BasketService&gt; _logger;</span><br><span class="line">    private readonly UrlsConfig _urls;</span><br><span class="line">    public BasketService(HttpClient httpClient,ILogger&lt;BasketService&gt; logger, IOptions&lt;UrlsConfig&gt; config)</span><br><span class="line">    &#123;</span><br><span class="line">        _apiClient &#x3D; httpClient;</span><br><span class="line">        _logger &#x3D; logger;</span><br><span class="line">        _urls &#x3D; config.Value;</span><br><span class="line">    &#125;</span><br><span class="line">    public async Task&lt;BasketData&gt; GetById(string id)</span><br><span class="line">    &#123;</span><br><span class="line">        var data &#x3D; await _apiClient.GetStringAsync(_urls.Basket +  UrlsConfig.BasketOperations.GetItemById(id));</span><br><span class="line">        var basket &#x3D; !string.IsNullOrEmpty(data) ? JsonConvert.DeserializeObject&lt;BasketData&gt;(data) : null;</span><br><span class="line">        return basket;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码中主要是通过构造函数注入<code>HttpClient</code>，然后方法中借助<code>HttpClient</code>实例发起相应请求。那<code>HttpClient</code>实例是如何注册的呢，我们来看下启动类里服务注册逻辑。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static IServiceCollection AddApplicationServices(this IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;register delegating handlers</span><br><span class="line">    services.AddTransient&lt;HttpClientAuthorizationDelegatingHandler&gt;();</span><br><span class="line">    services.AddSingleton&lt;IHttpContextAccessor, HttpContextAccessor&gt;();</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;register http services  </span><br><span class="line">    services.AddHttpClient&lt;IBasketService, BasketService&gt;()</span><br><span class="line">        .AddHttpMessageHandler&lt;HttpClientAuthorizationDelegatingHandler&gt;()</span><br><span class="line">        .AddPolicyHandler(GetRetryPolicy())</span><br><span class="line">        .AddPolicyHandler(GetCircuitBreakerPolicy());</span><br><span class="line"></span><br><span class="line">    services.AddHttpClient&lt;ICatalogService, CatalogService&gt;()</span><br><span class="line">        .AddPolicyHandler(GetRetryPolicy())</span><br><span class="line">        .AddPolicyHandler(GetCircuitBreakerPolicy());</span><br><span class="line"></span><br><span class="line">    services.AddHttpClient&lt;IOrderApiClient, OrderApiClient&gt;()</span><br><span class="line">        .AddHttpMessageHandler&lt;HttpClientAuthorizationDelegatingHandler&gt;()</span><br><span class="line">        .AddPolicyHandler(GetRetryPolicy())</span><br><span class="line">        .AddPolicyHandler(GetCircuitBreakerPolicy());</span><br><span class="line">    return services;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从代码中可以看到主要做了三件事：</p>
+<ol>
+<li>注册<code>HttpClientAuthorizationDelegatingHandler</code>负责为HttpClient构造<code>Authorization</code>请求头</li>
+<li>注册<code>IHttpContextAccessor</code>用于获取<code>HttpContext</code></li>
+<li>为三个网关服务分别注册独立的<code>HttpClient</code>，其中<code>IBasketServie</code>和<code>IOrderApiClient</code>需要认证，所以注册了<code>HttpClientAuthorizationDelegatingHandler</code>用于构造<code>Authorization</code>请求头。另外，分别注册了<code>Polly</code>的请求重试和断路器策略。</li>
+</ol>
+<p>那<code>HttpClientAuthorizationDelegatingHandler</code>是如何构造<code>Authorization</code>请求头的呢？直接看代码实现：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class HttpClientAuthorizationDelegatingHandler</span><br><span class="line">     : DelegatingHandler</span><br><span class="line">&#123;</span><br><span class="line">    private readonly IHttpContextAccessor _httpContextAccesor;</span><br><span class="line">    public HttpClientAuthorizationDelegatingHandler(IHttpContextAccessor httpContextAccesor)</span><br><span class="line">    &#123;</span><br><span class="line">        _httpContextAccesor &#x3D; httpContextAccesor;</span><br><span class="line">    &#125;</span><br><span class="line">    protected override async Task&lt;HttpResponseMessage&gt; SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        var authorizationHeader &#x3D; _httpContextAccesor.HttpContext</span><br><span class="line">            .Request.Headers[&quot;Authorization&quot;];</span><br><span class="line">        if (!string.IsNullOrEmpty(authorizationHeader))</span><br><span class="line">        &#123;</span><br><span class="line">            request.Headers.Add(&quot;Authorization&quot;, new List&lt;string&gt;() &#123; authorizationHeader &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">        var token &#x3D; await GetToken();</span><br><span class="line">        if (token !&#x3D; null)</span><br><span class="line">        &#123;</span><br><span class="line">            request.Headers.Authorization &#x3D; new AuthenticationHeaderValue(&quot;Bearer&quot;, token);</span><br><span class="line">        &#125;</span><br><span class="line">        return await base.SendAsync(request, cancellationToken);</span><br><span class="line">    &#125;</span><br><span class="line">    async Task&lt;string&gt; GetToken()</span><br><span class="line">    &#123;</span><br><span class="line">        const string ACCESS_TOKEN &#x3D; &quot;access_token&quot;;</span><br><span class="line">        return await _httpContextAccesor.HttpContext</span><br><span class="line">            .GetTokenAsync(ACCESS_TOKEN);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码实现也很简单：首先从<code>_httpContextAccesor.HttpContext.Request.Headers[&quot;Authorization&quot;]</code>中取，若没有则从<code>_httpContextAccesor.HttpContext.GetTokenAsync(&quot;access_token&quot;)</code>中取，拿到访问令牌后，添加到请求头<code>request.Headers.Authorization = new AuthenticationHeaderValue(&quot;Bearer&quot;, token);</code>即可。</p>
+<p>这里你肯定有个疑问就是：为什么不是到Identity microservices去取访问令牌，而是直接从<code>_httpContextAccesor.HttpContext.GetTokenAsync(&quot;access_token&quot;)</code>中取访问令牌？</p>
+<p>Good Question，因为对于网关项目而言，其本身也是需要认证的，在访问网关暴露的需要认证的API时，其已经同Identity microservices协商并获取到令牌，并将令牌内置到<code>HttpContext</code>中了。所以，对于同一个请求上下文，我们仅需将网关项目申请到的令牌传递下去即可。</p>
+<h1 id="Ocelot网关中如何集成认证和授权"><a href="#Ocelot网关中如何集成认证和授权" class="headerlink" title="Ocelot网关中如何集成认证和授权"></a>Ocelot网关中如何集成认证和授权</h1><p>不管是独立的微服务还是网关，认证和授权问题都是要考虑的。Ocelot允许我们直接在网关内的进行身份验证，如下图所示：<br><img src="/images/eshoponcontainers-ocelot-gateway-9/2799767-73c68efafdb967d6.png" alt="网关内身份验证"></p>
+<p>因为认证授权作为微服务的交叉问题，所以将认证授权作为横切关注点设计为独立的微服务更符合关注点分离的思想。而Ocelot网关仅需简单的配置即可完成与外部认证授权服务的集成。</p>
+<p><strong>1. 配置认证选项</strong><br>首先在<code>configuration.json</code>配置文件中为需要进行身份验证保护API的网关设置<code>AuthenticationProviderKey</code>。比如：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;DownstreamPathTemplate&quot;: &quot;&#x2F;api&#x2F;&#123;version&#125;&#x2F;&#123;everything&#125;&quot;,</span><br><span class="line">  &quot;DownstreamScheme&quot;: &quot;http&quot;,</span><br><span class="line">  &quot;DownstreamHostAndPorts&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;Host&quot;: &quot;basket.api&quot;,</span><br><span class="line">      &quot;Port&quot;: 80</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;UpstreamPathTemplate&quot;: &quot;&#x2F;api&#x2F;&#123;version&#125;&#x2F;b&#x2F;&#123;everything&#125;&quot;,</span><br><span class="line">  &quot;UpstreamHttpMethod&quot;: [],</span><br><span class="line">  &quot;AuthenticationOptions&quot;: &#123;</span><br><span class="line">    &quot;AuthenticationProviderKey&quot;: &quot;IdentityApiKey&quot;,</span><br><span class="line">    &quot;AllowedScopes&quot;: []</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>2. 注册认证服务</strong><br>当Ocelot运行时，它将根据Re-Routes节点中定义的<code>AuthenticationOptions.AuthenticationProviderKey</code>，去确认系统是否注册了相对应身份验证提供程序。如果没有，那么Ocelot将无法启动。如果有，则ReRoute将在执行时使用该提供程序。<br>在<code>OcelotApiGw</code>的启动配置中，就注册了<code>AuthenticationProviderKey：IdentityApiKey</code>的认证服务。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void ConfigureServices (IServiceCollection services) &#123;</span><br><span class="line">    var identityUrl &#x3D; _cfg.GetValue&lt;string&gt; (&quot;IdentityUrl&quot;);</span><br><span class="line">    var authenticationProviderKey &#x3D; &quot;IdentityApiKey&quot;;</span><br><span class="line">    &#x2F;&#x2F;…</span><br><span class="line">    services.AddAuthentication ()</span><br><span class="line">        .AddJwtBearer (authenticationProviderKey, x &#x3D;&gt; &#123;</span><br><span class="line">            x.Authority &#x3D; identityUrl;</span><br><span class="line">            x.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">            x.TokenValidationParameters &#x3D; new</span><br><span class="line">            Microsoft.IdentityModel.Tokens.TokenValidationParameters () &#123;</span><br><span class="line">                ValidAudiences &#x3D; new [] &#123;</span><br><span class="line">                &quot;orders&quot;,</span><br><span class="line">                &quot;basket&quot;,</span><br><span class="line">                &quot;locations&quot;,</span><br><span class="line">                &quot;marketing&quot;,</span><br><span class="line">                &quot;mobileshoppingagg&quot;,</span><br><span class="line">                &quot;webshoppingagg&quot;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#x2F;&#x2F;...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里需要说明一点的是<code>ValidAudiences</code>用来指定可被允许访问的服务。其与各个微服务启动类中<code>ConfigureServices()</code>内<code>AddJwtBearer()</code>指定的<code>Audience</code>相对应。比如：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; prevent from mapping &quot;sub&quot; claim to nameidentifier.</span><br><span class="line">JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear ();</span><br><span class="line">var identityUrl &#x3D; Configuration.GetValue&lt;string&gt; (&quot;IdentityUrl&quot;);</span><br><span class="line">services.AddAuthentication (options &#x3D;&gt; &#123;</span><br><span class="line">    options.DefaultAuthenticateScheme &#x3D; JwtBearerDefaults.AuthenticationScheme</span><br><span class="line">    options.DefaultChallengeScheme &#x3D; JwtBearerDefaults.AuthenticationScheme;</span><br><span class="line">&#125;).AddJwtBearer (options &#x3D;&gt; &#123;</span><br><span class="line">    options.Authority &#x3D; identityUrl;</span><br><span class="line">    options.RequireHttpsMetadata &#x3D; false;</span><br><span class="line">    options.Audience &#x3D; &quot;basket&quot;;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>3. 按需配置申明进行鉴权</strong><br>另外有一点不得不提的是，Ocelot支持在身份认证后进行基于声明的授权。仅需在<code>ReRoute</code>节点下配置<code>RouteClaimsRequirement</code>即可：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&quot;RouteClaimsRequirement&quot;: &#123;</span><br><span class="line"> &quot;UserType&quot;: &quot;employee&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在该示例中，当调用授权中间件时，Ocelot将查找用户是否在令牌中是否存在<code>UserType:employee</code>的申明。如果不存在，则用户将不被授权，并响应403。</p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>经过以上的讲解，想必你对eShopOnContainers中如何借助API 网关模式解决客户端与微服务的通信问题有所了解，但其就是万金油吗？API 网关模式也有其缺点所在。</p>
+<ol>
+<li>网关层与内部微服务间的高度耦合。</li>
+<li>网关层可能出现单点故障。</li>
+<li>API网关可能导致性能瓶颈。</li>
+<li>API网关如果包含复杂的自定义逻辑和数据聚合，额外增加了团队的开发维护沟通成本。</li>
+</ol>
+<p>虽然IT没有银弹，但eShopOnContainers中网关模式的应用案例至少指明了一种解决问题的思路。而至于在实战场景中的技术选型，适合的就是最好的。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[8]：Ordering microservice</title>
+    <url>/post/eshoponcontainers-ordering-microservice-8/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>Ordering microservice（订单微服务）就是处理订单的了，它与前面讲到的几个微服务相比要复杂的多。主要涉及以下业务逻辑：</p>
+<ol>
+<li>订单的创建、取消、支付、发货</li>
+<li>库存的扣减</li>
+</ol>
+<h1 id="2-架构模式"><a href="#2-架构模式" class="headerlink" title="2. 架构模式"></a>2. 架构模式</h1><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-343d9d945b08bbf5.png" alt="简化的CQRS和DDD微服务设计"></p>
+<p>如上图所示，该服务基于CQRS 和DDD来实现。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-6fc65e19772eb543.png" alt="项目结构"></p>
+<p>从项目结构来看，主要包括7个项目：</p>
+<ol>
+<li>Ordering.API：应用层</li>
+<li>Ordering.Domain：领域层</li>
+<li>Ordering.Infrastructure：基础设施层</li>
+<li>Ordering.BackgroundTasks：后台任务</li>
+<li>Ordering.SignalrHub：基于Signalr的消息推送和实时通信</li>
+<li>Ordering.FunctionalTests：功能测试项目</li>
+<li>Ordering.UnitTests：单元测试项目</li>
+</ol>
+<p>从以上的项目定义来看，该微服务的设计并符合DDD经典的四层架构。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-73fcf75187848a35.png" alt="Ordering.API对应DDD中分层"></p>
+<p>核心技术选型：</p>
+<ol>
+<li>ASP.NET Core Web API</li>
+<li>Entity Framework Core</li>
+<li>SQL Server</li>
+<li>Swashbuckle（可选）</li>
+<li>Autofac</li>
+<li>Eventbus</li>
+<li>MediatR</li>
+<li>SignalR</li>
+<li>Dapper</li>
+<li>Polly</li>
+<li><a href="https://github.com/JeremySkinner/FluentValidation" target="_blank" rel="noopener">FluentValidator</a></li>
+</ol>
+<h1 id="3-简明DDD"><a href="#3-简明DDD" class="headerlink" title="3. 简明DDD"></a>3. 简明DDD</h1><p>领域驱动设计是一种方法论，用于解决软件复杂度问题。它强调以领域为核心驱动设计。主要包括战略和战术设计两大部分，其中战略设计指导我们在宏观层面对问题域进行识别和划分，从而将大问题划分为多个小问题，分而治之。而战术设计从微观层面指导我们如何对领域进行建模。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ef01773a3d9cf4f0.png" alt="DDD开发过程"><br>其中战术设计了引入了很多核心要素，指导我们建模：</p>
+<ol>
+<li>值对象（Value Object）</li>
+<li>实体（Entity）</li>
+<li>领域服务（Domain Service）</li>
+<li>领域事件（Domain Event）</li>
+<li>资源库（Repository）</li>
+<li>工厂（Factory）</li>
+<li>聚合（Aggregate）</li>
+<li>应用服务（Application Service）<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-8a9983089971134f.png" alt="战术要素"></li>
+</ol>
+<p>其中实体、值对象和领域服务用于表示领域模型，来实现领域逻辑。<br>聚合用于封装一到多个实体和值对象，确保业务完整性。<br>领域事件来丰富领域对象之间的交互。<br>工厂、资源库用于管理领域对象的生命周期。<br>应用服务是用来表达用例和用户故事。</p>
+<p>有了以上的战术设计要素还不够，如果它们糅合在一起，还是会很混乱，因此DDD再通过分层架构来确保关注点分离，即将领域模型相关（实体、值对象、聚合、领域服务、领域事件）放到领域层，将资源库、工厂放到基础设施层，将应用服务放到应用层。以下就是DDD经典的四层架构：<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-4d370f5d388fc4b7.png" alt="DDD经典四层架构"></p>
+<p><em>以上相关图片来源于：<a href="https://gitbook.cn/gitchat/author/5859f00b7ad84fe60dda4b28" target="_blank" rel="noopener">张逸 · 领域驱动战略设计实践</a></em></p>
+<h1 id="4-Ordering-Domain：领域层"><a href="#4-Ordering-Domain：领域层" class="headerlink" title="4. Ordering.Domain：领域层"></a>4. Ordering.Domain：领域层</h1><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-094d769f601b4785.png" alt="项目结构"></p>
+<p>如果对订单微服务应用DDD，那么要摒弃传统的面向数据库建模的思想，转向领域建模。该项目中主要定义了以下领域对象：</p>
+<ul>
+<li>Order：订单</li>
+<li>OrderItem：订单项</li>
+<li>OrderStatus：订单状态</li>
+<li>Buyer：买家</li>
+<li>Address：地址</li>
+<li>PaymentMethod：支付方式</li>
+<li>CardType：银行卡片类型</li>
+</ul>
+<p>在该示例项目中，定义了两个聚合：订单聚合和买家聚合，其中Order和Buyer分属两个聚合根，其中订单聚合通过持有买家聚合的唯一ID进行关联。如下图所示：<br> <img src="/images/eshoponcontainers-ordering-microservice-8/2799767-8beb654e7b16903d.png" alt="订单聚会和买家聚合"></p>
+<p>我们依次来看其对实体、值对象、聚合、资源库、领域事件的实现方式。</p>
+<h2 id="4-1-实体、值对象与聚合"><a href="#4-1-实体、值对象与聚合" class="headerlink" title="4.1. 实体、值对象与聚合"></a>4.1. 实体、值对象与聚合</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ee03b90b483b4124.png" alt="实体相关类图"></p>
+<p>实体与值对象最大的区别在于，实体有标识符可变，值对象不可变。为了保证领域的不变性，也就是更好的封装，所有的属性字段都设置为<code>private set</code>，集合都设置为只读的，通过构造函数进行初始化，通过暴露方法供外部调用修改。<br>从类图中我们可以看出，其主要定义了一个<code>Entity</code>抽象基类，所有的实体通过继承<code>Entity</code>来实现命名约定。这里面有两点需要说明：</p>
+<ol>
+<li>通过<code>Id</code>属性确保唯一标识符</li>
+<li>重写<code>Equals</code>和<code>GetHashCode</code>方法（hash值计算：<code>this.Id.GetHashCode() ^ 31</code>)</li>
+<li>定义<code>DomainEvents</code>来存储实体关联的领域事件（领域事件的发生归根结底是由于领域对象的状态变化引起的，而领域对象[实体、值对象和聚合]）中值对象是不可变的，而聚合往往包含多个实体，所以将领域事件关联在实体上最合适不过。）</li>
+</ol>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-38e6a3e13569efaf.png" alt="值对象相关类图"></p>
+<p>同样，值对象也是通过继承抽象基类<code>ValueObject</code>来进行约定。其主要也是重载了<code>Equals</code>和<code>GetHashCode</code>和方法。这里面有必要学习其<code>GetHashCode</code>的实现技巧：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; ValueObject.cs</span><br><span class="line">protected abstract IEnumerable&lt;object&gt; GetAtomicValues();</span><br><span class="line">public override int GetHashCode()</span><br><span class="line">&#123;</span><br><span class="line">    return GetAtomicValues()</span><br><span class="line">     .Select(x &#x3D;&gt; x !&#x3D; null ? x.GetHashCode() : 0)</span><br><span class="line">     .Aggregate((x, y) &#x3D;&gt; x ^ y);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;Address.cs</span><br><span class="line">protected override IEnumerable&lt;object&gt; GetAtomicValues()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; Using a yield return statement to return each ele</span><br><span class="line">    yield return Street;</span><br><span class="line">    yield return City;</span><br><span class="line">    yield return State;</span><br><span class="line">    yield return Country;</span><br><span class="line">    yield return ZipCode;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，通过在基类定义<code>GetAtomicValues</code>方法，用来要求子类指定需要hash的字段，然后将每个字段取hash值，然后通过异或运算再行聚合得到唯一hash值。</p>
+<p>所有对聚合中领域对象的操作都是通过聚合根来维护的。因此我们可以看到聚合根中定义了许多方法来处理领域逻辑。</p>
+<h2 id="4-2-仓储"><a href="#4-2-仓储" class="headerlink" title="4.2. 仓储"></a>4.2. 仓储</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-40dd2ace7ba84ea4.png" alt="仓储相关类图"><br>聚合中的领域对象的持久化借助仓储来完成的。其提供统一的入口来进行聚合内相关领域对象的CRUD，从而完成透明持久化。从图中看出，<code>IRepository</code>定义了一个<code>IUnitOfWork</code>属性，其代表工作单元，主要定义了两个方法<code>SaveChangesAsync</code>和<code>SaveEntitiesAsync</code>，借助事务一次性提交所有更改，以确保数据的完整性和有效性。</p>
+<h2 id="4-3-领域事件"><a href="#4-3-领域事件" class="headerlink" title="4.3. 领域事件"></a>4.3. 领域事件</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-1a8c9cb8dbd6a346.png" alt="领域事件相关类图"></p>
+<p>从类图中可以看出一个共同特征，都实现了<code>INotification</code>接口。对MediatR熟悉的肯定一眼就明白了。是的，这个是<code>MediatR</code>中定义的接口。借助MediatR，来实现事件处理管道。通过进程内事件处理管道来驱动命令接收，并将它们（在内存中）路由到正确的事件处理器。<br>关于MeidatR可以参考我的这篇博文：<a href="https://www.jianshu.com/p/583bcba352ec" target="_blank" rel="noopener">MediatR 知多少</a></p>
+<p>而关于领域事件的处理，是通过继承<code>INotificationHanlder</code>接口来实现，这样<code>INotification</code>与<code>INotificationHandler</code>通过Ioc容器的服务注册，自动完成事件的订阅。而领域事件的处理其下放到了<code>Ordering.Api</code>中处理了。这里大家可能会有疑惑，既然叫领域事件，那为什么领域事件的处理不放到领域层呢？我们可以这样理解，事件是领域内触发，但对事件的处理，其并非都是业务逻辑的相关处理，比如订单创建成功后发送短信、邮件等就不属于业务逻辑。</p>
+<p>eShopOnContainers中领域事件的触发时机并非是即时触发，选择的是延迟触发模式。具体的实现，后面会讲到。</p>
+<h1 id="5-Ordering-Infrastructure：基础设施层"><a href="#5-Ordering-Infrastructure：基础设施层" class="headerlink" title="5. Ordering.Infrastructure：基础设施层"></a>5. Ordering.Infrastructure：基础设施层</h1><p>基础设施层主要用于提供基础服务，主要是用来实体映射和持久化。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-6f022e44c3817c52.png" alt="Ordering.Infrastructure 代码结构"></p>
+<p>从图中可以看到，主要包含以下业务处理：</p>
+<ol>
+<li>实体类型映射</li>
+<li>幂等性控制器的实现</li>
+<li>仓储的具体实现</li>
+<li>数据库上下文的实现（UnitOfWork的实现）</li>
+<li>领域事件的批量派发</li>
+</ol>
+<p>这里着重下第2、4、5点的介绍。</p>
+<h2 id="5-1-幂等性控制器"><a href="#5-1-幂等性控制器" class="headerlink" title="5.1. 幂等性控制器"></a>5.1. 幂等性控制器</h2><p>幂等性是指某个操作多次执行但结果相同，换句话说，多次执行操作而不改变结果。举例来说：我们在写预插脚本时，会添加条件判断，当表中不存在数据时才将数据插入到表中。无论重复运行多少次 SQL 语句，结果一定是相同的，并且结果数据会包含在表中。</p>
+<p>那怎样确保幂等性呢？一种方式就是确保操作本身的幂等性，比如可以创建一个表示“将产品价格设置为￥25”而不是“将产品价格增加￥5”的事件。此时可以安全地处理第一条消息，无论处理多少次结果都一样，而第二个消息则完全不同。<br>但是假设价格是一个时刻在变的，而你当前的操作就是要将产品价格增加￥5怎么办呢？显然这个操作是不能重复执行的。那我如何确保当前的操作只执行一次呢？<br>一种简便的方法就是记录每次执行的操作。该项目中的<code>Idempotency</code>文件夹就是来做这件事的。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-75184d0ee8bb6fce.png" alt="Idempotency 类图"></p>
+<p>从类图来看很简单，就是每次发送事件时生成一个唯一的Guid，然后构造一个<code>ClientRequest</code>对象实例持久化到数据库中，每次借助MediatR发送消息时都去检测消息是否已经发送。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-c5a83a395e6ed3b6.png" alt="幂等性处理"></p>
+<h2 id="5-2-UnitOfWork（工作单元的实现）"><a href="#5-2-UnitOfWork（工作单元的实现）" class="headerlink" title="5.2. UnitOfWork（工作单元的实现）"></a>5.2. UnitOfWork（工作单元的实现）</h2><p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-051bd572cbeaa626.png" alt="Uow实现逻辑"></p>
+<p>从代码来看，主要干了两件事：</p>
+<ol>
+<li>在提交变更之前，触发所有的领域事件</li>
+<li>批量提交变更</li>
+</ol>
+<p>这里需要解释的一点是，为什么要在持久化之前而不是之后进行领域事件的触发呢？<br>这种触发就是延迟触发，将领域事件的发布与领域实体的持久化放到一个事务中来达到一致性。<br>当然这有利有弊，弊端就是当领域事件的处理非常耗时，很有可能会导致事务超时，最终导致提交失败。而避免这一问题，也只有做事务拆分，这时就要考虑最终一致性和相应的补偿措施，显然更复杂。</p>
+<p>至此，我们可以总结下聚合、仓储与数据库之间的关系，如下图所示。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-3729c88ddb502b81.png" alt=""></p>
+<h1 id="6-Ordering-Api：应用层"><a href="#6-Ordering-Api：应用层" class="headerlink" title="6. Ordering.Api：应用层"></a>6. Ordering.Api：应用层</h1><p>应用层通过应用服务接口来暴露系统的全部功能。在这里主要涉及到：</p>
+<ol>
+<li>领域事件的处理</li>
+<li>集成事件的处理</li>
+<li>CQRS的实现</li>
+<li>服务注册</li>
+<li>认证授权</li>
+<li>集成事件的订阅</li>
+</ol>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ca87ba8929dd58df.png" alt="项目结构"></p>
+<h2 id="6-1-领域事件和集成事件"><a href="#6-1-领域事件和集成事件" class="headerlink" title="6.1. 领域事件和集成事件"></a>6.1. 领域事件和集成事件</h2><p>对于领域事件和集成事件的处理，我们需要先明白二者的区别。领域事件是发生在领域内的通信（同步或异步均可），而集成事件是基于多个微服务（其他限界上下文）甚至外部系统或应用间的异步通信。<br>领域事件是借助于MediatR的<code>INotification 和 INotificationHandler</code>的接口来实现。</p>
+<p>其中<code>Application/Behaviors</code>文件夹中是实现MediatR中的<code>IPipelineBehavior</code>接口而定义的请求处理管道。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-e1e2327f76bc49e1.png" alt=""></p>
+<p>集成事件的发布订阅是借助事件总线来完成的，关于事件总线之前有文章详述，这里不再赘述。在此，仅代码举例其订阅方式。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private void ConfigureEventBus(IApplicationBuilder app)</span><br><span class="line">&#123;</span><br><span class="line">    var eventBus &#x3D; app.ApplicationServices.GetRequiredService&lt;BuildingBlocks.EventBus.Abstractions.IEventBus&gt;();</span><br><span class="line"></span><br><span class="line">    eventBus.Subscribe&lt;UserCheckoutAcceptedIntegrationEvent, IIntegrationEventHandler&lt;UserCheckoutAcceptedIntegrationEvent&gt;&gt;();</span><br><span class="line">&#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="6-2-基于MediatR实现的CQRS"><a href="#6-2-基于MediatR实现的CQRS" class="headerlink" title="6.2. 基于MediatR实现的CQRS"></a>6.2. 基于MediatR实现的CQRS</h2><p><a href="https://martinfowler.com/bliki/CQRS.html" target="_blank" rel="noopener">CQRS</a>（Command Query Responsibility Separation）：命令查询职责分离。是一种用来实现数据模型读写分离的架构模式。顾名思义，分为两大职责：</p>
+<ol>
+<li>命令职责</li>
+<li>查询职责</li>
+</ol>
+<p>其核心思想是：在客户端就将数据的新增修改删除等动作和查询进行分离，前者称为Command，通过Command Bus对领域模型进行操作，而查询则从另外一条路径直接对数据进行操作，比如报表输出等。</p>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-5b8c260043ca3aa2.png" alt="CQRS"></p>
+<p>对于命令职责，其是借助于MediatR充当的CommandBus，使用<code>IRequest</code>来定义命令，使用<code>IRequestHandler</code>来定义命令处理程序。我们可以看下<code>CancelOrderCommand</code>和<code>CancelOrderCommandHandler</code>的实现。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class CancelOrderCommand : IRequest&lt;bool&gt;</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">    [DataMember]</span><br><span class="line">    public int OrderNumber &#123; get; private set; &#125;</span><br><span class="line"></span><br><span class="line">    public CancelOrderCommand(int orderNumber)</span><br><span class="line">    &#123;</span><br><span class="line">        OrderNumber &#x3D; orderNumber;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class CancelOrderCommandHandler : IRequestHandler&lt;CancelOrderCommand, bool&gt;</span><br><span class="line">&#123;</span><br><span class="line">    private readonly IOrderRepository _orderRepository;</span><br><span class="line"></span><br><span class="line">    public CancelOrderCommandHandler(IOrderRepository orderRepository)</span><br><span class="line">    &#123;</span><br><span class="line">        _orderRepository &#x3D; orderRepository;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public async Task&lt;bool&gt; Handle(CancelOrderCommand command, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        var orderToUpdate &#x3D; await _orderRepository.GetAsync(command.OrderNumber);</span><br><span class="line">        if(orderToUpdate &#x3D;&#x3D; null)</span><br><span class="line">        &#123;</span><br><span class="line">            return false;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        orderToUpdate.SetCancelledStatus();</span><br><span class="line">        return await _orderRepository.UnitOfWork.SaveEntitiesAsync();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上代码中，有一点需要指出，就是所有Command中的属性都定义为<code>private set</code>，通过构造函数进行赋值，以确保Command的不变性。</p>
+<p>对于查询职责，通过定义查询接口，借助Dapper直接写SQL语句来完成对数据库的直接读取。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-e937282089ecb921.png" alt="查询示例"></p>
+<p>而对于定义的命令，为了确保每个命令的合法性，通过引入第三方Nuget包<code>FluentValdiation</code>来进行命令的合法性校验。其代码也很简单，参考下图。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-8f6dc9d49ea2a8eb.png" alt="校验器的定义和注册"></p>
+<h2 id="6-3-服务注册"><a href="#6-3-服务注册" class="headerlink" title="6.3. 服务注册"></a>6.3. 服务注册</h2><p>整个订单微服务中所有服务的注册，都是放到应用层来做的，在<code>Ordering.Api\Infrastructure\AutofacModules</code>文件夹下通过继承<code>Autofac.Module</code>定义了两个Module来进行服务注册：</p>
+<ul>
+<li>ApplicationModule：自定义接口相关服务的注册</li>
+<li>MediatorModule：Mediator相关接口服务的注册</li>
+</ul>
+<p>将所有的服务注册都放到高层模块来进行注册，有点违背关注点分离，各层应该关注本层的服务注册，所以这中实现方式是有待改进的。而具体如何改进，这里给大家提供一个线索，可参考ABP是如何实现进行服务注册的分离和整合的。</p>
+<p><em>这里顺带提一下<code>Autofac</code>这个Ioc容器的一个限制，就是所有的服务注册必须在程序启动时完成注册，不允许运行时动态注册。</em></p>
+<h1 id="7-Ordering-BackgroundTasks：后台任务"><a href="#7-Ordering-BackgroundTasks：后台任务" class="headerlink" title="7. Ordering.BackgroundTasks：后台任务"></a>7. Ordering.BackgroundTasks：后台任务</h1><p>后台任务，顾名思义，后台静默运行的任务，也称计划任务。在.NET Core 中，我们将这些类型的任务称为托管服务，因为它们是在主机/应用程序/微服务中托管的服务/逻辑。请注意，这种情况下托管服务仅简单表示具有后台任务逻辑类。</p>
+<p>那我们如何实现托管服务了，一种简单的方式就是使用.NET Core 2.0之后版本中提供了一个名为<code>IHostedService</code>的新接口。当然也可以选择其他的一些后台任务框架，比如HangFire、Quartz。<br><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-6c256d17cec446e1.png" alt=""></p>
+<p>该示例项目就是基于<code>BackgroundService</code>定义的一个后台任务。该任务主要用于轮询订单表中处于已提交超过1分钟的订单，然后发布集成事件到事件总线，最终用来将订单状态更新为待核验（库存）状态。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class BackgroundService : IHostedService, IDisposable</span><br><span class="line">&#123;</span><br><span class="line">    protected BackgroundService();</span><br><span class="line"></span><br><span class="line">    public virtual void Dispose();</span><br><span class="line">    public virtual Task StartAsync(CancellationToken cancellationToken);</span><br><span class="line">    [AsyncStateMachine(typeof(&lt;StopAsync&gt;d__4))]</span><br><span class="line">    public virtual Task StopAsync(CancellationToken cancellationToken);</span><br><span class="line">    protected abstract Task ExecuteAsync(CancellationToken stoppingToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从<code>BackgroundService</code>的方法申明中我们可以看出仅需实现<code>ExecuteAsync</code>方法即可。</p>
+<p>完成后台任务的定义后，将服务注册到Ioc容器中即可。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public IServiceProvider ConfigureServices(IServiceCollection services)</span><br><span class="line">&#123;</span><br><span class="line"> &#x2F;&#x2F;Other DI registrations;</span><br><span class="line"> &#x2F;&#x2F; Register Hosted Services</span><br><span class="line"> services.AddSingleton&lt;IHostedService, GracePeriodManagerService&gt;();</span><br><span class="line"> services.AddSingleton&lt;IHostedService, MyHostedServiceB&gt;();</span><br><span class="line"> services.AddSingleton&lt;IHostedService, MyHostedServiceC&gt;();</span><br><span class="line"> &#x2F;&#x2F;...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-ced7a0cba0c216e0.png" alt=""></p>
+<p>总之，<code>IHostedService</code>接口为 ASP.NET Core Web 应用程序启动后台任务提供了一种便捷的方法。它的优势主要在于：当主机本身关闭时，可以利用取消令牌来优雅的清理后台任务。</p>
+<h1 id="8-Ordering-SignalrHub：即时通信"><a href="#8-Ordering-SignalrHub：即时通信" class="headerlink" title="8. Ordering.SignalrHub：即时通信"></a>8. Ordering.SignalrHub：即时通信</h1><p>在订单微服务中，当订单状态变更时，需要实时推送订单状态变更消息给客户端。而这就涉及到实时通信。实时 HTTP 通信意味着，当数据可用时，服务端代码会推送内容到已连接的客户端，而不是服务端等待客户端来请求新数据。</p>
+<p>而对于实时通信，ASP.NET Core中<a href="https://github.com/aspnet/AspNetCore/tree/master/src/SignalR" target="_blank" rel="noopener">SignalR</a>可以满足我们的需求，其支持几种处理实时通信的技术以确保实时通信的可靠传输。 </p>
+<ul>
+<li><a href="https://tools.ietf.org/html/rfc7118" target="_blank" rel="noopener">WebSockets</a></li>
+<li>Server-Sent Events</li>
+<li>Long Polling</li>
+</ul>
+<p><img src="/images/eshoponcontainers-ordering-microservice-8/2799767-acef8253cd696e68.png" alt=""></p>
+<p>该示例项目的实现思路很简单：</p>
+<ol>
+<li>订阅订单状态变更相关的集成事件</li>
+<li>继承<code>SignalR.Hub</code>定义一个<code>NotificationsHub</code></li>
+<li>在集成事件处理程序中调用Hub进行消息的实时推送</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; 订阅集成事件</span><br><span class="line">private void ConfigureEventBus(IApplicationBuilder app)</span><br><span class="line">&#123;</span><br><span class="line">    var eventBus &#x3D; app.ApplicationServices.GetRequiredService&lt;IEventBus&gt;()；  </span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToAwaitingValidationIntegrationEvent, OrderStatusChangedToAwaitingValidationIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToPaidIntegrationEvent, OrderStatusChangedToPaidIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToStockConfirmedIntegrationEvent, OrderStatusChangedToStockConfirmedIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToShippedIntegrationEvent, OrderStatusChangedToShippedIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToCancelledIntegrationEvent, OrderStatusChangedToCancelledIntegrationEventHandler&gt;();</span><br><span class="line">    eventBus.Subscribe&lt;OrderStatusChangedToSubmittedIntegrationEvent, OrderStatusChangedToSubmittedIntegrationEventHandler&gt;();  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 定义SignalR.Hub</span><br><span class="line">[Authorize]</span><br><span class="line">public class NotificationsHub : Hub</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">    public override async Task OnConnectedAsync()</span><br><span class="line">    &#123;</span><br><span class="line">        await Groups.AddToGroupAsync(Context.ConnectionId, Context.User.Identity.Name);</span><br><span class="line">        await base.OnConnectedAsync();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public override async Task OnDisconnectedAsync(Exception ex)</span><br><span class="line">    &#123;</span><br><span class="line">        await Groups.AddToGroupAsync(Context.ConnectionId, Context.User.Identity.Name);</span><br><span class="line">        await base.OnDisconnectedAsync(ex);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 在集成事件处理器中调用Hub进行消息的实时推送</span><br><span class="line">public class OrderStatusChangedToPaidIntegrationEventHandler : IIntegrationEventHandler&lt;OrderStatusChangedToPaidIntegrationEvent&gt;</span><br><span class="line">&#123;</span><br><span class="line">    private readonly IHubContext&lt;NotificationsHub&gt; _hubContext;</span><br><span class="line"></span><br><span class="line">    public OrderStatusChangedToPaidIntegrationEventHandler(IHubContext&lt;NotificationsHub&gt; hubContext)</span><br><span class="line">    &#123;</span><br><span class="line">        _hubContext &#x3D; hubContext ?? throw new ArgumentNullException(nameof(hubContext));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public async Task Handle(OrderStatusChangedToPaidIntegrationEvent @event)</span><br><span class="line">    &#123;</span><br><span class="line">        await _hubContext.Clients</span><br><span class="line">            .Group(@event.BuyerName)</span><br><span class="line">            .SendAsync(&quot;UpdatedOrderState&quot;, new &#123; OrderId &#x3D; @event.OrderId, Status &#x3D; @event.OrderStatus &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="8-最后"><a href="#8-最后" class="headerlink" title="8. 最后"></a>8. 最后</h1><p>订单微服务在整个eShopOnContainers中属于最复杂的一个微服务了。<br>通过对DDD的简要介绍，以及对每一层的技术选型以及实现的思路和逻辑的梳理，希望对你有所帮助。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[1]：总体概览</title>
+    <url>/post/eshoponcontainers-overview-1/</url>
+    <content><![CDATA[<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>在微服务大行其道的今天，Java阵营的Spring Boot、Spring Cloud、Dubbo微服务框架可谓是风水水起，也不得不感慨Java的生态圈的火爆。反观国内.NET阵营，微服务却不愠不火。</p>
+<p>微软在其官网的架构体系上推出了<a href="https://github.com/dotnet-architecture/eShopOnContainers" target="_blank" rel="noopener">eShopOnContainers</a>微服务参考应用，用来推广基于.NET Core的微服务架构。我也将基于此来学习研究微服务，并分享自己的所学所得，形成一个系列，为.NET社区微服务的推广略尽绵薄之力。</p>
+<h1 id="eShopOnContainers-简介"><a href="#eShopOnContainers-简介" class="headerlink" title="eShopOnContainers 简介"></a>eShopOnContainers 简介</h1><blockquote>
+<p>Easy to get started sample reference microservice and container based application. Cross-platform on Linux and Windows Docker Containers, powered by .NET Core 2.1, Docker engine and optionally Azure, Kubernetes or Service Fabric. Supports Visual Studio 2017, VS for Mac and CLI based environments with Docker CLI, dotnet CLI, VS Code or any other…</p>
+</blockquote>
+<p>简单来说：<strong><a href="https://github.com/dotnet-architecture/eShopOnContainers" target="_blank" rel="noopener">eShopOnContainers</a>是一个简化版的基于.NET Core和Docker等技术开发的面向微服务架构的参考应用</strong>。</p>
+<p>该参考应用是一个<strong>简化版的在线商城/电子商务应用</strong>。</p>
+<p>虽然是简化版的微服务参考示例，但对没接触过Docker、DDD、微服务的同学来说，并不简单。其中不仅包含了很多术语、设计模式、架构风格，还使用了一系列的常见技术（RabbitMQ、EventBus、IdentityServer4、Polly、Api Gateway、Redis、CQRS、CAP、CI/CD等），还有一些相关工具（Docker、K8S等）。所以这将是一个难啃的骨头。</p>
+<h1 id="总体介绍"><a href="#总体介绍" class="headerlink" title="总体介绍"></a>总体介绍</h1><p>eShopOnContainers作为跨平台的微服务架构，得益于.NET Core能够在Linux或Windows容器上运行。其包含基于浏览器的Web应用、基于Xamarin的Android、IOS、Windows/UWP 移动应用，以及服务端应用。其中服务端包含多个自治微服务（每个都拥有自己的数据/ db），并且每个微服务都有不同的实现形式（简单的CRUD与DDD / CQRS模式）。使用Http作为客户端应用程序之间的通信协议。支持异步通信，使用Integration Events(集成事件)和Event Bus(事件总线)进行数据更新传播。</p>
+<h1 id="开发环境架构"><a href="#开发环境架构" class="headerlink" title="开发环境架构"></a>开发环境架构</h1><p><img src="/images/eshoponcontainers-overview-1/2799767-b67206c4174b987d.png" alt="针对开发环境的eShopOnContainers 示例应用程序架构"></p>
+<p>一图胜千言，从上图可知，该架构主要包括两个部分：客户端应用和Docker主机中运行的服务端应用。</p>
+<ol>
+<li>客户端应用：基于浏览器的Web应用；基于Xamarin开发的Android、IOS、UWP移动应用。</li>
+<li>服务端应用：部署在在Doker主机的系列微服务。</li>
+</ol>
+<p>其中服务端主要包括六大微服务：</p>
+<ol>
+<li>Identity Micsroservice（身份微服务）：用于身份认证和授权。使用SQL Server数据库。</li>
+<li>Catalog microservice（产品目录微服务）：用于产品资料的维护。使用SQL Server数据库。</li>
+<li>Ordering microservice（订单微服务）：用于订单逻辑的处理。使用SQL Server数据库。</li>
+<li>Basket microservice（购物车微服务）：用于购物车逻辑的处理。使用Redis数据库。</li>
+<li>Marketing microservice（市场营销微服务）：用于市场营销逻辑的处理。使用MongoDB/CosmosDB 和SQL Server数据库。</li>
+<li>Locations microservice （位置微服务）：用于提供位置服务。使用MongoDB/CosmosDB 数据库。</li>
+<li><em>[New]</em> Payment microservice （支付微服务）：用于处理支付逻辑。</li>
+</ol>
+<p>另外从上图我们还可以清晰看出其<strong>通信架构</strong>：</p>
+<ol>
+<li>客户端与微服务通过API网关通信：用于查询和接收来自客户端应用程序的更新或事务命令。</li>
+<li>异步事件通信：通过事件总线传播来自微服务的更新或与外部应用程序集成。事件总线可使用任何消息代理架构技术（如 RabbitMQ）来实现，也可使用诸如 Azure 服务总线、NServiceBus、MassTransit 或 Brighter 等更高级的服务总线。</li>
+</ol>
+<h1 id="微服务架构模式"><a href="#微服务架构模式" class="headerlink" title="微服务架构模式"></a>微服务架构模式</h1><p><img src="/images/eshoponcontainers-overview-1/2799767-1b6af5a602d3ecd7.png" alt="微服务的不同实现形式"></p>
+<p>上图列举的四个微服务主要使用了两种架构模式：</p>
+<ol>
+<li>基于数据驱动的CURD微服务</li>
+<li>基于DDD的微服务</li>
+</ol>
+<p>而实际上，软件架构师和开发人员会使用不同的架构模式，比如（混合架构风格和架构模式）：</p>
+<ol>
+<li>简单的 CRUD，单层</li>
+<li>传统N层</li>
+<li>DDD N层</li>
+<li>整洁架构</li>
+<li>命令和查询分离（CQRS）</li>
+<li>事件驱动架构</li>
+</ol>
+<p><img src="/images/eshoponcontainers-overview-1/2799767-2bfcba1475511ad9.png" alt="多种架构模式和多语言的微服务世界"></p>
+<p>在由多个微服务组成的应用程序中，可以用不同方式实现每个微服务。每个微服务可能具有不同架构模式，并根据应用程序的性质、业务需求和优先级使用不同的语言和数据库。</p>
+<p>这也就是微服务的灵活性与复杂性的源头。</p>
+<h1 id="代码结构"><a href="#代码结构" class="headerlink" title="代码结构"></a>代码结构</h1><p><img src="/images/eshoponcontainers-overview-1/2799767-02477e568033b7a9.png" alt="image.png"></p>
+<h1 id="系列计划"><a href="#系列计划" class="headerlink" title="系列计划"></a>系列计划</h1><p>对于微服务我也只是初步了解，该项目也将是我学习微服务的起点。所以我将以<strong>小白的视角</strong>（难免有所纰漏，请大家积极交流指正），尽量以通俗易懂的语言来梳理每一个知识点，并形成<strong>eShopOnContainers知多少系列</strong>，与大家共同学习进步。</p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p><a href="https://github.com/dotnet-architecture/eShopOnContainers" target="_blank" rel="noopener">eShopOnContainers 官方文档</a><br><a href="https://aka.ms/microservicesebook-zh-cn" target="_blank" rel="noopener">.NET 微服务：容器化 .NET 应用架构指南.pdf</a><a href="https://aka.ms/microservicesebook-zh-cn" target="_blank" rel="noopener">https://aka.ms/microservicesebook-zh-cn</a>)</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[6]：持久化事件日志</title>
+    <url>/post/eshoponcontainers-persist-eventlog-6/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线解决了微服务间如何基于集成事件进行异步通信的问题。然而只有事件总线正常运行，微服务之间基于事件的通信才得以运转。<br>而现实情况是，总有这样或那样的问题，导致事件总线不稳定或不可用，比如：网络中断，系统断电等等，这都可能导致微服务间的不一致性问题。<br>那如何解决事件总线故障导致的不一致问题呢？</p>
+<ol>
+<li>事件溯源</li>
+<li>事件日志挖掘</li>
+<li>发件箱模式<h1 id="2-问题"><a href="#2-问题" class="headerlink" title="2. 问题"></a>2. 问题</h1>既然上面提到了一致性问题，那具体的问题是什么呢，在什么情况才会发生呢？我想我有必要简单举例。上代码：<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var oldPrice &#x3D; item.Price;</span><br><span class="line">item.Price &#x3D; product.Price;</span><br><span class="line">_context.CatalogItems.Update(item);</span><br><span class="line">var @event &#x3D; new ProductPriceChangedIntegrationEvent(item.Id, item.Price, oldPrice);</span><br><span class="line">&#x2F;&#x2F; Commit changes in original transaction</span><br><span class="line">await _context.SaveChangesAsync();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; Publish integration event to the event bus</span><br><span class="line">&#x2F;&#x2F; (RabbitMQ or a service bus underneath)</span><br><span class="line">_eventBus.Publish(@event);</span><br></pre></td></tr></table></figure>
+当产品价格更改后，代码将数据提交给数据库，然后发布<code>ProductPriceChangedIntegrationEvent</code> 事件。<br>如果服务在数据库更新后崩溃（奔溃发生在<code>_context.SaveChangesAsync()</code>代码执行之后，但又发生在集成事件成功发布前），就会导致本地微服务价格已成功更新，但集成事件未发布的问题。就会导致目录微服务中定义的价格和顾客购物车中缓存的价格不一致。</li>
+</ol>
+<h1 id="3-分析问题"><a href="#3-分析问题" class="headerlink" title="3. 分析问题"></a>3. 分析问题</h1><p>以上问题的关键在于是如何确保两个独立的操作的原子性。如果单从单体应用的角度来处理的话，我们完全是可以将他们放到同一个事务中去保证。然而在微服务中，就违背了其<strong>高可用</strong>的基本要求。因为一旦事件总线处于瘫痪状态，那么整个目录微服务就不可用了。这种强制通过事务保证的一致性，就引入了太多的问题依赖。</p>
+<p>如果从微服务的角度来看，每个微服务负责各自的业务逻辑，对于目录微服务来说，它的关注点是产品的更新是否成功。至于借助事件总线通过异步事件实现微服务间的通信，并不是其关注点。这也就是关注点分离。换句话说，产品的更新不应该依赖外部状态。在这里，外部状态就是事件总线的可用性。</p>
+<p>你可能会说了，既然不允许通过强事务保证一致性，那么如何解决一致性问题呢（好像绕了半天又回到了原点）？</p>
+<p>这里就要引入强一致性和最终一致性的概念了。<br><strong>强一致性：也就是事务一致性，将多个操作放到单一事务处理。要么全部成功，要么全部失败。</strong><br><img src="/images/eshoponcontainers-persist-eventlog-6/2799767-a1cb098f2743061e.png" alt="事务一致性"><br><strong>最终一致性：通过将某些操作的执行延迟到稍后的时间来执行。若前面的操作执行成功，后续操作将延后执行。若前面的操作失败，后续的操作就不会执行。</strong><br><img src="/images/eshoponcontainers-persist-eventlog-6/2799767-6f5a98a93b77bf5e.png" alt="最终一致性"></p>
+<p>到这里，我们实际要解决的问题就明确了：<strong>如何确保事件总线能够正确进行事件转发？</strong></p>
+<p>换句话说：事件总线挂了，但是事件消息不能丢失。只要事件消息不丢，后面我们还有机会挽救（重新发布消息）。</p>
+<p>如何保证事件消息不丢失呢？当然是持久化了。</p>
+<h1 id="4-持久化事件源"><a href="#4-持久化事件源" class="headerlink" title="4. 持久化事件源"></a>4. 持久化事件源</h1><p>eShopOnContainers已经考虑了这一点，集成了事件日志用于持久化。我们直接来看类图：<br><img src="/images/eshoponcontainers-persist-eventlog-6/2799767-f6e0c51883a2ab1b.png" alt="事件日志"><br>从类图中看其实现逻辑也很简单，主要是定义了一个<code>IntegrationEventLogEntry</code>实体、<code>EventStateEnum</code>事件状态枚举和<code>IntegrationEventLogContext</code>EF上下文用于事件日志持久化。暴露<code>IIntegrationEventLogService</code>用于事件状态的更新。</p>
+<p>其他微服务通过在启动类中注册<code>IntegrationEventLogContext</code>即可完成事件日志的集成。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">services.AddDbContext&lt;IntegrationEventLogContext&gt;(options &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    options.UseSqlServer(configuration[&quot;ConnectionString&quot;],</span><br><span class="line">        sqlServerOptionsAction: sqlOptions &#x3D;&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            sqlOptions.MigrationsAssembly(typeof(Startup)</span><br><span class="line">                .GetTypeInfo().Assembly.GetName().Name);</span><br><span class="line">            sqlOptions.EnableRetryOnFailure(maxRetryCount: 10,</span><br><span class="line">                maxRetryDelay: TimeSpan.FromSeconds(30), </span><br><span class="line">                errorNumbersToAdd: null);</span><br><span class="line">        &#125;);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>使用EF进行数据库迁移后，就会生成<code>IntergrationEventLog</code>表。如下图所示：<br><img src="/images/eshoponcontainers-persist-eventlog-6/2799767-c3d9ca9b52ea1d49.png" alt=""></p>
+<h1 id="5-如何借助事件日志确保高可用"><a href="#5-如何借助事件日志确保高可用" class="headerlink" title="5. 如何借助事件日志确保高可用"></a>5. 如何借助事件日志确保高可用</h1><p>主要分两步走：</p>
+<ol>
+<li>应用程序开始本地数据库事务，然后更新领域实体状态，并将集成事件插入集成事件日志表中，最后提交事务来确保领域实体更新和保存事件日志所需的原子性。</li>
+<li>发布事件</li>
+</ol>
+<p>第一步毋庸置疑，第二步发布事件，我们又有多种实现方式：</p>
+<ol>
+<li>在提交事务后立即发布集成事件，并将其标记为已发布。当微服务发生故障时，可以通过遍历存储的集成事件（未发布）执行补救措施。</li>
+<li>将事件日志表用作一种队列。使用单独的线程或进程查询事件日志表，将事件发布到事件总<br>线，然后将事件标记为已发布。</li>
+</ol>
+<p><img src="/images/eshoponcontainers-persist-eventlog-6/2799767-7378c0b969776ba6.png" alt="通过单独的进程，将事件日志表作为队列进行事件发布"></p>
+<p>这里很显然第二种方式更为稳妥。而eShopOnContainers出于简单考虑，采用了第一种方案，具体代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">using (var transaction &#x3D; _catalogContext.Database.BeginTransaction())</span><br><span class="line">&#123;</span><br><span class="line"> _catalogContext.CatalogItems.Update(catalogItem);</span><br><span class="line"> await _catalogContext.SaveChangesAsync();</span><br><span class="line"> &#x2F;&#x2F; Save to EventLog only if product price changed</span><br><span class="line"> if(raiseProductPriceChangedEvent)</span><br><span class="line"> await</span><br><span class="line">_integrationEventLogService.SaveEventAsync(priceChangedEvent);</span><br><span class="line"> transaction.Commit();</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F; Publish the intergation event through the event bus</span><br><span class="line">_eventBus.Publish(priceChangedEvent);</span><br><span class="line">integrationEventLogService.MarkEventAsPublishedAsync( priceChangedEvent);</span><br></pre></td></tr></table></figure>
+<p>至此，eShopOnContainers确保事件总线能够正确转发消息的解决方案阐述完毕。你可能会问，这对应的是引言中的哪一种方案？都不是，你可以看作其是基于事件日志的简化版的事件溯源。</p>
+<h1 id="6-仅此而已？"><a href="#6-仅此而已？" class="headerlink" title="6. 仅此而已？"></a>6. 仅此而已？</h1><p>通过持久化事件日志来避免事件发布失败导致的一致性问题，是一种有效措施。然而消息从发送到接收再到正常消费的过程中，每一个环节都可能故障，所以仅仅在消息发送端使用事件日志只是确保最终一致性的一小步。还有很多问题有待完善：</p>
+<ol>
+<li>消息发送成功了，但未被成功接收</li>
+<li>消息发送且成功接收，但未被正确消费</li>
+<li>消息重复发送，导致多次消费问题</li>
+<li>消息被多个微服务订阅，如何确保每个微服务都成功接收并消费</li>
+<li>等等</li>
+</ol>
+<p>而这些问题就留给大家思考吧。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>eShopOnContainers 知多少[2]：Run起来</title>
+    <url>/post/eshoponcontainers-run-2/</url>
+    <content><![CDATA[<h1 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h1><ol>
+<li>Win10（开启Hyper-V）</li>
+<li><a href="http://dot.net/" target="_blank" rel="noopener">.NET Core SDK</a></li>
+<li><a href="https://docs.docker.com/docker-for-windows/install/" target="_blank" rel="noopener">Docker for Windows</a></li>
+<li><a href="https://visualstudio.microsoft.com" target="_blank" rel="noopener">VS2017 or VS Code</a></li>
+<li><a href="https://git-scm.com/downloads" target="_blank" rel="noopener">Git</a></li>
+<li><a href="https://go.microsoft.com/fwlink/?linkid=2014306" target="_blank" rel="noopener">SQL Server Management Studio</a>（可选）</li>
+<li><a href="https://redisdesktop.com/" target="_blank" rel="noopener">Redis Desktop Manager</a>（可选）</li>
+<li><a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a>（可选）</li>
+<li><a href="https://bower.io/" target="_blank" rel="noopener">Bower</a>（可选）</li>
+</ol>
+<h1 id="Clone代码到本地"><a href="#Clone代码到本地" class="headerlink" title="Clone代码到本地"></a>Clone代码到本地</h1><p>执行命令<code>git clone https://github.com/dotnet/eShopOnContainers.git</code>clone代码到本地。使用默认<strong><code>DEV</code></strong>分支即可，该分支会保持最新改动，不要切换到其他分支。</p>
+<p><img src="/images/eshoponcontainers-run-2/2799767-95499d84e9bbf5b1.png" alt="git clone"></p>
+<h1 id="环境设置"><a href="#环境设置" class="headerlink" title="环境设置"></a>环境设置</h1><ol>
+<li>给Docker分配CPU和内存</li>
+</ol>
+<p><em>温馨提示：以下的配置是最低需求，否则不保证项目能正常运行！</em><br><img src="/images/eshoponcontainers-run-2/2799767-20beee6caa8467b3.png" alt="内存和CPU设置"></p>
+<ol start="2">
+<li><p>设置共享驱动器<br><img src="/images/eshoponcontainers-run-2/2799767-f41eff4b0158ab41.png" alt="驱动器共享"></p>
+</li>
+<li><p>设置镜像加速<br>把<a href="https://www.daocloud.io/mirror#accelerator-doc" target="_blank" rel="noopener">DaoCloud</a>提供的镜像加速地址<code>http://f1361db2.m.daocloud.io</code>加到”registry-mirrors”的数组里，点击 Apply 。<br><img src="/images/eshoponcontainers-run-2/2799767-4c9ccc376c511389.png" alt="镜像加速"></p>
+</li>
+<li><p>勾选试验功能<br>如果遇到这个报错，<a href="https://stackoverflow.com/questions/48066994/docker-no-matching-manifest-for-windows-amd64-in-the-manifest-list-entries" target="_blank" rel="noopener">Docker: “no matching manifest for windows/amd64 in the manifest list entries”</a>，就勾选下面这个参数。<br><img src="/images/eshoponcontainers-run-2/2799767-6485e771cfc35f6a.png" alt="Experimental features"></p>
+</li>
+<li><p>防火墙设置<br>打开代码路径，找到<code>cli-windows\add-firewall-rules-for-sts-auth-thru-docker.ps1</code>power shell脚本并执行，打开本地防火墙中的端口，以便对STS（Security Token Service container）进行身份验证。<br><img src="/images/eshoponcontainers-run-2/2799767-286b591d724a9f33.png" alt="eShopOnContainers 防火墙入站规则设置"></p>
+</li>
+</ol>
+<h1 id="构建并部署到本机Docker主机"><a href="#构建并部署到本机Docker主机" class="headerlink" title="构建并部署到本机Docker主机"></a>构建并部署到本机Docker主机</h1><p>进入eShopOnContainers根目录，执行<code>docker-compose build</code>。<br><img src="/images/eshoponcontainers-run-2/2799767-1c214b031d5a8daf.png" alt="构建"></p>
+<p>去喝几杯咖啡或者打个盹吧，估计得好一会。完成后，执行<code>docker image</code>，可以查看已经构建好的镜像。<br><img src="/images/eshoponcontainers-run-2/2799767-52c4703c139a6218.png" alt="镜像列表"></p>
+<p><em>PS：你可能会看到很多为<code>&lt;none&gt;</code>的镜像，这些是临时镜像，可以通过命令<code>docker rmi $(docker images -f &quot;dangling=true&quot; -q)</code>删除。</em></p>
+<p>接下来执行<code>docker-compose up</code>命令部署到本地Docker主机。<br><img src="/images/eshoponcontainers-run-2/2799767-cc16e47bd13dbf93.png" alt="运行镜像"></p>
+<p>启动完成后，执行<code>docker ps</code>命令查看已启动的容器列表。<br><img src="/images/eshoponcontainers-run-2/2799767-2d4abb8f1e0e1f10.png" alt="运行中的容器列表"></p>
+<p>本地访问<a href="http://localhost:5100/" target="_blank" rel="noopener">http://localhost:5100/</a>，即可打开MVC Web应用。如下图所示：<br><img src="/images/eshoponcontainers-run-2/2799767-b96e8dbbb9be5854.png" alt="MVC Web"></p>
+<h1 id="测试所有应用程序和微服务"><a href="#测试所有应用程序和微服务" class="headerlink" title="测试所有应用程序和微服务"></a>测试所有应用程序和微服务</h1><p>一旦完成容器部署，就可以从本地开发机器通过一下URL或连接字符串任何服务。</p>
+<p><a href="https://github.com/dotnet-architecture/eShopOnContainers/wiki/03.-Setting-the-eShopOnContainers-solution-up-in-a-Windows-CLI-environment-(dotnet-CLI,-Docker-CLI-and-VS-Code)" target="_blank" rel="noopener"></a></p>
+<ul>
+<li>Web MVC: <a href="http://localhost:5100/" target="_blank" rel="noopener">http://localhost:5100</a></li>
+<li>Web Spa: <a href="http://localhost:5104/" target="_blank" rel="noopener">http://localhost:5104</a> </li>
+<li>Catalog microservice（产品目录微服务）: <a href="http://localhost:5101/" target="_blank" rel="noopener">http://localhost:5101</a> (Not secured)</li>
+<li>Ordering microservice（订单微服务）: <a href="http://localhost:5102/" target="_blank" rel="noopener">http://localhost:5102</a> (Requires token for authorization)</li>
+<li>Basket microservice（购物车微服务: <a href="http://localhost:5103/" target="_blank" rel="noopener">http://localhost:5103</a> (Requires token for authorization)</li>
+<li>Identity microservice（认证授权微服务）: <a href="http://localhost:5105/" target="_blank" rel="noopener">http://localhost:5105</a></li>
+<li>Web Status（健康检查): <a href="http://localhost:5107/" target="_blank" rel="noopener">http://localhost:5107</a> </li>
+<li>Orders database （订单数据库）(SQL Server connection string): <code>Server=tcp:localhost,5432;Database=Microsoft.eShopOnContainers.Services.OrderingDb;User Id=sa;Password=Pass@word;</code></li>
+<li>Catalog database (产品目录数据库）(SQL Server connection string): <code>Server=tcp:localhost,5434;Database=CatalogDB;User Id=sa;Password=Pass@word</code></li>
+<li>ASP.NET Identity database（身份数据库） (SQL Server connection string): <code>Server=localhost,5433;Database=aspnet-Microsoft.eShopOnContainers;User Id=sa;Password=Pass@word</code></li>
+<li>Basket data（购物车数据） (Redis): listening at localhost:6379</li>
+</ul>
+<h1 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h1><p><strong>1. 如何从外部连接SQL Server数据库</strong><br>Server：<strong>localhost,5433 （这里是逗号，不是冒号！！！）</strong><br>User：sa<br>Pwd：Pass@word<br><img src="/images/eshoponcontainers-run-2/2799767-0ffb8bcbb9e5fab1.png" alt="连接到容器内SQL Server数据库"></p>
+<hr>
+<p><strong>2. 构建报错问题</strong><br>构建eshop/webspa镜像时可能会报一下错误：<br><code>npm ERR! 404 Not Found: event-stream@https://registry.npmjs.org/event-stream/-/event-stream-3.3.6.tgz</code><br>解决方案是删除WebSap项目下的<code>package-lock.json</code>文件，重新构建即可。</p>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>eShopOnContainers</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>诊断日志知多少 | DiagnosticSource 在.NET上的应用</title>
     <url>/post/how-much-you-know-about-diagnostic-in-dotnet/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f9fe53d73a593166.png" alt=""></p>
@@ -73,7 +1050,7 @@
 </ul>
 <h1 id="3-观察者模式（IObservable-amp-IObserver"><a href="#3-观察者模式（IObservable-amp-IObserver" class="headerlink" title="3. 观察者模式（IObservable &amp; IObserver)"></a>3. 观察者模式（IObservable &amp; IObserver)</h1><p><code>IObservable</code> 和<code>IObserver</code>位于<code>System</code>命名空间下，是.NET中对观察者模式的抽象。</p>
 <blockquote>
-<p>观察者设计模式使观察者能够从可观察对象订阅并接收通知。 它适用于需要基于推送通知的任何方案。 此模式定义可观察对象，以及零个、一个或多个观察者。 观察者订阅可观察对象，并且每当预定义的条件、事件或状态发生更改时，该可观察对象会通过调用其方法之一来自动通知所有观察者。 在此方法调用中，该可观察对象还可向观察者提供当前状态信息。 在 .NET Framework 中，通过实现泛型 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobservable-1" target="_blank" rel="noopener">System.IObservable<T></a> 和 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobserver-1" target="_blank" rel="noopener">System.IObserver<T></a> 接口来应用观察者设计模式。 泛型类型参数表示提供通知信息的类型。 泛型类型参数表示提供通知信息的类型。</p>
+<p>观察者设计模式使观察者能够从可观察对象订阅并接收通知。 它适用于需要基于推送通知的任何方案。 此模式定义可观察对象，以及零个、一个或多个观察者。 观察者订阅可观察对象，并且每当预定义的条件、事件或状态发生更改时，该可观察对象会通过调用其方法之一来自动通知所有观察者。 在此方法调用中，该可观察对象还可向观察者提供当前状态信息。 在 .NET Framework 中，通过实现泛型 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobservable-1" target="_blank" rel="noopener">System.IObservable<T></a> 和 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobserver-1" target="_blank" rel="noopener">System.IObserver<T></a> 接口来应用观察者设计模式。 泛型类型参数表示提供通知信息的类型。 </p>
 </blockquote>
 <p>第一次学习观察者模式，应该是大学课本中基于事件烧水的例子，咱们就基于此实现个简单的Demo吧。首先执行<code>dotnet new web -n Dotnet.Diagnostic.Demo</code>创建示例项目。</p>
 <h2 id="3-1-定义可观察对象（实现IObservable接口）"><a href="#3-1-定义可观察对象（实现IObservable接口）" class="headerlink" title="3.1. 定义可观察对象（实现IObservable接口）"></a>3.1. 定义可观察对象（实现IObservable接口）</h2><p>对于烧水的示例，主要关注水温的变化，因此先定义<code>Temperature</code>来表示温度变化：</p>
