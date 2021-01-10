@@ -1181,6 +1181,83 @@
       </tags>
   </entry>
   <entry>
+    <title>Istio知多少 | 下一代微服务守护者</title>
+    <url>/post/how-much-you-know-about-istio/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>在写完<a href="https://www.jianshu.com/p/e27f0f1dd8ab" target="_blank" rel="noopener">eShopOnContainers 知多少[12]：Envoy gateways</a>后，就一直想进一步探索Service Mesh，最近刚在极客时间上学完《Service Mesh入门》，又大致浏览了一遍官方文档，对Istio也算有了基本的认识。下面就根据自己的理解对Istio进行简单的梳理，算是对知识的总结吧。</p>
+<h1 id="2-Cloud-Native（云原生）"><a href="#2-Cloud-Native（云原生）" class="headerlink" title="2. Cloud Native（云原生）"></a>2. Cloud Native（云原生）</h1><p>在介绍Istio之前，我们得先了解下Service Mesh，而Service Mesh 又是云原生的产物。因此，本着追本溯源的精神，我们得先了解下云原生。云原生（Cloud Native）这个概念是在2015年提出的，听的人多，真正能讲清楚的人少，我也一样。综合多方资料，下面尝试解读一下。</p>
+<p>云原生，虽然字都认识，但真不好解释。一般讲云原生，其实是讲云原生应用，多了应用二字，就更具象了。从字面上直译：云，代表云端；原生：原本就生长在那里；连起来就是<strong>原本就生长在云端的应用</strong>。</p>
+<p>应用怎么会原本就生长在云端呢？云又是怎么发展而来呢？别急，我们先来看下云计算的发展来解答下云的由来。</p>
+<p>我们知道传统的应用都是跑在本地服务器上，随着虚拟化技术的发展，拉开了云计算的序幕，一大批云计算厂商基于虚拟机技术，提供了IaaS，PaaS和SaaS等产品心态，极大的提高资源的利用率。企业本着降本增效的目的，逐步将应用迁移到云上的Paas平台上。而这一阶段，被称为云计算的虚拟机时代，而这个时间节点在2013年之前，运行在云端虚拟机上的应用，还不叫云原生应用。</p>
+<p>2013年，Docker开源，正式开启了容器技术时代，重新定义了 PaaS 的全新容器化思路。在容器技术的基础上，“云”得到了极大的发展，2014年谷歌开源Kubernetes，旨在解决容器的编排问题（部署、伸缩和管理）。2017年容器编排大战尘埃落定，Kubernetes成为最大赢家，标志着K8S成为分布式资源调度和自动化运维的事实标准。Kubernetes 也逐渐体现出云原生时代底层操作系统的特征，向下封装资源、向上支撑应用。这个阶段，可以称为云计算的容器时代。也正是在这个阶段，云原生的概念被提出，其标志事件就是2015年CNCF（云原生计算基金会）的成立，云原生这个词才被大家熟知。</p>
+<p>现在我们知道，云原生是在容器时代提出的概念。那为什么会提出云原生这个概念呢？别急我们来看下云计算发展过程中后端架构的演进。</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-468fa4b0fdf93d2e.png" alt=""></p>
+<p>从上图可知，后端架构从单体到分布式，再逐步演进到微服务架构。采用微服务架构，就必须解决服务治理、流量控制、应用观察等问题。其中2014年由Netflix 推出的Spring Cloud体系就是通过提供服务发现、负载均衡、失效转移、动态扩容、数据分片、调用链路监控等分布式系统的核心功能，一度成为微服务的最佳实践。但是却有一个很大的缺点就是其对应用有很强的<strong>侵入性</strong>，应用代码中会包含大量的 SpringCloud 模块。这时的应用模型如下图所示：<br><img src="/images/how-much-you-know-about-istio/2799767-37c166cdb37da808.png" alt=""></p>
+<p>那如何解决侵入性的问题呢？这个问题在容器编排技术成熟之前，似乎没有好的答案。但随着K8S的成熟，这个问题有了新的解法。Kubernetes的出现就是为了解决 SpringCloud 的问题，不侵入应用层，在容器层解决问题。这就是理想的应用开发模型，应用依托于“云”，最大化发挥“云”的优势，专注于业务需求的实现。</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-b078ed95710d8719.png" alt=""></p>
+<p>那应用如何依托于“云”，最大化发挥“云”的优势呢？云原生就是为了解决这一问题而提出的。其建立在“未来的软件一定生长于云”的核心假设之上提出的，<strong>云原生本质上是一套指导软件架构设计的思想，依托该思想而设计的应用：首先，应用本身“生于云、长于云”；其次，这样的应用能够天然集成“云”环境，进而释放“云”的最大价值。</strong> 云原生定义了一条能够让应用最大程度利用云能力、发挥云价值的最佳路径。具体来说，参考云原生计算基金会（CNCF）对<a href="https://github.com/cncf/toc/blob/master/DEFINITION.md#中文版本" target="_blank" rel="noopener">云原生的定义</a>，<strong>云原生包括容器化封装、自动化管理、面向微服务、服务网格、声明式 API。符合云原生架构的应用程序应该是：采用开源堆栈（Kubernetes+Docker）进行容器化，基于微服务架构提高灵活性和可维护性，借助敏捷方法、DevOps 支持持续迭代和运维自动化，利用云平台设施实现弹性伸缩、动态调度、优化资源利用率。</strong></p>
+<p>那如何实现云原生呢？Service Mesh交出了自己的答卷。</p>
+<h1 id="3-Service-Mesh（服务网格）"><a href="#3-Service-Mesh（服务网格）" class="headerlink" title="3. Service Mesh（服务网格）"></a>3. Service Mesh（服务网格）</h1><p>先来看下Service Mesh的提出者，也就是第一代Service Mesh 产品Linkerd的CEO，对Service Mesh的定义：<br><img src="/images/how-much-you-know-about-istio/2799767-496fbb1676a4c670.png" alt="Service Mesh的定义"></p>
+<blockquote>
+<p>Service Mesh 通常被译为服务网格，其是一个<strong>基础设施层</strong>，用于处理服务间通信。云原生应用有着复杂的服务拓扑，服务网格负责在这些拓扑中<strong>实现请求的可靠传递</strong>。在实践中，服务网格通常实现为一组<strong>轻量级网络代理</strong>，它们与应用程序部署在一起，而<strong>对应用程序透明</strong>。</p>
+</blockquote>
+<p><em>PS: eShopOnContainers就是采用了Linkerd作为Service Mesh，基于其易于安装和设置的特性。感兴趣的同学，可访问<a href="https://github.com/dotnet-architecture/eShopOnContainers/wiki/Resiliency-and-Service-Mesh" target="_blank" rel="noopener">链接</a>一探究竟。</em></p>
+<p>Service Mesh 通过在请求调用的路径中增加Sidecar，将原本由客户端完成的复杂功能下沉到Sidecar 中，实现对客户端的简化和服务间通信控制权的转移，当系统中存在大量服务时，服务间的调用关系表现为网状，这也是服务网格名称的由来。</p>
+<p><strong>Service Mesh就是通过Sidecar模式将业务需求与非业务需求进行隔离，解决侵入性问题</strong>。其中Sidecar主要就是用来处理诸如服务发现、负载均衡、请求熔断等一系列非业务需求，应用在部署时动态插入Sidecar，以<strong>对用户透明的方式改变应用行为</strong>。以下是Service Mesh的核心流程：<br><img src="/images/how-much-you-know-about-istio/2799767-8d4d1d42ed1d0696.png" alt="Service Mesh"></p>
+<h1 id="4-Istio-（帆）"><a href="#4-Istio-（帆）" class="headerlink" title="4. Istio （帆）"></a>4. Istio （帆）</h1><p>主流的 Service Mesh 开源软件包括 Linkerd、Envoy 和 Istio。Linkerd 和 Envoy 都 直 接 体 现 了Service Mesh 的核心理念，在功能上较为相似，即实现服务发现、请求路由、负载均衡等功能，解决服务之间的通信问题，使得应用对服务通信无感知。<strong>而 Istio 站在了更高的角度，将 Service Mesh 分为了 Data Plane 和 Control Plane， 由 Data Plane负责微服务间的所有网络通信，而 Control Plane负 责 管 理 Data Plane Proxy</strong>， 且 Istio 天 然 支 持Kubernetes，这也弥合了应用调度框架与 ServiceMesh 之间的空隙。</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-dbae54dc31dfbb1c.png" alt="Istio"></p>
+<blockquote>
+<p><a href="https://istio.io/latest/zh/docs/concepts/what-is-istio/" target="_blank" rel="noopener">Istio的官方定义</a>:<br>它是一个完全开源的服务网格，作为透明的一层接入到现有的分布式应用程序里。它也是一个平台，拥有可以集成任何日志、遥测和策略系统的 API 接口。Istio 多样化的特性使您能够成功且高效地运行分布式微服务架构，并提供保护、连接和监控微服务的统一方法。</p>
+</blockquote>
+<p>从定义中可以梳理出Istio提供了以下核心特性：</p>
+<ol>
+<li>连接：请求路由、服务发现、负载均衡、流量管理、灰度发布及A/B测试</li>
+<li>保护：托管的认证授权，及通信加密</li>
+<li>控制：策略定义</li>
+<li>观测：日志、追踪、指标及监控</li>
+</ol>
+<p>目前的Istio已经更新到1.8版本了，其架构也从最开始的复杂版本逐渐简化。现在的架构图如下所示：</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-e492da29670e8b73.png" alt="Istio Architecture"></p>
+<p>从图中可以看出主要包含两大平面：</p>
+<ol>
+<li>数据平面（Data plane）：由Envoy Proxy 充当的Sidecar组成。</li>
+<li>控制平面（Control plane）：主要包含三大核心组件，Pilot、Citadel、Galley组成。</li>
+<li><ol>
+<li>Pilot：主要是管理部署在Istio服务网格中的Envoy代理实例，为它们提供服务发现、流量管理以及弹性功能，比如：A/B测试、金丝雀发布、超时、重试、熔断等。</li>
+</ol>
+</li>
+<li><ol start="2">
+<li>Citadel：Istio的核心安全组件，负责服务的密钥和数字证书管理，用于提供自动生成、分发、轮换及撤销密钥和数据证书的功能。</li>
+</ol>
+</li>
+<li><ol start="3">
+<li>Galley：负责向Istio的其它组件提供支撑功能，可以理解为Istio的配置中心，它用于校验进入网络配置信息的格式内容正确性，并将这些配置信息提供给Pilot。</li>
+</ol>
+</li>
+</ol>
+<p>以上就是Istio的核心概念，关于Istio流量控制、安全及可观察性的应用，这里就先不展开了，后续就结合Demo，再和大家分享了。</p>
+<h1 id="5-最后"><a href="#5-最后" class="headerlink" title="5. 最后"></a>5. 最后</h1><p>讲真，通过翻阅资料，完成了对云计算、云原生、Service Mesh等概念的追本溯源，加深了云原生理念的认知，拓展了自己的架构视野，也大致了解了后续自己的学习和研究方向。希望本文对你或多或少也有所帮助，感谢阅读！</p>
+<p><em>写就本文，参考了很多资料，参考资料见文末，在此对原作者表示感谢！另外这里再向大家推荐两份关于云原生和Service Mesh的PPT，梳理的非常完整，感兴趣的同学可关注【微服务知多少】公众号，回复”云原生“即可获取。</em></p>
+<blockquote>
+<p>参考资料</p>
+<ol>
+<li><a href="https://kb.cnblogs.com/page/643110/" target="_blank" rel="noopener">未来已来：云原生 Cloud Native</a></li>
+<li><a href="https://www.infoq.cn/article/fA42rfjV*dYGAvRANFqE" target="_blank" rel="noopener">畅谈云原生（上）：云原生应用应该是什么样子？</a></li>
+<li><a href="https://juejin.cn/post/6844903508261470215" target="_blank" rel="noopener">Service Mesh：下一代微服务？</a></li>
+<li><a href="https://istio.io/latest/docs/concepts/what-is-istio/" target="_blank" rel="noopener">What’s Istio?</a></li>
+<li><a href="https://www.infoq.cn/minibook/GaaadEVc7hFNLpRAiBU7" target="_blank" rel="noopener">InfoQ：云原生的技术探索与落地实践 | 研究报告</a></li>
+<li><a href="https://github.com/cncf/toc/blob/master/DEFINITION.md" target="_blank" rel="noopener">CNCF Cloud Native Definition v1.0</a></li>
+</ol>
+</blockquote>
+]]></content>
+      <categories>
+        <category>云原生</category>
+      </categories>
+      <tags>
+        <tag>Service Mesh</tag>
+        <tag>Istio</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>MediatR 知多少</title>
     <url>/post/how-much-you-know-about-the-MediatR/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
