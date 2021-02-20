@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="XAIH4DrWi63t0tKRgnjNUqX_3iXwxdroiCfjrFl4ZH4">
+  <meta name="baidu-site-verification" content="Ih8zdGWlLG">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-minimal.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"blog.shengjie.dev","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":true,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":null,"storage":true,"lazyload":true,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Dapr 是一个可移植的、事件驱动的运行时，它使任何开发人员能够轻松构建出弹性的、无状态和有状态的应用程序，并可运行在云平台或边缘计算中，它同时也支持多种开发语言和开发框架。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dapr 知多少 | 分布式应用运行时">
+<meta property="og:url" content="https://blog.shengjie.dev/post/how-much-you-know-about-dapr/index.html">
+<meta property="og:site_name" content="圣杰 | 知多少">
+<meta property="og:description" content="Dapr 是一个可移植的、事件驱动的运行时，它使任何开发人员能够轻松构建出弹性的、无状态和有状态的应用程序，并可运行在云平台或边缘计算中，它同时也支持多种开发语言和开发框架。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-daf921ef4504be15.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-12a37d38029530f3.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-999e3583f2f9308f.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-dec9d699da1910fa.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-4df6cd3ab8055bf0.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-082d07ff5e75d4b5.png">
+<meta property="og:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-7890edd7396295b1.png">
+<meta property="article:published_time" content="2021-02-20T11:36:28.000Z">
+<meta property="article:modified_time" content="2021-02-20T11:48:21.034Z">
+<meta property="article:author" content="圣杰">
+<meta property="article:tag" content="Dapr">
+<meta property="article:tag" content="CloudNative">
+<meta property="article:tag" content="K8S">
+<meta property="article:tag" content="Microservice">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shengjie.dev/images/how-much-you-know-about-dapr/2799767-daf921ef4504be15.png">
+
+<link rel="canonical" href="https://blog.shengjie.dev/post/how-much-you-know-about-dapr/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Dapr 知多少 | 分布式应用运行时 | 圣杰 | 知多少</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">圣杰 | 知多少</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Code is cheap, show you my mind!</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">28</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">5</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">32</span></a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/sheng-jie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://blog.shengjie.dev/post/how-much-you-know-about-dapr/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/MVP_Logo.bmp">
+      <meta itemprop="name" content="圣杰">
+      <meta itemprop="description" content="一名立志成为架构师并为之努力奋斗的程序员！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="圣杰 | 知多少">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Dapr 知多少 | 分布式应用运行时
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-02-20 19:36:28 / 修改时间：19:48:21" itemprop="dateCreated datePublished" datetime="2021-02-20T19:36:28+08:00">2021-02-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/" itemprop="url" rel="index"><span itemprop="name">云原生</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9F%A5%E5%A4%9A%E5%B0%91/" itemprop="url" rel="index"><span itemprop="name">知多少</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>5.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>5 分钟</span>
+            </span>
+            <div class="post-description">Dapr 是一个可移植的、事件驱动的运行时，它使任何开发人员能够轻松构建出弹性的、无状态和有状态的应用程序，并可运行在云平台或边缘计算中，它同时也支持多种开发语言和开发框架。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="/images/how-much-you-know-about-dapr/2799767-daf921ef4504be15.png" alt=""></p>
+<h1 id="Intro"><a href="#Intro" class="headerlink" title="Intro"></a>Intro</h1><p>Dapr 官方团队已于最近（2021.1.17）正式发布<a href="https://blog.dapr.io/posts/2021/02/17/announcing-dapr-v1.0/" target="_blank" rel="noopener">Dapr v1.0</a>，Dapr已正式生产可用，可以部署到自托管环境或 Kubernetes 集群。对于绝大多数开发者来说，想必对Dapr只是有所耳闻，而具体是什么（What），可以解决什么样的问题（Why&amp;How），有怎样的应用场景（Where），并不知悉。本文就尝试简要梳理下Dapr，并尝试回答以上问题。</p>
+<h1 id="What’s-Dapr"><a href="#What’s-Dapr" class="headerlink" title="What’s Dapr"></a>What’s Dapr</h1><blockquote>
+<p>Distributed Application Runtime. An event-driven, portable runtime for building microservices on cloud and edge.<br>分布式应用运行时。一个事件驱动、可移植的运行时用于在云上和边缘计算上构建微服务。</p>
+</blockquote>
+<p>以上是<a href="https://github.com/dapr" target="_blank" rel="noopener">Dapr官方GitHub仓库</a>上对Dapr的简介。文字虽短，口气却很大，因为其除了涵盖了当前所有的技术热点：分布式、云、微服务，还自我标榜为：<strong>分布式应用运行时</strong>。分布式应用我们或多或少有些了解，运行时也听到不少，比如常见的语言运行时：Java 运行时，.NET 运行时，Go 运行时等等，那运行时又是什么东西？简要来说：运行时是程序运行依赖的执行环境。以.NET 程序运行时CLR为例，它为.NET应用程序提供了一个托管的代码执行环境负责应用程序在整个执行期间的内存管理、线程管理、安全管理、远程管理、即时编译等。</p>
+<p>那分布式应用运行时，就是提供分布式应用运行所依赖的的执行环境。那运行分布式应用需要哪些环境依赖呢？回答这个问题，我们要先思考开发分布式应用的挑战是什么？明确了挑战，那就找到了答案。</p>
+<p>从单机到分布式，是追求更快和更高的性能，但也带来了更多的不确定性。比如，不确定计算机何时异常，不确定磁盘何时损坏，不确定网络通信的延迟，也不确定消息是否被正常消费。这些不确定性构成了分布式应用的挑战，简而言之：</p>
+<ol>
+<li>异构的机器与网络：稳定性问题</li>
+<li>普遍的节点故障：可靠性问题</li>
+<li>不可靠的网络：一致性问题</li>
+</ol>
+<p>面对这些挑战，业界提出了诸多的分布式理论、协议，如CAP定理，BASE理论，一致性协议2PC/3PC/ZAB，来保证系统的正常运行。虽然问题貌似是有了解决方案，但是应用的复杂度升高了。应用除了需要实现业务需求，还要兼顾非业务需求，集成诸如服务发现、负载均衡、失效转移、动态扩容、数据分片、调用链路监控等分布式系统的核心功能，对应用有很强的<strong>侵入性</strong>，这就是以Spring Cloud为代表的微服务框架的常见做法。</p>
+<p>那如何解决侵入性的问题呢？这个问题随着容器编排技术的成熟有了新的解法。Kubernetes可以不侵入应用层，在容器层解决问题，比如K8S Service就具有服务发现、负载均衡的能力，HPA具有动态扩容的能力。随着K8S的快速发展，云原生的概念，也就越来越深入人心，那如何利用好K8S提供的基座能力，将更多的分布式能力下沉，让应用开发回归业务呢？<strong>其中Service Mesh提出的Sidecar模式，就很好的解决了微服务架构中网络通信的问题</strong>。Sidecar主要就是用来处理诸如服务发现、负载均衡、请求熔断等一系列非业务需求，应用在部署时动态插入Sidecar，服务间的通信通过Sidecar进行代理，以完成对服务间网络通信的接管。</p>
+<p>到这里，微服务开发在Service Mesh的帮助下，已经渐渐回归业务本身，让更多的开发者看到了一丝曙光。It’s enough? 来看下Bilgin Ibryam在<a href="https://www.infoq.com/articles/multi-runtime-microservice-architecture/" target="_blank" rel="noopener">Multi-Runtime Microservices Architecture</a>文章中提及的分布式应用的四大需求：</p>
+<p><img src="/images/how-much-you-know-about-dapr/2799767-12a37d38029530f3.png" alt="分布式应用的四大需求"></p>
+<p>从上图可以看出，除了网络（Networking）外，生命周期（Lifecycle）、状态（State）、捆绑（Binding）也是分布式应用要解决的问题之一。网络问题可以借由Service Mesh 比如Istio予以解决。那其他三个该如何解决呢？又要应用自行开发集成吗？显然不符合应用回归业务本身的诉求。这时，Dapr登场了，Dapr提出的分布式应用运行时就是实现了以上四个需求并将其下沉作为分布式应用的运行环境。</p>
+<p>简而言之：<strong>Dapr将分布式能力进行封装下沉作为运行时以简化分布式应用开发的技术复杂度。</strong></p>
+<h1 id="How-Dapr-Works"><a href="#How-Dapr-Works" class="headerlink" title="How Dapr Works"></a>How Dapr Works</h1><p>那Dapr如何简化分布式应用的开发呢？下面我们来看一看Dapr的主要特性。<br><img src="/images/how-much-you-know-about-dapr/2799767-999e3583f2f9308f.png" alt="Any language, any framework, anywhere"><br>一图胜千言：Dapr通过以HTTP/gRPC API这种与语言无关的方式暴露封装的分布式能力供应用调用，从而支持使用任意语言或框架进行开发集成。目前官方已经提供了Go，Node，Python，.NET，Java， C++，PHP，Rust，Javascript的Sdk，简化Dapr的集成。</p>
+<p>其中Dapr的核心构建块（Building Block）就是用来提供各种不同的分布式能力，我们来分别看一看。<br><img src="/images/how-much-you-know-about-dapr/2799767-dec9d699da1910fa.png" alt="Building Block"></p>
+<p><strong>1. Service-to-service invocation（服务调用）</strong><br>提到跨服务方法调用，这个大家肯定会想，这简单啊，不就是服务暴露API就好了嘛。是，但不完全是。比如nodeapp暴露了一个API：<code>http://10.0.0.2:8000/neworder</code>，按照传统的方式，直接HTTP POST这个API访问就得了，但在Dapr中，其提供了服务间方法调用的接口规范，需要按照<br><code>POST/GET/PUT/DELETE http://localhost:&lt;daprPort&gt;/v1.0/invoke/&lt;appId&gt;/method/&lt;method-name&gt;</code>的格式进行访问。那假设pythonapp需要访问nodeapp的方法，就需要POST一个请求到<code>http://localhost:3500/v1.0/invoke/nodeapp/method/neworder</code>。你可能会想为何多此一举呢？此举的意义何在呢？目的很简单，就是为了实现对服务间网络通信的控制以完成诸如服务发现、流量控制、重试熔断、安全访问等，而这相关的网络控制功能就是集成在Dapr的Sidecar中，以对应用透明的方式集成进来的。整体的服务调用流程如下图所示：<br><img src="/images/how-much-you-know-about-dapr/2799767-4df6cd3ab8055bf0.png" alt="服务间调用"></p>
+<p><em>PS：如果对Istio熟悉的同学需要注意，二者虽然都是通过Sidecar的模式进行网络控制，但二者是有有区别的。Dapr是以API的方式，而Istio是以代理的方式（不改变HTTP请求URI)。</em></p>
+<p><strong>2. State management（状态管理）</strong><br>在进行微服务开发时，绕不开的话题就是服务间的状态共享、并发一致性问题。对于状态共享，你可能会说，各个服务连接到同一个Redis实例就OK了。是，但不得不考虑潜在的更新冲突的问题。Dapr 以更友好的HTTP API的方式进行状态的存储和读取，同时支持通过ETags进行并发控制，并支持通过选项设置并发和一致性行为。</p>
+<ul>
+<li>存储：<code>POST http://localhost:&lt;daprPort&gt;/v1.0/state/&lt;storename&gt;</code></li>
+<li>读取：<code>GET http://localhost:&lt;daprPort&gt;/v1.0/state/&lt;storename&gt;/&lt;key&gt;</code></li>
+<li>删除：<code>DELETE http://localhost:&lt;daprPort&gt;/v1.0/state/&lt;storename&gt;/&lt;key&gt;</code></li>
+</ul>
+<p>以下是保存状态的举例：</p>
+<ul>
+<li><code>concurrency</code>用于指定并发选项：first-write-wins/last-write-wins（以第一次写入为准/以最后一次写入为准），默认以最后一次写入为准。</li>
+<li><code>consistency</code>用于指定一致性选项：strong/eventual（强一致性/最终一致性），默认为最终一致性。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST http:&#x2F;&#x2F;localhost:3500&#x2F;v1.0&#x2F;state&#x2F;starwars \</span><br><span class="line">  -H &quot;Content-Type: application&#x2F;json&quot; \</span><br><span class="line">  -d &#39;[</span><br><span class="line">        &#123;</span><br><span class="line">          &quot;key&quot;: &quot;weapon&quot;,</span><br><span class="line">          &quot;value&quot;: &quot;DeathStar&quot;,</span><br><span class="line">          &quot;etag&quot;: &quot;xxxxx&quot;,</span><br><span class="line">          &quot;options&quot;: &#123;</span><br><span class="line">            &quot;concurrency&quot;: &quot;first-write&quot;,</span><br><span class="line">            &quot;consistency&quot;: &quot;strong&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      ]&#39;</span><br></pre></td></tr></table></figure>
+<p>目前支持使用Azure CosmosDB、 Azure SQL Server、 PostgreSQL,、AWS DynamoDB、Redis 作为状态存储介质。</p>
+<p><strong>3. Publish and subscribe（消息发布及订阅）</strong><br>发布订阅模式，老生常谈了，主要是用于微服务间基于消息进行相互通信。你可能也会说，这也要拿出来说，我搞个RabbitMQ/RocketMQ就是了。是的，但我还是要说，Dapr提供了一致性的消息发布、订阅API，而无需关注具体使用的是何种Message Broker，从而和底层基础设施解耦。</p>
+<ul>
+<li>发布：<code>POST http://localhost:&lt;daprPort&gt;/v1.0/publish/&lt;pubsubname&gt;/&lt;topic&gt;[?&lt;metadata&gt;]</code></li>
+<li>获取可订阅主题：<code>GET http://localhost:&lt;appPort&gt;/dapr/subscribe</code></li>
+<li>订阅：<code>POST http://localhost:&lt;appPort&gt;/&lt;path&gt;</code></li>
+</ul>
+<p><img src="/images/how-much-you-know-about-dapr/2799767-082d07ff5e75d4b5.png" alt="发布订阅"></p>
+<p><strong>4. Resource bindings and triggers （资源绑定及事件触发）</strong><br>Dapr的Bindings与Azure Functions很类似，其是建立在事件驱动架构的基础之上的。通过建立触发器与资源的绑定，可以从任何外部源（例如数据库，队列，文件系统等）接收和发送事件，而无需借助消息队列，即可实现灵活的业务场景。Dapr的Bindings分为两种：</p>
+<ol>
+<li>Input Bindings（输入绑定）：当外部资源的事件发生时，借助输入绑定，你的应用即可通过特定的API：<code>POST http://localhost:&lt;appPort&gt;/&lt;name&gt;</code>收到外部资源的事件，用于处理特定逻辑。</li>
+<li>Output Bindings（输出绑定）：输出绑定允许你调用外部资源。比如，在订单处理场景中，在订单创建成功后，可以将订单信息通过Dapr的绑定API：<code>POST/PUT http://localhost:&lt;daprPort&gt;/v1.0/bindings/&lt;name&gt;</code>输出到Kafka特定队列上。</li>
+</ol>
+<p><img src="/images/how-much-you-know-about-dapr/2799767-7890edd7396295b1.png" alt="资源绑定及事件触发"></p>
+<p><strong>5. Actors</strong><br>Dapr中的Actor模型，和Orleans的Virtual Actor一脉相传，之前写过一篇文章<a href="https://www.jianshu.com/p/116da07c8469" target="_blank" rel="noopener">Orleans 知多少 | .NET Core 分布式框架</a>介绍过。简单来讲：Actor模型 = 状态 + 行为 + 消息。一个应用/服务由多个Actor组成，每个Actor都是一个独立的运行单元，拥有隔离的运行空间，在隔离的空间内，其有独立的状态和行为，不被外界干预，Actor之间通过消息进行交互，而同一时刻，每个Actor只能被单个线程执行，这样既有效避免了数据共享和并发问题，又确保了应用的伸缩性。</p>
+<p>Actor模型大大简化了并发编程的复杂度，Dapr在Actor运行时中提供了许多功能，包括并发控制，状态管理，生命周期管理如Actor的激活/停用以及用于唤醒Actor的Timer(计时器)和Reminder(提醒)。这些功能同样也是通过<a href="https://docs.dapr.io/developing-applications/building-blocks/actors/howto-actors/" target="_blank" rel="noopener">API</a>的方式予以提供。</p>
+<ul>
+<li>调用Actor 方法：<code>POST/GET/PUT/DELETE http://localhost:3500/v1.0/actors/&lt;actorType&gt;/&lt;actorId&gt;/method/&lt;method&gt;</code></li>
+<li>创建 Timer：<code>POST/PUT http://localhost:3500/v1.0/actors/&lt;actorType&gt;/&lt;actorId&gt;/timers/&lt;name&gt;</code></li>
+<li>创建 Reminder：<code>POST/PUT http://localhost:3500/v1.0/actors/&lt;actorType&gt;/&lt;actorId&gt;/reminders/&lt;name&gt;</code></li>
+</ul>
+<p><strong>6. Observability（遥测）</strong><br>Dapr记录指标，日志，链路以调试和监视Dapr和用户应用的运行状况。 Dapr支持分布式跟踪，其使用W3C跟踪上下文标准和开放式遥测技术，可以轻松地诊断在生产环境中服务间的网络调用，并发送到不同的监视工具，如Prometheus。</p>
+<p><strong>7. Secrets（安全）</strong><br>Dapr 提供了Secret管理，不过不同于K8S中的Secret，其支持与公有云和本地的Secret存储集成，以供应用检索使用。</p>
+<h1 id="What-Can-We-Do-With-Dapr"><a href="#What-Can-We-Do-With-Dapr" class="headerlink" title="What Can We Do With Dapr"></a>What Can We Do With Dapr</h1><p>了解了Dapr是什么，以及其提供的特性，那Dapr的应用场景就一目了然了。也就是<a href="https://dapr.io" target="_blank" rel="noopener">官网首页</a>的Slogan：Simplify cloud-native application development–Focus on your application’s core logic and keep your code simple and portable。<br><em>简化云原生应用的开发，确保应用专注于业务，并保证代码简单可移植。</em></p>
+<p>因此，在考虑云原生应用开发的技术选型时，尽情尝试吧，目前在国内阿里云也已采用。</p>
+<h1 id="Last"><a href="#Last" class="headerlink" title="Last"></a>Last</h1><p>在云原生如火如荼发展之际，Dapr V1.0 的正式发布，为开发者指明了云原生时代微服务的开发方向。相信Dapr 在未来的微服务架构选型中必将占有一席之地！</p>
+<blockquote>
+<p>参考：<br><a href="https://www.cnblogs.com/xybaby/p/7787034.html" target="_blank" rel="noopener">什么是分布式系统，如何学习分布式系统</a><br><a href="https://mp.weixin.qq.com/s/ywvy3O0wTA4SSNE86hw0Xg" target="_blank" rel="noopener">Mecha：将Mesh进行到底</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+      
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>圣杰
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://blog.shengjie.dev/post/how-much-you-know-about-dapr/" title="Dapr 知多少 | 分布式应用运行时">https://blog.shengjie.dev/post/how-much-you-know-about-dapr/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+        
+
+  <div class="followme">
+    <p>扫码关注我的公众号-「微服务知多少」</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <img src="/images/subscribe-dotnet-microservices.png" alt="">
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/Dapr/" rel="tag"><i class="fa fa-tag"></i> Dapr</a>
+              <a href="/tags/CloudNative/" rel="tag"><i class="fa fa-tag"></i> CloudNative</a>
+              <a href="/tags/K8S/" rel="tag"><i class="fa fa-tag"></i> K8S</a>
+              <a href="/tags/Microservice/" rel="tag"><i class="fa fa-tag"></i> Microservice</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/post/how-much-you-know-about-istio/" rel="next" title="Istio 知多少 | 下一代微服务守护者">
+      Istio 知多少 | 下一代微服务守护者 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ol class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ol>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Intro"><span class="nav-text">Intro</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#What’s-Dapr"><span class="nav-text">What’s Dapr</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#How-Dapr-Works"><span class="nav-text">How Dapr Works</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#What-Can-We-Do-With-Dapr"><span class="nav-text">What Can We Do With Dapr</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Last"><span class="nav-text">Last</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="圣杰"
+      src="/images/MVP_Logo.bmp">
+  <p class="site-author-name" itemprop="name">圣杰</p>
+  <div class="site-description" itemprop="description">一名立志成为架构师并为之努力奋斗的程序员！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">32</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sheng-jie" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sheng-jie" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/shengjie_yan@live.com" title="E-Mail → shengjie_yan@live.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.jianshu.com/u/39ec0e6b1844" title="简书 → https:&#x2F;&#x2F;www.jianshu.com&#x2F;u&#x2F;39ec0e6b1844" rel="noopener" target="_blank"><i class="fa fa-fw fa-paper-plane"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://sheng-jie.cnblogs.com/" title="博客园 → https:&#x2F;&#x2F;sheng-jie.cnblogs.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-tree"></i>博客园</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2017 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-copyright"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">圣杰</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">300k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">4:33</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.1.0/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/theme-next/theme-next-pjax@0/pjax.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+  <script src="//cdn.jsdelivr.net/gh/fancyapps/fancybox@3/dist/jquery.fancybox.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+  <script>
+var pjax = new Pjax({
+  selectors: [
+    'head title',
+    '#page-configurations',
+    '.content-wrap',
+    '.post-toc-wrap',
+    '.languages',
+    '#pjax'
+  ],
+  switches: {
+    '.post-toc-wrap': Pjax.switches.innerHTML
+  },
+  analytics: false,
+  cacheBust: false,
+  scrollTo : !CONFIG.bookmark.enable
+});
+
+window.addEventListener('pjax:success', () => {
+  document.querySelectorAll('script[data-pjax], script#page-configurations, #pjax script').forEach(element => {
+    var code = element.text || element.textContent || element.innerHTML || '';
+    var parent = element.parentNode;
+    parent.removeChild(element);
+    var script = document.createElement('script');
+    if (element.id) {
+      script.id = element.id;
+    }
+    if (element.className) {
+      script.className = element.className;
+    }
+    if (element.type) {
+      script.type = element.type;
+    }
+    if (element.src) {
+      script.src = element.src;
+      // Force synchronous loading of peripheral JS.
+      script.async = false;
+    }
+    if (element.dataset.pjax !== undefined) {
+      script.dataset.pjax = '';
+    }
+    if (code !== '') {
+      script.appendChild(document.createTextNode(code));
+    }
+    parent.appendChild(script);
+  });
+  NexT.boot.refresh();
+  // Define Motion Sequence & Bootstrap Motion.
+  if (CONFIG.motion.enable) {
+    NexT.motion.integrator
+      .init()
+      .add(NexT.motion.middleWares.subMenu)
+      .add(NexT.motion.middleWares.postList)
+      .bootstrap();
+  }
+  NexT.utils.updateSidebarPosition();
+});
+</script>
+
+
+
+
+  
+  <script data-pjax>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="pjax">
+  
+
+  
+
+    </div>
+</body>
+</html>

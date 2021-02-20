@@ -1032,6 +1032,409 @@
       </tags>
   </entry>
   <entry>
+    <title>Dapr 知多少 | 分布式应用运行时</title>
+    <url>/post/how-much-you-know-about-dapr/</url>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-dapr/2799767-daf921ef4504be15.png" alt=""></p>
+<h1 id="Intro"><a href="#Intro" class="headerlink" title="Intro"></a>Intro</h1><p>Dapr 官方团队已于最近（2021.1.17）正式发布<a href="https://blog.dapr.io/posts/2021/02/17/announcing-dapr-v1.0/" target="_blank" rel="noopener">Dapr v1.0</a>，Dapr已正式生产可用，可以部署到自托管环境或 Kubernetes 集群。对于绝大多数开发者来说，想必对Dapr只是有所耳闻，而具体是什么（What），可以解决什么样的问题（Why&amp;How），有怎样的应用场景（Where），并不知悉。本文就尝试简要梳理下Dapr，并尝试回答以上问题。</p>
+<h1 id="What’s-Dapr"><a href="#What’s-Dapr" class="headerlink" title="What’s Dapr"></a>What’s Dapr</h1><blockquote>
+<p>Distributed Application Runtime. An event-driven, portable runtime for building microservices on cloud and edge.<br>分布式应用运行时。一个事件驱动、可移植的运行时用于在云上和边缘计算上构建微服务。</p>
+</blockquote>
+<p>以上是<a href="https://github.com/dapr" target="_blank" rel="noopener">Dapr官方GitHub仓库</a>上对Dapr的简介。文字虽短，口气却很大，因为其除了涵盖了当前所有的技术热点：分布式、云、微服务，还自我标榜为：<strong>分布式应用运行时</strong>。分布式应用我们或多或少有些了解，运行时也听到不少，比如常见的语言运行时：Java 运行时，.NET 运行时，Go 运行时等等，那运行时又是什么东西？简要来说：运行时是程序运行依赖的执行环境。以.NET 程序运行时CLR为例，它为.NET应用程序提供了一个托管的代码执行环境负责应用程序在整个执行期间的内存管理、线程管理、安全管理、远程管理、即时编译等。</p>
+<p>那分布式应用运行时，就是提供分布式应用运行所依赖的的执行环境。那运行分布式应用需要哪些环境依赖呢？回答这个问题，我们要先思考开发分布式应用的挑战是什么？明确了挑战，那就找到了答案。</p>
+<p>从单机到分布式，是追求更快和更高的性能，但也带来了更多的不确定性。比如，不确定计算机何时异常，不确定磁盘何时损坏，不确定网络通信的延迟，也不确定消息是否被正常消费。这些不确定性构成了分布式应用的挑战，简而言之：</p>
+<ol>
+<li>异构的机器与网络：稳定性问题</li>
+<li>普遍的节点故障：可靠性问题</li>
+<li>不可靠的网络：一致性问题</li>
+</ol>
+<p>面对这些挑战，业界提出了诸多的分布式理论、协议，如CAP定理，BASE理论，一致性协议2PC/3PC/ZAB，来保证系统的正常运行。虽然问题貌似是有了解决方案，但是应用的复杂度升高了。应用除了需要实现业务需求，还要兼顾非业务需求，集成诸如服务发现、负载均衡、失效转移、动态扩容、数据分片、调用链路监控等分布式系统的核心功能，对应用有很强的<strong>侵入性</strong>，这就是以Spring Cloud为代表的微服务框架的常见做法。</p>
+<p>那如何解决侵入性的问题呢？这个问题随着容器编排技术的成熟有了新的解法。Kubernetes可以不侵入应用层，在容器层解决问题，比如K8S Service就具有服务发现、负载均衡的能力，HPA具有动态扩容的能力。随着K8S的快速发展，云原生的概念，也就越来越深入人心，那如何利用好K8S提供的基座能力，将更多的分布式能力下沉，让应用开发回归业务呢？<strong>其中Service Mesh提出的Sidecar模式，就很好的解决了微服务架构中网络通信的问题</strong>。Sidecar主要就是用来处理诸如服务发现、负载均衡、请求熔断等一系列非业务需求，应用在部署时动态插入Sidecar，服务间的通信通过Sidecar进行代理，以完成对服务间网络通信的接管。</p>
+<p>到这里，微服务开发在Service Mesh的帮助下，已经渐渐回归业务本身，让更多的开发者看到了一丝曙光。It’s enough? 来看下Bilgin Ibryam在<a href="https://www.infoq.com/articles/multi-runtime-microservice-architecture/" target="_blank" rel="noopener">Multi-Runtime Microservices Architecture</a>文章中提及的分布式应用的四大需求：</p>
+<p><img src="/images/how-much-you-know-about-dapr/2799767-12a37d38029530f3.png" alt="分布式应用的四大需求"></p>
+<p>从上图可以看出，除了网络（Networking）外，生命周期（Lifecycle）、状态（State）、捆绑（Binding）也是分布式应用要解决的问题之一。网络问题可以借由Service Mesh 比如Istio予以解决。那其他三个该如何解决呢？又要应用自行开发集成吗？显然不符合应用回归业务本身的诉求。这时，Dapr登场了，Dapr提出的分布式应用运行时就是实现了以上四个需求并将其下沉作为分布式应用的运行环境。</p>
+<p>简而言之：<strong>Dapr将分布式能力进行封装下沉作为运行时以简化分布式应用开发的技术复杂度。</strong></p>
+<h1 id="How-Dapr-Works"><a href="#How-Dapr-Works" class="headerlink" title="How Dapr Works"></a>How Dapr Works</h1><p>那Dapr如何简化分布式应用的开发呢？下面我们来看一看Dapr的主要特性。<br><img src="/images/how-much-you-know-about-dapr/2799767-999e3583f2f9308f.png" alt="Any language, any framework, anywhere"><br>一图胜千言：Dapr通过以HTTP/gRPC API这种与语言无关的方式暴露封装的分布式能力供应用调用，从而支持使用任意语言或框架进行开发集成。目前官方已经提供了Go，Node，Python，.NET，Java， C++，PHP，Rust，Javascript的Sdk，简化Dapr的集成。</p>
+<p>其中Dapr的核心构建块（Building Block）就是用来提供各种不同的分布式能力，我们来分别看一看。<br><img src="/images/how-much-you-know-about-dapr/2799767-dec9d699da1910fa.png" alt="Building Block"></p>
+<p><strong>1. Service-to-service invocation（服务调用）</strong><br>提到跨服务方法调用，这个大家肯定会想，这简单啊，不就是服务暴露API就好了嘛。是，但不完全是。比如nodeapp暴露了一个API：<code>http://10.0.0.2:8000/neworder</code>，按照传统的方式，直接HTTP POST这个API访问就得了，但在Dapr中，其提供了服务间方法调用的接口规范，需要按照<br><code>POST/GET/PUT/DELETE http://localhost:&lt;daprPort&gt;/v1.0/invoke/&lt;appId&gt;/method/&lt;method-name&gt;</code>的格式进行访问。那假设pythonapp需要访问nodeapp的方法，就需要POST一个请求到<code>http://localhost:3500/v1.0/invoke/nodeapp/method/neworder</code>。你可能会想为何多此一举呢？此举的意义何在呢？目的很简单，就是为了实现对服务间网络通信的控制以完成诸如服务发现、流量控制、重试熔断、安全访问等，而这相关的网络控制功能就是集成在Dapr的Sidecar中，以对应用透明的方式集成进来的。整体的服务调用流程如下图所示：<br><img src="/images/how-much-you-know-about-dapr/2799767-4df6cd3ab8055bf0.png" alt="服务间调用"></p>
+<p><em>PS：如果对Istio熟悉的同学需要注意，二者虽然都是通过Sidecar的模式进行网络控制，但二者是有有区别的。Dapr是以API的方式，而Istio是以代理的方式（不改变HTTP请求URI)。</em></p>
+<p><strong>2. State management（状态管理）</strong><br>在进行微服务开发时，绕不开的话题就是服务间的状态共享、并发一致性问题。对于状态共享，你可能会说，各个服务连接到同一个Redis实例就OK了。是，但不得不考虑潜在的更新冲突的问题。Dapr 以更友好的HTTP API的方式进行状态的存储和读取，同时支持通过ETags进行并发控制，并支持通过选项设置并发和一致性行为。</p>
+<ul>
+<li>存储：<code>POST http://localhost:&lt;daprPort&gt;/v1.0/state/&lt;storename&gt;</code></li>
+<li>读取：<code>GET http://localhost:&lt;daprPort&gt;/v1.0/state/&lt;storename&gt;/&lt;key&gt;</code></li>
+<li>删除：<code>DELETE http://localhost:&lt;daprPort&gt;/v1.0/state/&lt;storename&gt;/&lt;key&gt;</code></li>
+</ul>
+<p>以下是保存状态的举例：</p>
+<ul>
+<li><code>concurrency</code>用于指定并发选项：first-write-wins/last-write-wins（以第一次写入为准/以最后一次写入为准），默认以最后一次写入为准。</li>
+<li><code>consistency</code>用于指定一致性选项：strong/eventual（强一致性/最终一致性），默认为最终一致性。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">curl -X POST http:&#x2F;&#x2F;localhost:3500&#x2F;v1.0&#x2F;state&#x2F;starwars \</span><br><span class="line">  -H &quot;Content-Type: application&#x2F;json&quot; \</span><br><span class="line">  -d &#39;[</span><br><span class="line">        &#123;</span><br><span class="line">          &quot;key&quot;: &quot;weapon&quot;,</span><br><span class="line">          &quot;value&quot;: &quot;DeathStar&quot;,</span><br><span class="line">          &quot;etag&quot;: &quot;xxxxx&quot;,</span><br><span class="line">          &quot;options&quot;: &#123;</span><br><span class="line">            &quot;concurrency&quot;: &quot;first-write&quot;,</span><br><span class="line">            &quot;consistency&quot;: &quot;strong&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      ]&#39;</span><br></pre></td></tr></table></figure>
+<p>目前支持使用Azure CosmosDB、 Azure SQL Server、 PostgreSQL,、AWS DynamoDB、Redis 作为状态存储介质。</p>
+<p><strong>3. Publish and subscribe（消息发布及订阅）</strong><br>发布订阅模式，老生常谈了，主要是用于微服务间基于消息进行相互通信。你可能也会说，这也要拿出来说，我搞个RabbitMQ/RocketMQ就是了。是的，但我还是要说，Dapr提供了一致性的消息发布、订阅API，而无需关注具体使用的是何种Message Broker，从而和底层基础设施解耦。</p>
+<ul>
+<li>发布：<code>POST http://localhost:&lt;daprPort&gt;/v1.0/publish/&lt;pubsubname&gt;/&lt;topic&gt;[?&lt;metadata&gt;]</code></li>
+<li>获取可订阅主题：<code>GET http://localhost:&lt;appPort&gt;/dapr/subscribe</code></li>
+<li>订阅：<code>POST http://localhost:&lt;appPort&gt;/&lt;path&gt;</code></li>
+</ul>
+<p><img src="/images/how-much-you-know-about-dapr/2799767-082d07ff5e75d4b5.png" alt="发布订阅"></p>
+<p><strong>4. Resource bindings and triggers （资源绑定及事件触发）</strong><br>Dapr的Bindings与Azure Functions很类似，其是建立在事件驱动架构的基础之上的。通过建立触发器与资源的绑定，可以从任何外部源（例如数据库，队列，文件系统等）接收和发送事件，而无需借助消息队列，即可实现灵活的业务场景。Dapr的Bindings分为两种：</p>
+<ol>
+<li>Input Bindings（输入绑定）：当外部资源的事件发生时，借助输入绑定，你的应用即可通过特定的API：<code>POST http://localhost:&lt;appPort&gt;/&lt;name&gt;</code>收到外部资源的事件，用于处理特定逻辑。</li>
+<li>Output Bindings（输出绑定）：输出绑定允许你调用外部资源。比如，在订单处理场景中，在订单创建成功后，可以将订单信息通过Dapr的绑定API：<code>POST/PUT http://localhost:&lt;daprPort&gt;/v1.0/bindings/&lt;name&gt;</code>输出到Kafka特定队列上。</li>
+</ol>
+<p><img src="/images/how-much-you-know-about-dapr/2799767-7890edd7396295b1.png" alt="资源绑定及事件触发"></p>
+<p><strong>5. Actors</strong><br>Dapr中的Actor模型，和Orleans的Virtual Actor一脉相传，之前写过一篇文章<a href="https://www.jianshu.com/p/116da07c8469" target="_blank" rel="noopener">Orleans 知多少 | .NET Core 分布式框架</a>介绍过。简单来讲：Actor模型 = 状态 + 行为 + 消息。一个应用/服务由多个Actor组成，每个Actor都是一个独立的运行单元，拥有隔离的运行空间，在隔离的空间内，其有独立的状态和行为，不被外界干预，Actor之间通过消息进行交互，而同一时刻，每个Actor只能被单个线程执行，这样既有效避免了数据共享和并发问题，又确保了应用的伸缩性。</p>
+<p>Actor模型大大简化了并发编程的复杂度，Dapr在Actor运行时中提供了许多功能，包括并发控制，状态管理，生命周期管理如Actor的激活/停用以及用于唤醒Actor的Timer(计时器)和Reminder(提醒)。这些功能同样也是通过<a href="https://docs.dapr.io/developing-applications/building-blocks/actors/howto-actors/" target="_blank" rel="noopener">API</a>的方式予以提供。</p>
+<ul>
+<li>调用Actor 方法：<code>POST/GET/PUT/DELETE http://localhost:3500/v1.0/actors/&lt;actorType&gt;/&lt;actorId&gt;/method/&lt;method&gt;</code></li>
+<li>创建 Timer：<code>POST/PUT http://localhost:3500/v1.0/actors/&lt;actorType&gt;/&lt;actorId&gt;/timers/&lt;name&gt;</code></li>
+<li>创建 Reminder：<code>POST/PUT http://localhost:3500/v1.0/actors/&lt;actorType&gt;/&lt;actorId&gt;/reminders/&lt;name&gt;</code></li>
+</ul>
+<p><strong>6. Observability（遥测）</strong><br>Dapr记录指标，日志，链路以调试和监视Dapr和用户应用的运行状况。 Dapr支持分布式跟踪，其使用W3C跟踪上下文标准和开放式遥测技术，可以轻松地诊断在生产环境中服务间的网络调用，并发送到不同的监视工具，如Prometheus。</p>
+<p><strong>7. Secrets（安全）</strong><br>Dapr 提供了Secret管理，不过不同于K8S中的Secret，其支持与公有云和本地的Secret存储集成，以供应用检索使用。</p>
+<h1 id="What-Can-We-Do-With-Dapr"><a href="#What-Can-We-Do-With-Dapr" class="headerlink" title="What Can We Do With Dapr"></a>What Can We Do With Dapr</h1><p>了解了Dapr是什么，以及其提供的特性，那Dapr的应用场景就一目了然了。也就是<a href="https://dapr.io" target="_blank" rel="noopener">官网首页</a>的Slogan：Simplify cloud-native application development–Focus on your application’s core logic and keep your code simple and portable。<br><em>简化云原生应用的开发，确保应用专注于业务，并保证代码简单可移植。</em></p>
+<p>因此，在考虑云原生应用开发的技术选型时，尽情尝试吧，目前在国内阿里云也已采用。</p>
+<h1 id="Last"><a href="#Last" class="headerlink" title="Last"></a>Last</h1><p>在云原生如火如荼发展之际，Dapr V1.0 的正式发布，为开发者指明了云原生时代微服务的开发方向。相信Dapr 在未来的微服务架构选型中必将占有一席之地！</p>
+<blockquote>
+<p>参考：<br><a href="https://www.cnblogs.com/xybaby/p/7787034.html" target="_blank" rel="noopener">什么是分布式系统，如何学习分布式系统</a><br><a href="https://mp.weixin.qq.com/s/ywvy3O0wTA4SSNE86hw0Xg" target="_blank" rel="noopener">Mecha：将Mesh进行到底</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>云原生</category>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>Dapr</tag>
+        <tag>CloudNative</tag>
+        <tag>K8S</tag>
+        <tag>Microservice</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Istio 知多少 | 下一代微服务守护者</title>
+    <url>/post/how-much-you-know-about-istio/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>在写完<a href="https://www.jianshu.com/p/e27f0f1dd8ab" target="_blank" rel="noopener">eShopOnContainers 知多少[12]：Envoy gateways</a>后，就一直想进一步探索Service Mesh，最近刚在极客时间上学完《Service Mesh入门》，又大致浏览了一遍官方文档，对Istio也算有了基本的认识。下面就根据自己的理解对Istio进行简单的梳理，算是对知识的总结吧。</p>
+<h1 id="2-Cloud-Native（云原生）"><a href="#2-Cloud-Native（云原生）" class="headerlink" title="2. Cloud Native（云原生）"></a>2. Cloud Native（云原生）</h1><p>在介绍Istio之前，我们得先了解下Service Mesh，而Service Mesh 又是云原生的产物。因此，本着追本溯源的精神，我们得先了解下云原生。云原生（Cloud Native）这个概念是在2015年提出的，听的人多，真正能讲清楚的人少，我也一样。综合多方资料，下面尝试解读一下。</p>
+<p>云原生，虽然字都认识，但真不好解释。一般讲云原生，其实是讲云原生应用，多了应用二字，就更具象了。从字面上直译：云，代表云端；原生：原本就生长在那里；连起来就是<strong>原本就生长在云端的应用</strong>。</p>
+<p>应用怎么会原本就生长在云端呢？云又是怎么发展而来呢？别急，我们先来看下云计算的发展来解答下云的由来。</p>
+<p>我们知道传统的应用都是跑在本地服务器上，随着虚拟化技术的发展，拉开了云计算的序幕，一大批云计算厂商基于虚拟机技术，提供了IaaS，PaaS和SaaS等产品心态，极大的提高资源的利用率。企业本着降本增效的目的，逐步将应用迁移到云上的Paas平台上。而这一阶段，被称为云计算的虚拟机时代，而这个时间节点在2013年之前，运行在云端虚拟机上的应用，还不叫云原生应用。</p>
+<p>2013年，Docker开源，正式开启了容器技术时代，重新定义了 PaaS 的全新容器化思路。在容器技术的基础上，“云”得到了极大的发展，2014年谷歌开源Kubernetes，旨在解决容器的编排问题（部署、伸缩和管理）。2017年容器编排大战尘埃落定，Kubernetes成为最大赢家，标志着K8S成为分布式资源调度和自动化运维的事实标准。Kubernetes 也逐渐体现出云原生时代底层操作系统的特征，向下封装资源、向上支撑应用。这个阶段，可以称为云计算的容器时代。也正是在这个阶段，云原生的概念被提出，其标志事件就是2015年CNCF（云原生计算基金会）的成立，云原生这个词才被大家熟知。</p>
+<p>现在我们知道，云原生是在容器时代提出的概念。那为什么会提出云原生这个概念呢？别急我们来看下云计算发展过程中后端架构的演进。</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-468fa4b0fdf93d2e.png" alt=""></p>
+<p>从上图可知，后端架构从单体到分布式，再逐步演进到微服务架构。采用微服务架构，就必须解决服务治理、流量控制、应用观察等问题。其中2014年由Netflix 推出的Spring Cloud体系就是通过提供服务发现、负载均衡、失效转移、动态扩容、数据分片、调用链路监控等分布式系统的核心功能，一度成为微服务的最佳实践。但是却有一个很大的缺点就是其对应用有很强的<strong>侵入性</strong>，应用代码中会包含大量的 SpringCloud 模块。这时的应用模型如下图所示：<br><img src="/images/how-much-you-know-about-istio/2799767-37c166cdb37da808.png" alt=""></p>
+<p>那如何解决侵入性的问题呢？这个问题在容器编排技术成熟之前，似乎没有好的答案。但随着K8S的成熟，这个问题有了新的解法。Kubernetes的出现就是为了解决 SpringCloud 的问题，不侵入应用层，在容器层解决问题。这就是理想的应用开发模型，应用依托于“云”，最大化发挥“云”的优势，专注于业务需求的实现。</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-b078ed95710d8719.png" alt=""></p>
+<p>那应用如何依托于“云”，最大化发挥“云”的优势呢？云原生就是为了解决这一问题而提出的。其建立在“未来的软件一定生长于云”的核心假设之上提出的，<strong>云原生本质上是一套指导软件架构设计的思想，依托该思想而设计的应用：首先，应用本身“生于云、长于云”；其次，这样的应用能够天然集成“云”环境，进而释放“云”的最大价值。</strong> 云原生定义了一条能够让应用最大程度利用云能力、发挥云价值的最佳路径。具体来说，参考云原生计算基金会（CNCF）对<a href="https://github.com/cncf/toc/blob/master/DEFINITION.md#中文版本" target="_blank" rel="noopener">云原生的定义</a>，<strong>云原生包括容器化封装、自动化管理、面向微服务、服务网格、声明式 API。符合云原生架构的应用程序应该是：采用开源堆栈（Kubernetes+Docker）进行容器化，基于微服务架构提高灵活性和可维护性，借助敏捷方法、DevOps 支持持续迭代和运维自动化，利用云平台设施实现弹性伸缩、动态调度、优化资源利用率。</strong></p>
+<p>那如何实现云原生呢？Service Mesh交出了自己的答卷。</p>
+<h1 id="3-Service-Mesh（服务网格）"><a href="#3-Service-Mesh（服务网格）" class="headerlink" title="3. Service Mesh（服务网格）"></a>3. Service Mesh（服务网格）</h1><p>先来看下Service Mesh的提出者，也就是第一代Service Mesh 产品Linkerd的CEO，对Service Mesh的定义：<br><img src="/images/how-much-you-know-about-istio/2799767-496fbb1676a4c670.png" alt="Service Mesh的定义"></p>
+<blockquote>
+<p>Service Mesh 通常被译为服务网格，其是一个<strong>基础设施层</strong>，用于处理服务间通信。云原生应用有着复杂的服务拓扑，服务网格负责在这些拓扑中<strong>实现请求的可靠传递</strong>。在实践中，服务网格通常实现为一组<strong>轻量级网络代理</strong>，它们与应用程序部署在一起，而<strong>对应用程序透明</strong>。</p>
+</blockquote>
+<p><em>PS: eShopOnContainers就是采用了Linkerd作为Service Mesh，基于其易于安装和设置的特性。感兴趣的同学，可访问<a href="https://github.com/dotnet-architecture/eShopOnContainers/wiki/Resiliency-and-Service-Mesh" target="_blank" rel="noopener">链接</a>一探究竟。</em></p>
+<p>Service Mesh 通过在请求调用的路径中增加Sidecar，将原本由客户端完成的复杂功能下沉到Sidecar 中，实现对客户端的简化和服务间通信控制权的转移，当系统中存在大量服务时，服务间的调用关系表现为网状，这也是服务网格名称的由来。</p>
+<p><strong>Service Mesh就是通过Sidecar模式将业务需求与非业务需求进行隔离，解决侵入性问题</strong>。其中Sidecar主要就是用来处理诸如服务发现、负载均衡、请求熔断等一系列非业务需求，应用在部署时动态插入Sidecar，以<strong>对用户透明的方式改变应用行为</strong>。以下是Service Mesh的核心流程：<br><img src="/images/how-much-you-know-about-istio/2799767-8d4d1d42ed1d0696.png" alt="Service Mesh"></p>
+<h1 id="4-Istio-（帆）"><a href="#4-Istio-（帆）" class="headerlink" title="4. Istio （帆）"></a>4. Istio （帆）</h1><p>主流的 Service Mesh 开源软件包括 Linkerd、Envoy 和 Istio。Linkerd 和 Envoy 都 直 接 体 现 了Service Mesh 的核心理念，在功能上较为相似，即实现服务发现、请求路由、负载均衡等功能，解决服务之间的通信问题，使得应用对服务通信无感知。<strong>而 Istio 站在了更高的角度，将 Service Mesh 分为了 Data Plane 和 Control Plane， 由 Data Plane负责微服务间的所有网络通信，而 Control Plane负 责 管 理 Data Plane Proxy</strong>， 且 Istio 天 然 支 持Kubernetes，这也弥合了应用调度框架与 ServiceMesh 之间的空隙。</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-dbae54dc31dfbb1c.png" alt="Istio"></p>
+<blockquote>
+<p><a href="https://istio.io/latest/zh/docs/concepts/what-is-istio/" target="_blank" rel="noopener">Istio的官方定义</a>:<br>它是一个完全开源的服务网格，作为透明的一层接入到现有的分布式应用程序里。它也是一个平台，拥有可以集成任何日志、遥测和策略系统的 API 接口。Istio 多样化的特性使您能够成功且高效地运行分布式微服务架构，并提供保护、连接和监控微服务的统一方法。</p>
+</blockquote>
+<p>从定义中可以梳理出Istio提供了以下核心特性：</p>
+<ol>
+<li>连接：请求路由、服务发现、负载均衡、流量管理、灰度发布及A/B测试</li>
+<li>保护：托管的认证授权，及通信加密</li>
+<li>控制：策略定义</li>
+<li>观测：日志、追踪、指标及监控</li>
+</ol>
+<p>目前的Istio已经更新到1.8版本了，其架构也从最开始的复杂版本逐渐简化。现在的架构图如下所示：</p>
+<p><img src="/images/how-much-you-know-about-istio/2799767-e492da29670e8b73.png" alt="Istio Architecture"></p>
+<p>从图中可以看出主要包含两大平面：</p>
+<ol>
+<li>数据平面（Data plane）：由Envoy Proxy 充当的Sidecar组成。</li>
+<li>控制平面（Control plane）：主要包含三大核心组件，Pilot、Citadel、Galley组成。</li>
+<li><ol>
+<li>Pilot：主要是管理部署在Istio服务网格中的Envoy代理实例，为它们提供服务发现、流量管理以及弹性功能，比如：A/B测试、金丝雀发布、超时、重试、熔断等。</li>
+</ol>
+</li>
+<li><ol start="2">
+<li>Citadel：Istio的核心安全组件，负责服务的密钥和数字证书管理，用于提供自动生成、分发、轮换及撤销密钥和数据证书的功能。</li>
+</ol>
+</li>
+<li><ol start="3">
+<li>Galley：负责向Istio的其它组件提供支撑功能，可以理解为Istio的配置中心，它用于校验进入网络配置信息的格式内容正确性，并将这些配置信息提供给Pilot。</li>
+</ol>
+</li>
+</ol>
+<p>以上就是Istio的核心概念，关于Istio流量控制、安全及可观察性的应用，这里就先不展开了，后续就结合Demo，再和大家分享了。</p>
+<h1 id="5-最后"><a href="#5-最后" class="headerlink" title="5. 最后"></a>5. 最后</h1><p>讲真，通过翻阅资料，完成了对云计算、云原生、Service Mesh等概念的追本溯源，加深了云原生理念的认知，拓展了自己的架构视野，也大致了解了后续自己的学习和研究方向。希望本文对你或多或少也有所帮助，感谢阅读！</p>
+<p><em>写就本文，参考了很多资料，参考资料见文末，在此对原作者表示感谢！另外这里再向大家推荐两份关于云原生和Service Mesh的PPT，梳理的非常完整，感兴趣的同学可关注【微服务知多少】公众号，回复”云原生“即可获取。</em></p>
+<blockquote>
+<p>参考资料</p>
+<ol>
+<li><a href="https://kb.cnblogs.com/page/643110/" target="_blank" rel="noopener">未来已来：云原生 Cloud Native</a></li>
+<li><a href="https://www.infoq.cn/article/fA42rfjV*dYGAvRANFqE" target="_blank" rel="noopener">畅谈云原生（上）：云原生应用应该是什么样子？</a></li>
+<li><a href="https://juejin.cn/post/6844903508261470215" target="_blank" rel="noopener">Service Mesh：下一代微服务？</a></li>
+<li><a href="https://istio.io/latest/docs/concepts/what-is-istio/" target="_blank" rel="noopener">What’s Istio?</a></li>
+<li><a href="https://www.infoq.cn/minibook/GaaadEVc7hFNLpRAiBU7" target="_blank" rel="noopener">InfoQ：云原生的技术探索与落地实践 | 研究报告</a></li>
+<li><a href="https://github.com/cncf/toc/blob/master/DEFINITION.md" target="_blank" rel="noopener">CNCF Cloud Native Definition v1.0</a></li>
+</ol>
+</blockquote>
+]]></content>
+      <categories>
+        <category>云原生</category>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>Service Mesh</tag>
+        <tag>Istio</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MediatR 知多少</title>
+    <url>/post/how-much-you-know-about-the-MediatR/</url>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
+<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
+<p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
+<blockquote>
+<p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
+</blockquote>
+<p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
+<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
+<blockquote>
+<p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
+</blockquote>
+<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
+<p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
+<p>那其优缺点也在图中很容易看出：</p>
+<blockquote>
+<p><strong>优点</strong>：中介者模式的优点就是减少类间的依赖，把原有的一对多的依赖变成了一对一的依赖，同事类只依赖中介者，减少了依赖，当然同时也降低了类间的耦合<br><strong>缺点</strong>：中介者模式的缺点就是中介者会膨胀得很大，而且逻辑复杂，原本N个对象直接的相互依赖关系转换为中介者和同事类的依赖关系，同事类越多，中介者的逻辑就越复杂。</p>
+</blockquote>
+<h1 id="Hello-MeidatR"><a href="#Hello-MeidatR" class="headerlink" title="Hello MeidatR"></a>Hello MeidatR</h1><p>在开始之前，我们先来了解下其基本用法。</p>
+<h2 id="单播消息传输"><a href="#单播消息传输" class="headerlink" title="单播消息传输"></a>单播消息传输</h2><p>单播消息传输，也就是一对一的消息传递，一个消息对应一个消息处理。其通过<code>IRequest</code>来抽象单播消息，用<code>IRequestHandler</code>进行消息处理。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 消息请求</span><br><span class="line">public class Ping : IRequest&lt;string&gt; &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理</span><br><span class="line">public class PingHandler : IRequestHandler&lt;Ping, string&gt; &#123;</span><br><span class="line">    public Task&lt;string&gt; Handle(Ping request, CancellationToken cancellationToken) &#123;</span><br><span class="line">        return Task.FromResult(&quot;Pong&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;发送 请求</span><br><span class="line">var response &#x3D; await mediator.Send(new Ping());</span><br><span class="line">Debug.WriteLine(response); &#x2F;&#x2F; &quot;Pong&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="多播消息传输"><a href="#多播消息传输" class="headerlink" title="多播消息传输"></a>多播消息传输</h2><p>多播消息传输，也就是一对多的消息传递，一个消息对应多个消息处理。其通过<code>INotification</code>来抽象多播消息，对应的消息处理类型为<code>INotificationHandler</code>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
+
+<h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
+<p>从代码图中我们可以看到其核心的对象主要包括：</p>
+<ol>
+<li>IRequest Vs IRequestHandler</li>
+<li>INotification Vs INoticifaitonHandler</li>
+<li>IMediator Vs Mediator</li>
+<li>Unit</li>
+<li>IPipelineBehavior</li>
+</ol>
+<h2 id="IRequest-Vs-IRequestHandler"><a href="#IRequest-Vs-IRequestHandler" class="headerlink" title="IRequest Vs IRequestHandler"></a>IRequest Vs IRequestHandler</h2><p>其中<code>IRequest</code>和<code>INotification</code>分别对应单播和多播消息的抽象。<br>对于单播消息可以决定是否需要返回值选用不同的接口：</p>
+<ul>
+<li>IRequest<T> - 有返回值</li>
+<li>IRequest - 无返回值</li>
+</ul>
+<p>这里就不得不提到其中巧妙的设计，通过引入结构类型<code>Unit</code>来代表无返回的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表无需返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IRequest : IRequest&lt;Unit&gt; &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表有返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TResponse&quot;&gt;Response type&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IRequest&lt;out TResponse&gt; : IBaseRequest &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Allows for generic type constraints of objects implementing IRequest or IRequest&#123;TResponse&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IBaseRequest &#123; &#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样对于<code>IRequestHandler</code>也是通过结构类型<code>Unit</code>来处理不需要返回值的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IRequestHandler&lt;in TRequest, TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Task&lt;TResponse&gt; Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IRequestHandler&lt;in TRequest&gt; : IRequestHandler&lt;TRequest, Unit&gt;</span><br><span class="line">    where TRequest : IRequest&lt;Unit&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面我们可以看出定义了一个方法名为<code>Handle</code>返回值为<code>Task</code>的包装类型，而因此赋予了其具有以同步和异步的方式进行消息处理的能力。我们再看一下其以异步方式进行消息处理（无返回值）的默认实现<code>AsyncRequestHandler</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class AsyncRequestHandler&lt;TRequest&gt; : IRequestHandler&lt;TRequest&gt;</span><br><span class="line">    where TRequest : IRequest</span><br><span class="line">&#123;</span><br><span class="line">    async Task&lt;Unit&gt; IRequestHandler&lt;TRequest, Unit&gt;.Handle(TRequest request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        await Handle(request, cancellationToken).ConfigureAwait(false);</span><br><span class="line">        return Unit.Value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    protected abstract Task Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面的代码来看，我们很容易看出这是装饰模式的实现方式，是不是很巧妙的解决了无需返回值的场景。</p>
+<p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
+<p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
+<p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
+<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
+<p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
+<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
+<p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
+<ul>
+<li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
+<li>IRequestPostProcessor&lt;in TRequest, in TResponse&gt; 请求处理后接口</li>
+</ul>
+<p>其中<code>IPipelineBehavior</code>的默认实现：<code>RequestPreProcessorBehavior</code>和<code>RequestPostProcessorBehavior</code>分别用来处理所有实现<code>IRequestPreProcessor</code>和<code>IRequestPostProcessor</code>接口定义的管道行为。</p>
+<p>而处理管道是如何构建的呢？我们来看下<code>RequestHandlerWrapperImpl</code>的具体实现：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">internal class RequestHandlerWrapperImpl&lt;TRequest, TResponse&gt; : RequestHandlerWrapper&lt;TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public override Task&lt;TResponse&gt; Handle(IRequest&lt;TResponse&gt; request, CancellationToken cancellationToken,</span><br><span class="line">        ServiceFactory serviceFactory)</span><br><span class="line">    &#123;</span><br><span class="line">        Task&lt;TResponse&gt; Handler() &#x3D;&gt; GetHandler&lt;IRequestHandler&lt;TRequest, TResponse&gt;&gt;(serviceFactory).Handle((TRequest) request, cancellationToken);</span><br><span class="line"></span><br><span class="line">        return serviceFactory</span><br><span class="line">            .GetInstances&lt;IPipelineBehavior&lt;TRequest, TResponse&gt;&gt;()</span><br><span class="line">            .Reverse()</span><br><span class="line">            .Aggregate((RequestHandlerDelegate&lt;TResponse&gt;) Handler, (next, pipeline) &#x3D;&gt; () &#x3D;&gt; pipeline.Handle((TRequest)request, cancellationToken, next))();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>就这样一个简单的函数，涉及的知识点还真不少，说实话我花了不少时间来理清这个逻辑。<br>那都涉及到哪些知识点呢？我们一个一个的来理一理。</p>
+<ol>
+<li>C# 7.0的新特性 - 局部函数</li>
+<li>C# 6.0的新特性 - 表达式形式的成员函数</li>
+<li>Linq高阶函数 - <code>Aggregate</code></li>
+<li>匿名委托</li>
+<li>构造委托函数链</li>
+</ol>
+<p>关于第1、2个知识点，请看下面这段代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();&#x2F;&#x2F;定义委托</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;局部函数(在函数内部定义函数)</span><br><span class="line">    &#x2F;&#x2F;表达式形式的成员函数， 相当于 int Sum() &#123; return 1 + 2;&#125;</span><br><span class="line">    int Sum() &#x3D;&gt; 1 + 2;</span><br><span class="line"></span><br><span class="line">    var sumDelegate &#x3D; (SumDelegate)Sum;&#x2F;&#x2F;转换为委托</span><br><span class="line">    Console.WriteLine(sumDelegate());&#x2F;&#x2F;委托调用，输出：3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再看第4个知识点，匿名委托：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();</span><br><span class="line"></span><br><span class="line">SumDelegate delegater1 &#x3D; delegate()&#123; return 1+2; &#125;</span><br><span class="line">&#x2F;&#x2F;也相当于</span><br><span class="line">SumDelegate delegater2 &#x3D;&gt; 1+2;</span><br></pre></td></tr></table></figure>
+
+<p>下面再来介绍一下<code>Aggregate</code>这个Linq高阶函数。<code>Aggregate</code>是对一个集合序列进行累加操作，通过指定初始值，累加函数，以及结果处理函数完成计算。</p>
+<p>函数定义：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static TResult Aggregate&lt;TSource,TAccumulate,TResult&gt;</span><br><span class="line">(this IEnumerable&lt;TSource&gt; source, </span><br><span class="line">TAccumulate seed, </span><br><span class="line">Func&lt;TAccumulate,TSource,TAccumulate&gt; func, </span><br><span class="line">Func&lt;TAccumulate,TResult&gt; resultSelector);</span><br></pre></td></tr></table></figure>
+
+<p>根据函数定义我们来写个简单的demo：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; Enumerable.Range(2, 3);&#x2F;&#x2F;[2,3,4]</span><br><span class="line">&#x2F;&#x2F; 计算1到5的累加之和，再将结果乘以2</span><br><span class="line">var sum &#x3D; nums.Aggregate(1, (total, next) &#x3D;&gt; total + next, result &#x3D;&gt; result * 2);&#x2F;&#x2F; 相当于 (((1+2)+3)+4)*2&#x3D;20</span><br><span class="line">Console.WriteLine(sum);&#x2F;&#x2F;20</span><br></pre></td></tr></table></figure>
+<p>和函数参数进行一一对应：</p>
+<ol>
+<li>seed : 1</li>
+<li>Func&lt;TAccumulate,TSource,TAccumulate&gt; func : (total, next) =&gt; total + next</li>
+<li>Func&lt;TAccumulate,TResult&gt; resultSelector : result =&gt; result * 2</li>
+</ol>
+<p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
+<p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
+<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
+<p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
+<p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
+<p>至此，MediatR的实现思路算是理清了。</p>
+<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>如文章开头提到：MediatR是一种进程内消息传递机制。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</p>
+<p>那么我们就应该明白，其核心是<strong>消息的解耦</strong>。因为我们几乎都是在与消息打交道，那因此它的应用场景就很广泛，比如我们可以基于MediatR实现CQRS、EventBus等。</p>
+<p>另外，还有一种应用场景：我们知道借助依赖注入的好处是，就是解除依赖，但我们又不得不思考一个问题，随着业务逻辑复杂度的增加，构造函数可能要注入更多的服务，当注入的依赖太多时，其会导致构造函数膨胀。比如：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(</span><br><span class="line">    ICustomerRepository customerRepository,</span><br><span class="line">    IOrderService orderService,</span><br><span class="line">    ICustomerHistoryRepository historyRepository,</span><br><span class="line">    IOrderRepository orderRepository,</span><br><span class="line">    IProductRespoitory productRespoitory,</span><br><span class="line">    IRelatedProductsRepository relatedProductsRepository,</span><br><span class="line">    ISupportService supportService,</span><br><span class="line">    ILog logger</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+<p>如果借助<code>MediatR</code>进行改造，也许仅需注入<code>IMediatR</code>就可以了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(IMediatR mediatr)</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>看到这里，也许你应该明白MediatR实质上并不是严格意义上的中介者模式实现，我更倾向于其是基于Ioc容器的一层抽象，根据请求定位相应的请求处理器进行消息处理，也就是服务定位。<br>那到这里似乎也恍然大悟MediatR这个笔误可能是有意为之了。序员，你怎么看？</p>
+<blockquote>
+<p>参考资料：<br><a href="https://lostechies.com/jimmybogard/2016/10/27/cqrsmediatr-implementation-patterns/" target="_blank" rel="noopener">CQRS/MediatR implementation patterns</a><br><a href="https://stackoverflow.com/questions/50663501/mediatr-when-and-why-i-should-use-it-vs-2017-webapi" target="_blank" rel="noopener">MediatR when and why I should use it? vs 2017 webapi</a><br><a href="https://www.jianshu.com/p/c28500ec9439?tdsourcetag=s_pctim_aiomsg" target="_blank" rel="noopener">ABP CQRS 实现案例:基于 MediatR 实现</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>中介者模式</tag>
+        <tag>发布订阅模式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>事件总线知多少(1)</title>
+    <url>/post/how-much-you-know-about-the-eventbus-1/</url>
+    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线这个概念对你来说可能很陌生，但提到观察者（发布-订阅）模式，你也许就很熟悉。事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。</p>
+<p>我们来看看事件总线的处理流程：</p>
+<p><img src="/images/how-much-you-know-about-the-eventbus-1/2799767-6f44bdefa88a23a2.png" alt="图1：EventBus流程"></p>
+<p>了解了事件总线的基本概念和处理流程，下面我们就来分析下如何去实现事件总线。</p>
+<h1 id="2-回归本质"><a href="#2-回归本质" class="headerlink" title="2.回归本质"></a>2.回归本质</h1><p>在动手实现事件总线之前，我们还是要追本溯源，探索一下事件的本质和发布订阅模式的实现机制。</p>
+<h2 id="2-1-事件的本质"><a href="#2-1-事件的本质" class="headerlink" title="2.1.事件的本质"></a>2.1.事件的本质</h2><p>我们先来探讨一下事件的概念。都是读过书的，应该都还记得记叙文的六要素：时间、地点、人物、事件（起因、经过、结果）。</p>
+<blockquote>
+<p>我们拿注册的案例，来解释一下。<br>用户输入用户名、邮箱、密码后，点击注册，输入无误校验通过后，注册成功并发送邮件给用户，要求用户进行邮箱验证激活。</p>
+</blockquote>
+<p>这里面就涉及了两个主要事件：</p>
+<ol>
+<li>注册事件：起因是用户点击了注册按钮，经过是输入校验，结果是是否注册成功。</li>
+<li>发送邮件事件：起因是用户使用邮箱注册成功需要验证邮箱，经过是邮件发送，结果是邮件是否发送成功。</li>
+</ol>
+<p>其实这六要素也适用于我们程序中事件的处理过程。开发过WinForm程序的都知道，我们在做UI设计的时候，从工具箱拖入一个注册按钮（btnRegister），双击它，VS就会自动帮我们生成如下代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">void btnRegister_Click(object sender, EventArgs e)</span><br><span class="line">&#123;</span><br><span class="line"> &#x2F;&#x2F; 事件的处理</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中<code>object sender</code>指代发出事件的对象，这里也就是button对象；<code>EventArgs e</code> 事件参数，可以理解为对事件的描述 ，它们可以统称为<strong>事件源</strong>。其中的代码逻辑，就是对事件的处理。我们可以统称为<strong>事件处理</strong>。</p>
+<p>说了这么多，无非是想透过现象看本质：<strong>事件是由事件源触发并由事件处理消费（An event is raised by an event source and consumed by an event handler</strong>）。</p>
+<h2 id="2-2-发布订阅模式"><a href="#2-2-发布订阅模式" class="headerlink" title="2.2. 发布订阅模式"></a>2.2. 发布订阅模式</h2><blockquote>
+<p>定义对象间一种一对多的依赖关系，使得每当一个对象改变状态，则所有依赖于它的对象都会得到通知并被自动更新。 ——发布订阅模式</p>
+</blockquote>
+<p>发布订阅模式主要有两个角色：</p>
+<ul>
+<li>发布方（Publisher）：也称为被观察者，当状态改变时负责通知所有订阅者。</li>
+<li>订阅方（Subscriber）：也称为观察者，订阅事件并对接收到的事件进行处理。</li>
+</ul>
+<p>发布订阅模式有两种实现方式：</p>
+<ul>
+<li>简单的实现方式：由Publisher维护一个订阅者列表，当状态改变时循环遍历列表通知订阅者。</li>
+<li>委托的实现方式：由Publisher定义事件委托，Subscriber实现委托。</li>
+</ul>
+<p>总的来说，发布订阅模式中有两个关键字，通知和更新。<br>被观察者状态改变通知观察者做出相应更新。<br>解决的是当对象改变时需要通知其他对象做出相应改变的问题。</p>
+<p>如果画一个图来表示这个流程的画，图形应该是这样的：</p>
+<p><img src="/images/how-much-you-know-about-the-eventbus-1/2799767-8a17f6e834278167.png" alt="图2：发布订阅模式流程"></p>
+<h1 id="3-实现发布订阅模式"><a href="#3-实现发布订阅模式" class="headerlink" title="3. 实现发布订阅模式"></a>3. 实现发布订阅模式</h1><p>相信通过上面的解释，对事件和发布订阅模式有了一个大概的印象。都说理论要与实践相结合，所以我们还是动动手指敲敲代码比较好。<br>我将以<a href="http://www.jianshu.com/p/45675c73296d" target="_blank" rel="noopener">『观察者模式』来钓鱼</a>这个例子为基础，通过重构的方式来完善一个更加通用的发布订阅模式。<br>先上代码：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 鱼的品类枚举</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public enum FishType</span><br><span class="line">&#123;</span><br><span class="line">    鲫鱼,</span><br><span class="line">    鲤鱼,</span><br><span class="line">    黑鱼,</span><br><span class="line">    青鱼,</span><br><span class="line">    草鱼,</span><br><span class="line">    鲈鱼</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>钓鱼竿的实现：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F;     鱼竿（被观察者）</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class FishingRod</span><br><span class="line">&#123;</span><br><span class="line">    public delegate void FishingHandler(FishType type); &#x2F;&#x2F;声明委托</span><br><span class="line">    public event FishingHandler FishingEvent; &#x2F;&#x2F;声明事件</span><br><span class="line"></span><br><span class="line">    public void ThrowHook(FishingMan man)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine(&quot;开始下钩！&quot;);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F;用随机数模拟鱼咬钩，若随机数为偶数，则为鱼咬钩</span><br><span class="line">        if (new Random().Next() % 2 &#x3D;&#x3D; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            var type &#x3D; (FishType) new Random().Next(0, 5);</span><br><span class="line">            Console.WriteLine(&quot;铃铛：叮叮叮，鱼儿咬钩了&quot;);</span><br><span class="line">            if (FishingEvent !&#x3D; null)</span><br><span class="line">                FishingEvent(type);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>垂钓者：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F;     垂钓者（观察者）</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class FishingMan</span><br><span class="line">&#123;</span><br><span class="line">    public FishingMan(string name)</span><br><span class="line">    &#123;</span><br><span class="line">        Name &#x3D; name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public string Name &#123; get; set; &#125;</span><br><span class="line">    public int FishCount &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 垂钓者自然要有鱼竿啊</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public FishingRod FishingRod &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    public void Fishing()</span><br><span class="line">    &#123;</span><br><span class="line">        this.FishingRod.ThrowHook(this);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void Update(FishType type)</span><br><span class="line">    &#123;</span><br><span class="line">        FishCount++;</span><br><span class="line">        Console.WriteLine(&quot;&#123;0&#125;：钓到一条[&#123;2&#125;]，已经钓到&#123;1&#125;条鱼了！&quot;, Name, FishCount, type);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>场景类也很简单：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;1、初始化鱼竿</span><br><span class="line">var fishingRod &#x3D; new FishingRod();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;2、声明垂钓者</span><br><span class="line">var jeff &#x3D; new FishingMan(&quot;圣杰&quot;);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;3.分配鱼竿</span><br><span class="line">jeff.FishingRod &#x3D; fishingRod;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;4、注册观察者</span><br><span class="line">fishingRod.FishingEvent +&#x3D; jeff.Update;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;5、循环钓鱼</span><br><span class="line">while (jeff.FishCount &lt; 5)</span><br><span class="line">&#123;</span><br><span class="line">    jeff.Fishing();</span><br><span class="line">    Console.WriteLine(&quot;-------------------&quot;);</span><br><span class="line">    &#x2F;&#x2F;睡眠5s</span><br><span class="line">    Thread.Sleep(5000);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码很简单，相信你一看就明白。但很显然这个代码实现仅适用于当前这个钓鱼场景，假如有其他场景也想使用这个模式，我们还需要重新定义委托，重新定义事件处理，岂不很累。本着”Don’t repeat yourself“的原则，我们要对其进行重构。</p>
+<p>结合我们对事件本质的探讨，事件是由事件源和事件处理组成。针对我们上面的案例来说，<code>public delegate void FishingHandler(FishType type);</code>这句代码就已经说明了事件源和事件处理。事件源就是<code>FishType type</code>，事件处理自然是注册到<code>FishingHandler</code>上面的委托实例。<br>问题找到了，很显然是我们的事件源和事件处理不够抽象，所以不能通用，下面咱们就来动手改造。</p>
+<h2 id="3-1-提取事件源"><a href="#3-1-提取事件源" class="headerlink" title="3.1. 提取事件源"></a>3.1. 提取事件源</h2><p>事件源应该至少包含事件发生的时间和触发事件的对象。<br>我们提取<code>IEventData</code>接口来封装事件源：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义事件源接口，所有的事件源都要实现该接口</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 事件发生的时间</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    DateTime EventTime &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 触发事件的对象</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    object EventSource &#123; get; set; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>自然我们应该给一个默认的实现<code>EventData</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 事件源：描述事件信息，用于参数传递</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class EventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 事件发生的时间</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public DateTime EventTime &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 触发事件的对象</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public Object EventSource &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    public EventData()</span><br><span class="line">    &#123;</span><br><span class="line">        EventTime &#x3D; DateTime.Now;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>针对Demo，扩展事件源如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class FishingEventData : EventData</span><br><span class="line">&#123;</span><br><span class="line">    public FishType FishType &#123; get; set; &#125;</span><br><span class="line">    public FishingMan FisingMan &#123; get; set; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>完成后，我们就可以去把在<code>FishingRod</code>声明的委托参数类型改为<code>FishingEventData</code>类型了，即<code>public delegate void FishingHandler(FishingEventData eventData); //声明委托</code>；<br>然后修改<code>FishingMan</code>的<code>Update</code>方法按委托定义的参数类型修改即可，代码我就不放了，大家自行脑补。</p>
+<p>到这一步我们就统一了事件源的定义方式。</p>
+<h2 id="3-2-提取事件处理器"><a href="#3-2-提取事件处理器" class="headerlink" title="3.2.提取事件处理器"></a>3.2.提取事件处理器</h2><p>事件源统一了，那事件处理也得加以限制。比如如果随意命名事件处理方法名，那在进行事件注册的时候还要去按照委托定义的参数类型去匹配，岂不麻烦。</p>
+<p>我们提取一个<code>IEventHandler</code>接口：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义事件处理器公共接口，所有的事件处理都要实现该接口</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IEventHandler</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>事件处理要与事件源进行绑定，所以我们再来定义一个泛型接口：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 泛型事件处理器接口</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IEventHandler&lt;TEventData&gt; : IEventHandler where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 事件处理器实现该方法来处理事件</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    void HandleEvent(TEventData eventData);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>你可能会纳闷，为什么先定义了一个空接口？这里就留给自己思考吧。</p>
+<p>至此我们就完成了事件处理的抽象。我们再继续去改造我们的Demo。我们让<code>FishingMan</code>实现<code>IEventHandler</code>接口，然后修改场景类中将<code>fishingRod.FishingEvent += jeff.Update;</code>改为<code>fishingRod.FishingEvent += jeff.HandleEvent;</code>即可。代码改动很简单，同样在此略去。</p>
+<p>至此你可能觉得我们完成了对Demo的改造。但事实上呢，我们还要弄清一个问题——如果这个<code>FishingMan</code>订阅的有其他的事件，我们该如何处理？<br>聪颖如你，你立马想到了可以<strong>通过事件源来进行区分处理</strong>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class FishingMan : IEventHandler&lt;IEventData&gt;</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    public void HandleEvent(IEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        if (eventData is FishingEventData)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;do something</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        if(eventData is XxxEventData)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;do something else</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，这个模式实现到这个地步基本已经可以通用了。</p>
+<h1 id="4-实现事件总线"><a href="#4-实现事件总线" class="headerlink" title="4. 实现事件总线"></a>4. 实现事件总线</h1><p>通用的发布订阅模式不是我们的目的，我们的目的是一个集中式的事件处理机制，且各个模块之间相互不产生依赖。那我们如何做到呢？同样我们还是一步一步的进行分析改造。</p>
+<h2 id="4-1-分析问题"><a href="#4-1-分析问题" class="headerlink" title="4.1.分析问题"></a>4.1.分析问题</h2><p>思考一下，每次为了实现这个模式，都要完成以下三步：</p>
+<ol>
+<li>事件发布方定义事件委托</li>
+<li>事件订阅方定义事件处理逻辑</li>
+<li>显示的订阅事件</li>
+</ol>
+<p>虽然只有三步，但这三步已经很繁琐了。而且事件发布方和事件订阅方还存在着依赖（体现在订阅者要显示的进行事件的注册和注销上）。而且当事件过多时，直接在订阅者中实现<code>IEventHandler</code>接口处理多个事件逻辑显然不太合适，违法单一职责原则。这里就暴露了三个问题：</p>
+<ol>
+<li>如何精简步骤？</li>
+<li>如何解除发布方与订阅方的依赖？</li>
+<li>如何避免在订阅者中同时处理多个事件逻辑？</li>
+</ol>
+<p>带着问题思考，我们就会更接近真相。</p>
+<p>想要精简步骤，那我们需要寻找共性。共性就是事件的本质，也就是我们针对事件源和事件处理提取出来的两个接口。</p>
+<p>想要解除依赖，那就要在发布方和订阅方之间添加一个中介。</p>
+<p>想要避免订阅者同时处理过多事件逻辑，那我们就把事件逻辑的处理提取到订阅者外部。</p>
+<p>思路有了，下面我们就来实施吧。</p>
+<h2 id="4-2-解决问题"><a href="#4-2-解决问题" class="headerlink" title="4.2.解决问题"></a>4.2.解决问题</h2><p>本着先易后难的思想，我们下面就来解决以上问题。</p>
+<h3 id="4-2-1-实现IEventHandler"><a href="#4-2-1-实现IEventHandler" class="headerlink" title="4.2.1. 实现IEventHandler"></a>4.2.1. 实现IEventHandler</h3><p>我们先解决上面的第三个问题：如何避免在订阅者中同时处理多个事件逻辑？</p>
+<p>自然是针对不同的事件源<code>IEventData</code>实现不同的<code>IEventHandler</code>。改造后的钓鱼事件处理逻辑如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 钓鱼事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class FishingEventHandler : IEventHandler&lt;FishingEventData&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public void HandleEvent(FishingEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        eventData.FishingMan.FishCount++;</span><br><span class="line"></span><br><span class="line">        Console.WriteLine(&quot;&#123;0&#125;：钓到一条[&#123;2&#125;]，已经钓到&#123;1&#125;条鱼了！&quot;,</span><br><span class="line">            eventData.FishingMan.Name, eventData.FishingMan.FishCount, eventData.FishType);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这时我们就可以移除在<code>FishingMan</code>中实现的<code>IEventHandler</code>接口了。<br>然后将事件注册改为<code>fishingRod.FishingEvent += new FishingEventHandler().HandleEvent;</code>即可。</p>
+<h3 id="4-2-2-统一注册事件"><a href="#4-2-2-统一注册事件" class="headerlink" title="4.2.2. 统一注册事件"></a>4.2.2. 统一注册事件</h3><p>上一个问题的解决，有助于我们解决第一个问题：如何精简流程？<br>为什么呢，因为我们是根据事件源定义相应的事件处理的。也就是我们之前说的可以根据事件源来区分事件。<br>然后呢？反射，我们可以通过反射来进行事件的统一注册。<br>在<code>FishingRod</code>的构造函数中使用反射，统一注册实现了<code>IEventHandler&lt;FishingEventData&gt;</code>类型的实例方法<code>HandleEvent</code>：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public FishingRod()</span><br><span class="line">&#123;</span><br><span class="line">    Assembly assembly &#x3D; Assembly.GetExecutingAssembly();</span><br><span class="line"></span><br><span class="line">    foreach (var type in assembly.GetTypes())</span><br><span class="line">    &#123;</span><br><span class="line">        if (typeof(IEventHandler).IsAssignableFrom(type))&#x2F;&#x2F;判断当前类型是否实现了IEventHandler接口</span><br><span class="line">        &#123;</span><br><span class="line">            Type handlerInterface &#x3D; type.GetInterface(&quot;IEventHandler&#96;1&quot;);&#x2F;&#x2F;获取该类实现的泛型接口</span><br><span class="line">            Type eventDataType &#x3D; handlerInterface.GetGenericArguments()[0]; &#x2F;&#x2F; 获取泛型接口指定的参数类型</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;如果参数类型是FishingEventData，则说明事件源匹配</span><br><span class="line">            if (eventDataType.Equals(typeof(FishingEventData)))</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;创建实例</span><br><span class="line">                var handler &#x3D; Activator.CreateInstance(type) as IEventHandler&lt;FishingEventData&gt;;</span><br><span class="line">                &#x2F;&#x2F;注册事件</span><br><span class="line">                FishingEvent +&#x3D; handler.HandleEvent;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样，我们就可以移出场景类中的显示注册代码<code>fishingRod.FishingEvent += new FishingEventHandler().HandleEvent;</code>。</p>
+<h3 id="4-2-3-解除依赖"><a href="#4-2-3-解除依赖" class="headerlink" title="4.2.3. 解除依赖"></a>4.2.3. 解除依赖</h3><p>如何解除依赖呢？其实答案就在本文的两张图上，仔细对比我们可以很直观的看到，Event Bus就相当于一个介于Publisher和Subscriber中间的桥梁。它隔离了Publlisher和Subscriber之间的直接依赖，接管了所有事件的发布和订阅逻辑，并负责事件的中转。</p>
+<p><strong>Event Bus终于要粉墨登场了！！！</strong><br>分析一下，如果EventBus要接管所有事件的发布和订阅，那它则需要有一个容器来记录事件源和事件处理。那又如何触发呢？有了事件源，我们就自然能找到绑定的事件处理逻辑，通过反射触发。代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 事件总线</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class EventBus</span><br><span class="line">&#123;</span><br><span class="line">    public static EventBus Default &#x3D;&gt; new EventBus();</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 定义线程安全集合</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br><span class="line"></span><br><span class="line">    public EventBus()</span><br><span class="line">    &#123;</span><br><span class="line">        _eventAndHandlerMapping &#x3D; new ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt;();</span><br><span class="line">        MapEventToHandler();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F;通过反射，将事件源与事件处理绑定</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    private void MapEventToHandler()</span><br><span class="line">    &#123;</span><br><span class="line">        Assembly assembly &#x3D; Assembly.GetEntryAssembly();</span><br><span class="line">        foreach (var type in assembly.GetTypes())</span><br><span class="line">        &#123;</span><br><span class="line">            if (typeof(IEventHandler).IsAssignableFrom(type))&#x2F;&#x2F;判断当前类型是否实现了IEventHandler接口</span><br><span class="line">            &#123;</span><br><span class="line">                Type handlerInterface &#x3D; type.GetInterface(&quot;IEventHandler&#96;1&quot;);&#x2F;&#x2F;获取该类实现的泛型接口</span><br><span class="line">                if (handlerInterface !&#x3D; null)</span><br><span class="line">                &#123;</span><br><span class="line">                    Type eventDataType &#x3D; handlerInterface.GetGenericArguments()[0]; &#x2F;&#x2F; 获取泛型接口指定的参数类型</span><br><span class="line"></span><br><span class="line">                    if (_eventAndHandlerMapping.ContainsKey(eventDataType))</span><br><span class="line">                    &#123;</span><br><span class="line">                        List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[eventDataType];</span><br><span class="line">                        handlerTypes.Add(type);</span><br><span class="line">                        _eventAndHandlerMapping[eventDataType] &#x3D; handlerTypes;</span><br><span class="line">                    &#125;</span><br><span class="line">                    else</span><br><span class="line">                    &#123;</span><br><span class="line">                        var handlerTypes &#x3D; new List&lt;Type&gt; &#123; type &#125;;</span><br><span class="line">                        _eventAndHandlerMapping[eventDataType] &#x3D; handlerTypes;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 手动绑定事件源与事件处理</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandler&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void Register&lt;TEventData&gt;(Type eventHandler)</span><br><span class="line">    &#123;</span><br><span class="line">        List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line">        if (!handlerTypes.Contains(eventHandler))</span><br><span class="line">        &#123;</span><br><span class="line">            handlerTypes.Add(eventHandler);</span><br><span class="line">            _eventAndHandlerMapping[typeof(TEventData)] &#x3D; handlerTypes;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 手动解除事件源与事件处理的绑定</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandler&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void UnRegister&lt;TEventData&gt;(Type eventHandler)</span><br><span class="line">    &#123;</span><br><span class="line">        List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line">        if (handlerTypes.Contains(eventHandler))</span><br><span class="line">        &#123;</span><br><span class="line">            handlerTypes.Remove(eventHandler);</span><br><span class="line">            _eventAndHandlerMapping[typeof(TEventData)] &#x3D; handlerTypes;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 根据事件源触发绑定的事件处理</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void Trigger&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">    &#123;</span><br><span class="line">        List&lt;Type&gt; handlers &#x3D; _eventAndHandlerMapping[eventData.GetType()];</span><br><span class="line"></span><br><span class="line">        if (handlers !&#x3D; null &amp;&amp; handlers.Count &gt; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            foreach (var handler in handlers)</span><br><span class="line">            &#123;</span><br><span class="line">                MethodInfo methodInfo &#x3D; handler.GetMethod(&quot;HandleEvent&quot;);</span><br><span class="line">                if (methodInfo !&#x3D; null)</span><br><span class="line">                &#123;</span><br><span class="line">                    object obj &#x3D; Activator.CreateInstance(handler);</span><br><span class="line">                    methodInfo.Invoke(obj, new object[] &#123; eventData &#125;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>事件总线主要定义三个方法，注册、取消注册、事件触发。还有一点就是我们在构造函数中通过反射去进行事件源和事件处理的绑定。<br>代码注释已经很清楚了，这里就不过多解释了。</p>
+<p>下面我们就来修改Demo，修改<code>FishingRod</code>的事件触发：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 下钩</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public void ThrowHook(FishingMan man)</span><br><span class="line">&#123;</span><br><span class="line">    Console.WriteLine(&quot;开始下钩！&quot;);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;用随机数模拟鱼咬钩，若随机数为偶数，则为鱼咬钩</span><br><span class="line">    if (new Random().Next() % 2 &#x3D;&#x3D; 0)</span><br><span class="line">    &#123;</span><br><span class="line">        var a &#x3D; new Random(10).Next();</span><br><span class="line">        var type &#x3D; (FishType)new Random().Next(0, 5);</span><br><span class="line">        Console.WriteLine(&quot;铃铛：叮叮叮，鱼儿咬钩了&quot;);</span><br><span class="line">        if (FishingEvent !&#x3D; null)</span><br><span class="line">        &#123;</span><br><span class="line">            var eventData &#x3D; new FishingEventData() &#123; FishType &#x3D; type, FishingMan &#x3D; man &#125;;</span><br><span class="line">            &#x2F;&#x2F;FishingEvent(eventData);&#x2F;&#x2F;不再需要通过事件委托触发</span><br><span class="line">            EventBus.Default.Trigger&lt;FishingEventData&gt;(eventData);&#x2F;&#x2F;直接通过事件总线触发即可</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>至此，事件总线的雏形已经形成！</p>
+<h1 id="5-事件总线的总结"><a href="#5-事件总线的总结" class="headerlink" title="5.事件总线的总结"></a>5.事件总线的总结</h1><p>通过上面一步一步的分析和实践，发现事件总线也不是什么高深的概念，只要我们自己善于思考，勤于动手，也能实现自己的事件总线。<br>根据我们的实现，大概总结出以下几条：</p>
+<ol>
+<li>事件总线维护一个事件源与事件处理的映射字典；</li>
+<li>通过单例模式，确保事件总线的唯一入口；</li>
+<li>利用反射完成事件源与事件处理的初始化绑定；</li>
+<li>提供统一的事件注册、取消注册和触发接口。</li>
+</ol>
+<p>最后，以上事件总线的实现只是一个雏形，还有很多潜在的问题。有兴趣的不妨思考完善一下，我也会继续更新，尽情期待。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
+<hr>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><blockquote>
+<p><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lori/p/3476703.html" target="_blank" rel="noopener">DDD~领域事件与事件总线</a><br><a href="http://www.cnblogs.com/dehai/p/4887998.html" target="_blank" rel="noopener">DDD事件总线的实现</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>发布订阅模式</tag>
+        <tag>EventBus</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>诊断日志知多少 | DiagnosticSource 在.NET上的应用</title>
     <url>/post/how-much-you-know-about-diagnostic-in-dotnet/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f9fe53d73a593166.png" alt=""></p>
@@ -1176,331 +1579,8 @@
       </categories>
       <tags>
         <tag>.NET</tag>
+        <tag>发布订阅模式</tag>
         <tag>诊断日志</tag>
-        <tag>发布订阅模式</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Istio知多少 | 下一代微服务守护者</title>
-    <url>/post/how-much-you-know-about-istio/</url>
-    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>在写完<a href="https://www.jianshu.com/p/e27f0f1dd8ab" target="_blank" rel="noopener">eShopOnContainers 知多少[12]：Envoy gateways</a>后，就一直想进一步探索Service Mesh，最近刚在极客时间上学完《Service Mesh入门》，又大致浏览了一遍官方文档，对Istio也算有了基本的认识。下面就根据自己的理解对Istio进行简单的梳理，算是对知识的总结吧。</p>
-<h1 id="2-Cloud-Native（云原生）"><a href="#2-Cloud-Native（云原生）" class="headerlink" title="2. Cloud Native（云原生）"></a>2. Cloud Native（云原生）</h1><p>在介绍Istio之前，我们得先了解下Service Mesh，而Service Mesh 又是云原生的产物。因此，本着追本溯源的精神，我们得先了解下云原生。云原生（Cloud Native）这个概念是在2015年提出的，听的人多，真正能讲清楚的人少，我也一样。综合多方资料，下面尝试解读一下。</p>
-<p>云原生，虽然字都认识，但真不好解释。一般讲云原生，其实是讲云原生应用，多了应用二字，就更具象了。从字面上直译：云，代表云端；原生：原本就生长在那里；连起来就是<strong>原本就生长在云端的应用</strong>。</p>
-<p>应用怎么会原本就生长在云端呢？云又是怎么发展而来呢？别急，我们先来看下云计算的发展来解答下云的由来。</p>
-<p>我们知道传统的应用都是跑在本地服务器上，随着虚拟化技术的发展，拉开了云计算的序幕，一大批云计算厂商基于虚拟机技术，提供了IaaS，PaaS和SaaS等产品心态，极大的提高资源的利用率。企业本着降本增效的目的，逐步将应用迁移到云上的Paas平台上。而这一阶段，被称为云计算的虚拟机时代，而这个时间节点在2013年之前，运行在云端虚拟机上的应用，还不叫云原生应用。</p>
-<p>2013年，Docker开源，正式开启了容器技术时代，重新定义了 PaaS 的全新容器化思路。在容器技术的基础上，“云”得到了极大的发展，2014年谷歌开源Kubernetes，旨在解决容器的编排问题（部署、伸缩和管理）。2017年容器编排大战尘埃落定，Kubernetes成为最大赢家，标志着K8S成为分布式资源调度和自动化运维的事实标准。Kubernetes 也逐渐体现出云原生时代底层操作系统的特征，向下封装资源、向上支撑应用。这个阶段，可以称为云计算的容器时代。也正是在这个阶段，云原生的概念被提出，其标志事件就是2015年CNCF（云原生计算基金会）的成立，云原生这个词才被大家熟知。</p>
-<p>现在我们知道，云原生是在容器时代提出的概念。那为什么会提出云原生这个概念呢？别急我们来看下云计算发展过程中后端架构的演进。</p>
-<p><img src="/images/how-much-you-know-about-istio/2799767-468fa4b0fdf93d2e.png" alt=""></p>
-<p>从上图可知，后端架构从单体到分布式，再逐步演进到微服务架构。采用微服务架构，就必须解决服务治理、流量控制、应用观察等问题。其中2014年由Netflix 推出的Spring Cloud体系就是通过提供服务发现、负载均衡、失效转移、动态扩容、数据分片、调用链路监控等分布式系统的核心功能，一度成为微服务的最佳实践。但是却有一个很大的缺点就是其对应用有很强的<strong>侵入性</strong>，应用代码中会包含大量的 SpringCloud 模块。这时的应用模型如下图所示：<br><img src="/images/how-much-you-know-about-istio/2799767-37c166cdb37da808.png" alt=""></p>
-<p>那如何解决侵入性的问题呢？这个问题在容器编排技术成熟之前，似乎没有好的答案。但随着K8S的成熟，这个问题有了新的解法。Kubernetes的出现就是为了解决 SpringCloud 的问题，不侵入应用层，在容器层解决问题。这就是理想的应用开发模型，应用依托于“云”，最大化发挥“云”的优势，专注于业务需求的实现。</p>
-<p><img src="/images/how-much-you-know-about-istio/2799767-b078ed95710d8719.png" alt=""></p>
-<p>那应用如何依托于“云”，最大化发挥“云”的优势呢？云原生就是为了解决这一问题而提出的。其建立在“未来的软件一定生长于云”的核心假设之上提出的，<strong>云原生本质上是一套指导软件架构设计的思想，依托该思想而设计的应用：首先，应用本身“生于云、长于云”；其次，这样的应用能够天然集成“云”环境，进而释放“云”的最大价值。</strong> 云原生定义了一条能够让应用最大程度利用云能力、发挥云价值的最佳路径。具体来说，参考云原生计算基金会（CNCF）对<a href="https://github.com/cncf/toc/blob/master/DEFINITION.md#中文版本" target="_blank" rel="noopener">云原生的定义</a>，<strong>云原生包括容器化封装、自动化管理、面向微服务、服务网格、声明式 API。符合云原生架构的应用程序应该是：采用开源堆栈（Kubernetes+Docker）进行容器化，基于微服务架构提高灵活性和可维护性，借助敏捷方法、DevOps 支持持续迭代和运维自动化，利用云平台设施实现弹性伸缩、动态调度、优化资源利用率。</strong></p>
-<p>那如何实现云原生呢？Service Mesh交出了自己的答卷。</p>
-<h1 id="3-Service-Mesh（服务网格）"><a href="#3-Service-Mesh（服务网格）" class="headerlink" title="3. Service Mesh（服务网格）"></a>3. Service Mesh（服务网格）</h1><p>先来看下Service Mesh的提出者，也就是第一代Service Mesh 产品Linkerd的CEO，对Service Mesh的定义：<br><img src="/images/how-much-you-know-about-istio/2799767-496fbb1676a4c670.png" alt="Service Mesh的定义"></p>
-<blockquote>
-<p>Service Mesh 通常被译为服务网格，其是一个<strong>基础设施层</strong>，用于处理服务间通信。云原生应用有着复杂的服务拓扑，服务网格负责在这些拓扑中<strong>实现请求的可靠传递</strong>。在实践中，服务网格通常实现为一组<strong>轻量级网络代理</strong>，它们与应用程序部署在一起，而<strong>对应用程序透明</strong>。</p>
-</blockquote>
-<p><em>PS: eShopOnContainers就是采用了Linkerd作为Service Mesh，基于其易于安装和设置的特性。感兴趣的同学，可访问<a href="https://github.com/dotnet-architecture/eShopOnContainers/wiki/Resiliency-and-Service-Mesh" target="_blank" rel="noopener">链接</a>一探究竟。</em></p>
-<p>Service Mesh 通过在请求调用的路径中增加Sidecar，将原本由客户端完成的复杂功能下沉到Sidecar 中，实现对客户端的简化和服务间通信控制权的转移，当系统中存在大量服务时，服务间的调用关系表现为网状，这也是服务网格名称的由来。</p>
-<p><strong>Service Mesh就是通过Sidecar模式将业务需求与非业务需求进行隔离，解决侵入性问题</strong>。其中Sidecar主要就是用来处理诸如服务发现、负载均衡、请求熔断等一系列非业务需求，应用在部署时动态插入Sidecar，以<strong>对用户透明的方式改变应用行为</strong>。以下是Service Mesh的核心流程：<br><img src="/images/how-much-you-know-about-istio/2799767-8d4d1d42ed1d0696.png" alt="Service Mesh"></p>
-<h1 id="4-Istio-（帆）"><a href="#4-Istio-（帆）" class="headerlink" title="4. Istio （帆）"></a>4. Istio （帆）</h1><p>主流的 Service Mesh 开源软件包括 Linkerd、Envoy 和 Istio。Linkerd 和 Envoy 都 直 接 体 现 了Service Mesh 的核心理念，在功能上较为相似，即实现服务发现、请求路由、负载均衡等功能，解决服务之间的通信问题，使得应用对服务通信无感知。<strong>而 Istio 站在了更高的角度，将 Service Mesh 分为了 Data Plane 和 Control Plane， 由 Data Plane负责微服务间的所有网络通信，而 Control Plane负 责 管 理 Data Plane Proxy</strong>， 且 Istio 天 然 支 持Kubernetes，这也弥合了应用调度框架与 ServiceMesh 之间的空隙。</p>
-<p><img src="/images/how-much-you-know-about-istio/2799767-dbae54dc31dfbb1c.png" alt="Istio"></p>
-<blockquote>
-<p><a href="https://istio.io/latest/zh/docs/concepts/what-is-istio/" target="_blank" rel="noopener">Istio的官方定义</a>:<br>它是一个完全开源的服务网格，作为透明的一层接入到现有的分布式应用程序里。它也是一个平台，拥有可以集成任何日志、遥测和策略系统的 API 接口。Istio 多样化的特性使您能够成功且高效地运行分布式微服务架构，并提供保护、连接和监控微服务的统一方法。</p>
-</blockquote>
-<p>从定义中可以梳理出Istio提供了以下核心特性：</p>
-<ol>
-<li>连接：请求路由、服务发现、负载均衡、流量管理、灰度发布及A/B测试</li>
-<li>保护：托管的认证授权，及通信加密</li>
-<li>控制：策略定义</li>
-<li>观测：日志、追踪、指标及监控</li>
-</ol>
-<p>目前的Istio已经更新到1.8版本了，其架构也从最开始的复杂版本逐渐简化。现在的架构图如下所示：</p>
-<p><img src="/images/how-much-you-know-about-istio/2799767-e492da29670e8b73.png" alt="Istio Architecture"></p>
-<p>从图中可以看出主要包含两大平面：</p>
-<ol>
-<li>数据平面（Data plane）：由Envoy Proxy 充当的Sidecar组成。</li>
-<li>控制平面（Control plane）：主要包含三大核心组件，Pilot、Citadel、Galley组成。</li>
-<li><ol>
-<li>Pilot：主要是管理部署在Istio服务网格中的Envoy代理实例，为它们提供服务发现、流量管理以及弹性功能，比如：A/B测试、金丝雀发布、超时、重试、熔断等。</li>
-</ol>
-</li>
-<li><ol start="2">
-<li>Citadel：Istio的核心安全组件，负责服务的密钥和数字证书管理，用于提供自动生成、分发、轮换及撤销密钥和数据证书的功能。</li>
-</ol>
-</li>
-<li><ol start="3">
-<li>Galley：负责向Istio的其它组件提供支撑功能，可以理解为Istio的配置中心，它用于校验进入网络配置信息的格式内容正确性，并将这些配置信息提供给Pilot。</li>
-</ol>
-</li>
-</ol>
-<p>以上就是Istio的核心概念，关于Istio流量控制、安全及可观察性的应用，这里就先不展开了，后续就结合Demo，再和大家分享了。</p>
-<h1 id="5-最后"><a href="#5-最后" class="headerlink" title="5. 最后"></a>5. 最后</h1><p>讲真，通过翻阅资料，完成了对云计算、云原生、Service Mesh等概念的追本溯源，加深了云原生理念的认知，拓展了自己的架构视野，也大致了解了后续自己的学习和研究方向。希望本文对你或多或少也有所帮助，感谢阅读！</p>
-<p><em>写就本文，参考了很多资料，参考资料见文末，在此对原作者表示感谢！另外这里再向大家推荐两份关于云原生和Service Mesh的PPT，梳理的非常完整，感兴趣的同学可关注【微服务知多少】公众号，回复”云原生“即可获取。</em></p>
-<blockquote>
-<p>参考资料</p>
-<ol>
-<li><a href="https://kb.cnblogs.com/page/643110/" target="_blank" rel="noopener">未来已来：云原生 Cloud Native</a></li>
-<li><a href="https://www.infoq.cn/article/fA42rfjV*dYGAvRANFqE" target="_blank" rel="noopener">畅谈云原生（上）：云原生应用应该是什么样子？</a></li>
-<li><a href="https://juejin.cn/post/6844903508261470215" target="_blank" rel="noopener">Service Mesh：下一代微服务？</a></li>
-<li><a href="https://istio.io/latest/docs/concepts/what-is-istio/" target="_blank" rel="noopener">What’s Istio?</a></li>
-<li><a href="https://www.infoq.cn/minibook/GaaadEVc7hFNLpRAiBU7" target="_blank" rel="noopener">InfoQ：云原生的技术探索与落地实践 | 研究报告</a></li>
-<li><a href="https://github.com/cncf/toc/blob/master/DEFINITION.md" target="_blank" rel="noopener">CNCF Cloud Native Definition v1.0</a></li>
-</ol>
-</blockquote>
-]]></content>
-      <categories>
-        <category>云原生</category>
-      </categories>
-      <tags>
-        <tag>Service Mesh</tag>
-        <tag>Istio</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>MediatR 知多少</title>
-    <url>/post/how-much-you-know-about-the-MediatR/</url>
-    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-81f47b8d28199687.png" alt=""></p>
-<h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>首先不用查字典了，词典查无此词。猜测是作者笔误将<strong>Mediator</strong>写成MediatR了。废话少说，转入正题。</p>
-<p>先来简单了解下这个开源项目<a href="https://github.com/jbogard/MediatR" target="_blank" rel="noopener">MediatR</a>（作者Jimmy Bogard，也是开源项目AutoMapper的创建者，在此表示膜拜）：</p>
-<blockquote>
-<p>Simple mediator implementation in .NET. In-process messaging with no dependencies. Supports request/response, commands, queries, notifications and events, synchronous and async with intelligent dispatching via C# generic variance.<br><em>.NET中的简单中介者模式实现，一种进程内消息传递机制（无其他外部依赖）。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</em></p>
-</blockquote>
-<p>如上所述，其核心是一个中介者模式的.NET实现，其目的是消息发送和消息处理的解耦。它支持以单播和多播形式使用同步或异步的模式来发布消息，创建和侦听事件。</p>
-<h1 id="中介者模式"><a href="#中介者模式" class="headerlink" title="中介者模式"></a>中介者模式</h1><p>既然是对中介者模式的一种实现，那么我们就有必要简要介绍下中介者这个设计模式，以便后续展开。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-6165cec43764d9cd.png" alt="中介者模式类图"></p>
-<blockquote>
-<p>中介者模式：用一个中介对象封装一系列的对象交互，中介者使各对象不需要显示地相互作用，从而使耦合松散，而且可以独立地改变它们之间的交互。</p>
-</blockquote>
-<p>看上面的官方定义可能还是有点绕，那么下面这张图应该能帮助你对中介者模式有个直观了解。<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-306109184e4beaa6.png" alt=""></p>
-<p>使用中介模式，对象之间的交互将封装在中介对象中。对象不再直接相互交互（解耦），而是通过中介进行交互。这减少了对象之间的依赖性，从而减少了耦合。</p>
-<p>那其优缺点也在图中很容易看出：</p>
-<blockquote>
-<p><strong>优点</strong>：中介者模式的优点就是减少类间的依赖，把原有的一对多的依赖变成了一对一的依赖，同事类只依赖中介者，减少了依赖，当然同时也降低了类间的耦合<br><strong>缺点</strong>：中介者模式的缺点就是中介者会膨胀得很大，而且逻辑复杂，原本N个对象直接的相互依赖关系转换为中介者和同事类的依赖关系，同事类越多，中介者的逻辑就越复杂。</p>
-</blockquote>
-<h1 id="Hello-MeidatR"><a href="#Hello-MeidatR" class="headerlink" title="Hello MeidatR"></a>Hello MeidatR</h1><p>在开始之前，我们先来了解下其基本用法。</p>
-<h2 id="单播消息传输"><a href="#单播消息传输" class="headerlink" title="单播消息传输"></a>单播消息传输</h2><p>单播消息传输，也就是一对一的消息传递，一个消息对应一个消息处理。其通过<code>IRequest</code>来抽象单播消息，用<code>IRequestHandler</code>进行消息处理。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 消息请求</span><br><span class="line">public class Ping : IRequest&lt;string&gt; &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理</span><br><span class="line">public class PingHandler : IRequestHandler&lt;Ping, string&gt; &#123;</span><br><span class="line">    public Task&lt;string&gt; Handle(Ping request, CancellationToken cancellationToken) &#123;</span><br><span class="line">        return Task.FromResult(&quot;Pong&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;发送 请求</span><br><span class="line">var response &#x3D; await mediator.Send(new Ping());</span><br><span class="line">Debug.WriteLine(response); &#x2F;&#x2F; &quot;Pong&quot;</span><br></pre></td></tr></table></figure>
-
-<h2 id="多播消息传输"><a href="#多播消息传输" class="headerlink" title="多播消息传输"></a>多播消息传输</h2><p>多播消息传输，也就是一对多的消息传递，一个消息对应多个消息处理。其通过<code>INotification</code>来抽象多播消息，对应的消息处理类型为<code>INotificationHandler</code>。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;构建 通知消息</span><br><span class="line">public class Ping : INotification &#123; &#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器1</span><br><span class="line">public class Pong1 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 1&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;构建 消息处理器2</span><br><span class="line">public class Pong2 : INotificationHandler&lt;Ping&gt; &#123;</span><br><span class="line">    public Task Handle(Ping notification, CancellationToken cancellationToken) &#123;</span><br><span class="line">        Debug.WriteLine(&quot;Pong 2&quot;);</span><br><span class="line">        return Task.CompletedTask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发布消息</span><br><span class="line">await mediator.Publish(new Ping());</span><br></pre></td></tr></table></figure>
-
-<h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><p>对MediatR有了基本认识后，我们来看看源码，研究下其如何实现的。</p>
-<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-00b8410a546d62e4.png" alt="类图"></p>
-<p>从代码图中我们可以看到其核心的对象主要包括：</p>
-<ol>
-<li>IRequest Vs IRequestHandler</li>
-<li>INotification Vs INoticifaitonHandler</li>
-<li>IMediator Vs Mediator</li>
-<li>Unit</li>
-<li>IPipelineBehavior</li>
-</ol>
-<h2 id="IRequest-Vs-IRequestHandler"><a href="#IRequest-Vs-IRequestHandler" class="headerlink" title="IRequest Vs IRequestHandler"></a>IRequest Vs IRequestHandler</h2><p>其中<code>IRequest</code>和<code>INotification</code>分别对应单播和多播消息的抽象。<br>对于单播消息可以决定是否需要返回值选用不同的接口：</p>
-<ul>
-<li>IRequest<T> - 有返回值</li>
-<li>IRequest - 无返回值</li>
-</ul>
-<p>这里就不得不提到其中巧妙的设计，通过引入结构类型<code>Unit</code>来代表无返回的情况。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表无需返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IRequest : IRequest&lt;Unit&gt; &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 代表有返回值的请求</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TResponse&quot;&gt;Response type&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IRequest&lt;out TResponse&gt; : IBaseRequest &#123; &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; Allows for generic type constraints of objects implementing IRequest or IRequest&#123;TResponse&#125;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IBaseRequest &#123; &#125;</span><br></pre></td></tr></table></figure>
-
-<p>同样对于<code>IRequestHandler</code>也是通过结构类型<code>Unit</code>来处理不需要返回值的情况。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IRequestHandler&lt;in TRequest, TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Task&lt;TResponse&gt; Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public interface IRequestHandler&lt;in TRequest&gt; : IRequestHandler&lt;TRequest, Unit&gt;</span><br><span class="line">    where TRequest : IRequest&lt;Unit&gt;</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从上面我们可以看出定义了一个方法名为<code>Handle</code>返回值为<code>Task</code>的包装类型，而因此赋予了其具有以同步和异步的方式进行消息处理的能力。我们再看一下其以异步方式进行消息处理（无返回值）的默认实现<code>AsyncRequestHandler</code>：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public abstract class AsyncRequestHandler&lt;TRequest&gt; : IRequestHandler&lt;TRequest&gt;</span><br><span class="line">    where TRequest : IRequest</span><br><span class="line">&#123;</span><br><span class="line">    async Task&lt;Unit&gt; IRequestHandler&lt;TRequest, Unit&gt;.Handle(TRequest request, CancellationToken cancellationToken)</span><br><span class="line">    &#123;</span><br><span class="line">        await Handle(request, cancellationToken).ConfigureAwait(false);</span><br><span class="line">        return Unit.Value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    protected abstract Task Handle(TRequest request, CancellationToken cancellationToken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>从上面的代码来看，我们很容易看出这是装饰模式的实现方式，是不是很巧妙的解决了无需返回值的场景。</p>
-<p>最后我们来看下结构类型<code>Unit</code>的定义：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public struct Unit : IEquatable&lt;Unit&gt;, IComparable&lt;Unit&gt;, IComparable</span><br><span class="line">&#123;</span><br><span class="line">    public static readonly Unit Value &#x3D; new Unit();</span><br><span class="line"></span><br><span class="line">    public static readonly Task&lt;Unit&gt; Task &#x3D; System.Threading.Tasks.Task.FromResult(Value);</span><br><span class="line">    &#x2F;&#x2F; some other code</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="IMediator-Vs-Mediator"><a href="#IMediator-Vs-Mediator" class="headerlink" title="IMediator Vs Mediator"></a>IMediator Vs Mediator</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-19d4eebd2a6dda89.png" alt="MediatR 类图"></p>
-<p><code>IMediator</code>主要定义了两个方法<code>Send</code>和<code>Publish</code>，分别用于发送消息和发布通知。其默认实现Mediator中定义了两个集合，分别用来保存请求与请求处理的映射关系。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Mediator.cs</span><br><span class="line">&#x2F;&#x2F;保存request和requesthandler的映射关系，1对1。</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, object&gt; _requestHandlers &#x3D; new ConcurrentDictionary&lt;Type, object&gt;();</span><br><span class="line">&#x2F;&#x2F;保存notification与notificationhandler的映射关系，</span><br><span class="line">private static readonly ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt; _notificationHandlers &#x3D; new ConcurrentDictionary&lt;Type, NotificationHandlerWrapper&gt;();</span><br></pre></td></tr></table></figure>
-<p>这里面其又引入了两个包装类：<code>RequestHandlerWrapper</code>和<code>NotificationHandlerWrapper</code>。这两个包装类的作用就是用来传递<code>ServiceFactory</code>委托进行依赖解析。</p>
-<p>所以说<code>Mediator</code>借助<code>public delegate object ServiceFactory(Type serviceType);</code>完成对Ioc容器的一层抽象。这样就可以对接任意你喜欢用的Ioc容器，比如：Autofac、Windsor或ASP.NET Core默认的Ioc容器，只需要在注册<code>IMediator</code>时指定<code>ServiceFactory</code>类型的委托即可，比如ASP.NET Core中的做法：<br><img src="/images/how-much-you-know-about-the-MediatR/2799767-609f3008b14751ec.png" alt="ASP.NET Core注册IMediatr"></p>
-<p><em>在使用ASP.NET Core提供的原生Ioc容器有些问题：<a href="https://github.com/jbogard/MediatR.Extensions.Microsoft.DependencyInjection/issues/12" target="_blank" rel="noopener">Service registration crashes when registering generic handlers</a></em></p>
-<h2 id="IPipelineBehavior"><a href="#IPipelineBehavior" class="headerlink" title="IPipelineBehavior"></a>IPipelineBehavior</h2><p><img src="/images/how-much-you-know-about-the-MediatR/2799767-42380e9ad9028a7e.png" alt="处理管道"></p>
-<p>MeidatR支持按需配置请求管道进行消息处理。即支持在请求处理前和请求处理后添加额外行为。仅需实现以下两个接口，并注册到Ioc容器即可。</p>
-<ul>
-<li>IRequestPreProcessor<in TRequest> 请求处理前接口</li>
-<li>IRequestPostProcessor&lt;in TRequest, in TResponse&gt; 请求处理后接口</li>
-</ul>
-<p>其中<code>IPipelineBehavior</code>的默认实现：<code>RequestPreProcessorBehavior</code>和<code>RequestPostProcessorBehavior</code>分别用来处理所有实现<code>IRequestPreProcessor</code>和<code>IRequestPostProcessor</code>接口定义的管道行为。</p>
-<p>而处理管道是如何构建的呢？我们来看下<code>RequestHandlerWrapperImpl</code>的具体实现：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">internal class RequestHandlerWrapperImpl&lt;TRequest, TResponse&gt; : RequestHandlerWrapper&lt;TResponse&gt;</span><br><span class="line">    where TRequest : IRequest&lt;TResponse&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public override Task&lt;TResponse&gt; Handle(IRequest&lt;TResponse&gt; request, CancellationToken cancellationToken,</span><br><span class="line">        ServiceFactory serviceFactory)</span><br><span class="line">    &#123;</span><br><span class="line">        Task&lt;TResponse&gt; Handler() &#x3D;&gt; GetHandler&lt;IRequestHandler&lt;TRequest, TResponse&gt;&gt;(serviceFactory).Handle((TRequest) request, cancellationToken);</span><br><span class="line"></span><br><span class="line">        return serviceFactory</span><br><span class="line">            .GetInstances&lt;IPipelineBehavior&lt;TRequest, TResponse&gt;&gt;()</span><br><span class="line">            .Reverse()</span><br><span class="line">            .Aggregate((RequestHandlerDelegate&lt;TResponse&gt;) Handler, (next, pipeline) &#x3D;&gt; () &#x3D;&gt; pipeline.Handle((TRequest)request, cancellationToken, next))();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>就这样一个简单的函数，涉及的知识点还真不少，说实话我花了不少时间来理清这个逻辑。<br>那都涉及到哪些知识点呢？我们一个一个的来理一理。</p>
-<ol>
-<li>C# 7.0的新特性 - 局部函数</li>
-<li>C# 6.0的新特性 - 表达式形式的成员函数</li>
-<li>Linq高阶函数 - <code>Aggregate</code></li>
-<li>匿名委托</li>
-<li>构造委托函数链</li>
-</ol>
-<p>关于第1、2个知识点，请看下面这段代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();&#x2F;&#x2F;定义委托</span><br><span class="line">public static void Main()</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;局部函数(在函数内部定义函数)</span><br><span class="line">    &#x2F;&#x2F;表达式形式的成员函数， 相当于 int Sum() &#123; return 1 + 2;&#125;</span><br><span class="line">    int Sum() &#x3D;&gt; 1 + 2;</span><br><span class="line"></span><br><span class="line">    var sumDelegate &#x3D; (SumDelegate)Sum;&#x2F;&#x2F;转换为委托</span><br><span class="line">    Console.WriteLine(sumDelegate());&#x2F;&#x2F;委托调用，输出：3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>再看第4个知识点，匿名委托：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public delegate int SumDelegate();</span><br><span class="line"></span><br><span class="line">SumDelegate delegater1 &#x3D; delegate()&#123; return 1+2; &#125;</span><br><span class="line">&#x2F;&#x2F;也相当于</span><br><span class="line">SumDelegate delegater2 &#x3D;&gt; 1+2;</span><br></pre></td></tr></table></figure>
-
-<p>下面再来介绍一下<code>Aggregate</code>这个Linq高阶函数。<code>Aggregate</code>是对一个集合序列进行累加操作，通过指定初始值，累加函数，以及结果处理函数完成计算。</p>
-<p>函数定义：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public static TResult Aggregate&lt;TSource,TAccumulate,TResult&gt;</span><br><span class="line">(this IEnumerable&lt;TSource&gt; source, </span><br><span class="line">TAccumulate seed, </span><br><span class="line">Func&lt;TAccumulate,TSource,TAccumulate&gt; func, </span><br><span class="line">Func&lt;TAccumulate,TResult&gt; resultSelector);</span><br></pre></td></tr></table></figure>
-
-<p>根据函数定义我们来写个简单的demo：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var nums &#x3D; Enumerable.Range(2, 3);&#x2F;&#x2F;[2,3,4]</span><br><span class="line">&#x2F;&#x2F; 计算1到5的累加之和，再将结果乘以2</span><br><span class="line">var sum &#x3D; nums.Aggregate(1, (total, next) &#x3D;&gt; total + next, result &#x3D;&gt; result * 2);&#x2F;&#x2F; 相当于 (((1+2)+3)+4)*2&#x3D;20</span><br><span class="line">Console.WriteLine(sum);&#x2F;&#x2F;20</span><br></pre></td></tr></table></figure>
-<p>和函数参数进行一一对应：</p>
-<ol>
-<li>seed : 1</li>
-<li>Func&lt;TAccumulate,TSource,TAccumulate&gt; func : (total, next) =&gt; total + next</li>
-<li>Func&lt;TAccumulate,TResult&gt; resultSelector : result =&gt; result * 2</li>
-</ol>
-<p>基于上面的认识，我们再来回过头梳理一下<code>RequestHandlerWrapperImpl</code>。<br>其主要是借助委托：<code>public delegate Task&lt;TResponse&gt; RequestHandlerDelegate&lt;TResponse&gt;();</code>来构造委托函数链来构建处理管道。</p>
-<p>对<code>Aggregate</code>函数了解后，我们就不难理解处理管道的构建了。请看下图中的代码解读：</p>
-<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-4f2985f53e955b6b.png" alt="请求处理管道代码解读"></p>
-<p><img src="/images/how-much-you-know-about-the-MediatR/2799767-ea1971598e09240a.png" alt="构建流程解析"></p>
-<p>那如何保证先执行<code>IRequestPreProcessor</code>再执行<code>IRequestPostProcessor</code>呢？<br>就是在注册到Ioc容器时必须保证顺序，先注册<code>IRequestPreProcessor</code>再注册<code>IRequestPostProcessor</code>。（这一点很重要！！！）</p>
-<p><em>看到这里有没有想到ASP.NET Core中请求管道中中间件的构建呢？是不是很像俄罗斯套娃？先由内而外构建管道，再由外而内执行！</em></p>
-<p>至此，MediatR的实现思路算是理清了。</p>
-<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>如文章开头提到：MediatR是一种进程内消息传递机制。 支持以同步或异步的形式进行请求/响应，命令，查询，通知和事件的消息传递，并通过C#泛型支持消息的智能调度。</p>
-<p>那么我们就应该明白，其核心是<strong>消息的解耦</strong>。因为我们几乎都是在与消息打交道，那因此它的应用场景就很广泛，比如我们可以基于MediatR实现CQRS、EventBus等。</p>
-<p>另外，还有一种应用场景：我们知道借助依赖注入的好处是，就是解除依赖，但我们又不得不思考一个问题，随着业务逻辑复杂度的增加，构造函数可能要注入更多的服务，当注入的依赖太多时，其会导致构造函数膨胀。比如：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(</span><br><span class="line">    ICustomerRepository customerRepository,</span><br><span class="line">    IOrderService orderService,</span><br><span class="line">    ICustomerHistoryRepository historyRepository,</span><br><span class="line">    IOrderRepository orderRepository,</span><br><span class="line">    IProductRespoitory productRespoitory,</span><br><span class="line">    IRelatedProductsRepository relatedProductsRepository,</span><br><span class="line">    ISupportService supportService,</span><br><span class="line">    ILog logger</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
-<p>如果借助<code>MediatR</code>进行改造，也许仅需注入<code>IMediatR</code>就可以了。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public DashboardController(IMediatR mediatr)</span><br></pre></td></tr></table></figure>
-
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>看到这里，也许你应该明白MediatR实质上并不是严格意义上的中介者模式实现，我更倾向于其是基于Ioc容器的一层抽象，根据请求定位相应的请求处理器进行消息处理，也就是服务定位。<br>那到这里似乎也恍然大悟MediatR这个笔误可能是有意为之了。序员，你怎么看？</p>
-<blockquote>
-<p>参考资料：<br><a href="https://lostechies.com/jimmybogard/2016/10/27/cqrsmediatr-implementation-patterns/" target="_blank" rel="noopener">CQRS/MediatR implementation patterns</a><br><a href="https://stackoverflow.com/questions/50663501/mediatr-when-and-why-i-should-use-it-vs-2017-webapi" target="_blank" rel="noopener">MediatR when and why I should use it? vs 2017 webapi</a><br><a href="https://www.jianshu.com/p/c28500ec9439?tdsourcetag=s_pctim_aiomsg" target="_blank" rel="noopener">ABP CQRS 实现案例:基于 MediatR 实现</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET</tag>
-        <tag>发布订阅模式</tag>
-        <tag>中介者模式</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>事件总线知多少(1)</title>
-    <url>/post/how-much-you-know-about-the-eventbus-1/</url>
-    <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>事件总线这个概念对你来说可能很陌生，但提到观察者（发布-订阅）模式，你也许就很熟悉。事件总线是对发布-订阅模式的一种实现。它是一种集中式事件处理机制，允许不同的组件之间进行彼此通信而又不需要相互依赖，达到一种解耦的目的。</p>
-<p>我们来看看事件总线的处理流程：</p>
-<p><img src="/images/how-much-you-know-about-the-eventbus-1/2799767-6f44bdefa88a23a2.png" alt="图1：EventBus流程"></p>
-<p>了解了事件总线的基本概念和处理流程，下面我们就来分析下如何去实现事件总线。</p>
-<h1 id="2-回归本质"><a href="#2-回归本质" class="headerlink" title="2.回归本质"></a>2.回归本质</h1><p>在动手实现事件总线之前，我们还是要追本溯源，探索一下事件的本质和发布订阅模式的实现机制。</p>
-<h2 id="2-1-事件的本质"><a href="#2-1-事件的本质" class="headerlink" title="2.1.事件的本质"></a>2.1.事件的本质</h2><p>我们先来探讨一下事件的概念。都是读过书的，应该都还记得记叙文的六要素：时间、地点、人物、事件（起因、经过、结果）。</p>
-<blockquote>
-<p>我们拿注册的案例，来解释一下。<br>用户输入用户名、邮箱、密码后，点击注册，输入无误校验通过后，注册成功并发送邮件给用户，要求用户进行邮箱验证激活。</p>
-</blockquote>
-<p>这里面就涉及了两个主要事件：</p>
-<ol>
-<li>注册事件：起因是用户点击了注册按钮，经过是输入校验，结果是是否注册成功。</li>
-<li>发送邮件事件：起因是用户使用邮箱注册成功需要验证邮箱，经过是邮件发送，结果是邮件是否发送成功。</li>
-</ol>
-<p>其实这六要素也适用于我们程序中事件的处理过程。开发过WinForm程序的都知道，我们在做UI设计的时候，从工具箱拖入一个注册按钮（btnRegister），双击它，VS就会自动帮我们生成如下代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">void btnRegister_Click(object sender, EventArgs e)</span><br><span class="line">&#123;</span><br><span class="line"> &#x2F;&#x2F; 事件的处理</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>其中<code>object sender</code>指代发出事件的对象，这里也就是button对象；<code>EventArgs e</code> 事件参数，可以理解为对事件的描述 ，它们可以统称为<strong>事件源</strong>。其中的代码逻辑，就是对事件的处理。我们可以统称为<strong>事件处理</strong>。</p>
-<p>说了这么多，无非是想透过现象看本质：<strong>事件是由事件源触发并由事件处理消费（An event is raised by an event source and consumed by an event handler</strong>）。</p>
-<h2 id="2-2-发布订阅模式"><a href="#2-2-发布订阅模式" class="headerlink" title="2.2. 发布订阅模式"></a>2.2. 发布订阅模式</h2><blockquote>
-<p>定义对象间一种一对多的依赖关系，使得每当一个对象改变状态，则所有依赖于它的对象都会得到通知并被自动更新。 ——发布订阅模式</p>
-</blockquote>
-<p>发布订阅模式主要有两个角色：</p>
-<ul>
-<li>发布方（Publisher）：也称为被观察者，当状态改变时负责通知所有订阅者。</li>
-<li>订阅方（Subscriber）：也称为观察者，订阅事件并对接收到的事件进行处理。</li>
-</ul>
-<p>发布订阅模式有两种实现方式：</p>
-<ul>
-<li>简单的实现方式：由Publisher维护一个订阅者列表，当状态改变时循环遍历列表通知订阅者。</li>
-<li>委托的实现方式：由Publisher定义事件委托，Subscriber实现委托。</li>
-</ul>
-<p>总的来说，发布订阅模式中有两个关键字，通知和更新。<br>被观察者状态改变通知观察者做出相应更新。<br>解决的是当对象改变时需要通知其他对象做出相应改变的问题。</p>
-<p>如果画一个图来表示这个流程的画，图形应该是这样的：</p>
-<p><img src="/images/how-much-you-know-about-the-eventbus-1/2799767-8a17f6e834278167.png" alt="图2：发布订阅模式流程"></p>
-<h1 id="3-实现发布订阅模式"><a href="#3-实现发布订阅模式" class="headerlink" title="3. 实现发布订阅模式"></a>3. 实现发布订阅模式</h1><p>相信通过上面的解释，对事件和发布订阅模式有了一个大概的印象。都说理论要与实践相结合，所以我们还是动动手指敲敲代码比较好。<br>我将以<a href="http://www.jianshu.com/p/45675c73296d" target="_blank" rel="noopener">『观察者模式』来钓鱼</a>这个例子为基础，通过重构的方式来完善一个更加通用的发布订阅模式。<br>先上代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 鱼的品类枚举</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public enum FishType</span><br><span class="line">&#123;</span><br><span class="line">    鲫鱼,</span><br><span class="line">    鲤鱼,</span><br><span class="line">    黑鱼,</span><br><span class="line">    青鱼,</span><br><span class="line">    草鱼,</span><br><span class="line">    鲈鱼</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>钓鱼竿的实现：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F;     鱼竿（被观察者）</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class FishingRod</span><br><span class="line">&#123;</span><br><span class="line">    public delegate void FishingHandler(FishType type); &#x2F;&#x2F;声明委托</span><br><span class="line">    public event FishingHandler FishingEvent; &#x2F;&#x2F;声明事件</span><br><span class="line"></span><br><span class="line">    public void ThrowHook(FishingMan man)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine(&quot;开始下钩！&quot;);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F;用随机数模拟鱼咬钩，若随机数为偶数，则为鱼咬钩</span><br><span class="line">        if (new Random().Next() % 2 &#x3D;&#x3D; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            var type &#x3D; (FishType) new Random().Next(0, 5);</span><br><span class="line">            Console.WriteLine(&quot;铃铛：叮叮叮，鱼儿咬钩了&quot;);</span><br><span class="line">            if (FishingEvent !&#x3D; null)</span><br><span class="line">                FishingEvent(type);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>垂钓者：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F;     垂钓者（观察者）</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class FishingMan</span><br><span class="line">&#123;</span><br><span class="line">    public FishingMan(string name)</span><br><span class="line">    &#123;</span><br><span class="line">        Name &#x3D; name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public string Name &#123; get; set; &#125;</span><br><span class="line">    public int FishCount &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 垂钓者自然要有鱼竿啊</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public FishingRod FishingRod &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    public void Fishing()</span><br><span class="line">    &#123;</span><br><span class="line">        this.FishingRod.ThrowHook(this);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void Update(FishType type)</span><br><span class="line">    &#123;</span><br><span class="line">        FishCount++;</span><br><span class="line">        Console.WriteLine(&quot;&#123;0&#125;：钓到一条[&#123;2&#125;]，已经钓到&#123;1&#125;条鱼了！&quot;, Name, FishCount, type);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>场景类也很简单：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;1、初始化鱼竿</span><br><span class="line">var fishingRod &#x3D; new FishingRod();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;2、声明垂钓者</span><br><span class="line">var jeff &#x3D; new FishingMan(&quot;圣杰&quot;);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;3.分配鱼竿</span><br><span class="line">jeff.FishingRod &#x3D; fishingRod;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;4、注册观察者</span><br><span class="line">fishingRod.FishingEvent +&#x3D; jeff.Update;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;5、循环钓鱼</span><br><span class="line">while (jeff.FishCount &lt; 5)</span><br><span class="line">&#123;</span><br><span class="line">    jeff.Fishing();</span><br><span class="line">    Console.WriteLine(&quot;-------------------&quot;);</span><br><span class="line">    &#x2F;&#x2F;睡眠5s</span><br><span class="line">    Thread.Sleep(5000);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>代码很简单，相信你一看就明白。但很显然这个代码实现仅适用于当前这个钓鱼场景，假如有其他场景也想使用这个模式，我们还需要重新定义委托，重新定义事件处理，岂不很累。本着”Don’t repeat yourself“的原则，我们要对其进行重构。</p>
-<p>结合我们对事件本质的探讨，事件是由事件源和事件处理组成。针对我们上面的案例来说，<code>public delegate void FishingHandler(FishType type);</code>这句代码就已经说明了事件源和事件处理。事件源就是<code>FishType type</code>，事件处理自然是注册到<code>FishingHandler</code>上面的委托实例。<br>问题找到了，很显然是我们的事件源和事件处理不够抽象，所以不能通用，下面咱们就来动手改造。</p>
-<h2 id="3-1-提取事件源"><a href="#3-1-提取事件源" class="headerlink" title="3.1. 提取事件源"></a>3.1. 提取事件源</h2><p>事件源应该至少包含事件发生的时间和触发事件的对象。<br>我们提取<code>IEventData</code>接口来封装事件源：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义事件源接口，所有的事件源都要实现该接口</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 事件发生的时间</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    DateTime EventTime &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 触发事件的对象</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    object EventSource &#123; get; set; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>自然我们应该给一个默认的实现<code>EventData</code>：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 事件源：描述事件信息，用于参数传递</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class EventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 事件发生的时间</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public DateTime EventTime &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 触发事件的对象</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public Object EventSource &#123; get; set; &#125;</span><br><span class="line"></span><br><span class="line">    public EventData()</span><br><span class="line">    &#123;</span><br><span class="line">        EventTime &#x3D; DateTime.Now;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>针对Demo，扩展事件源如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class FishingEventData : EventData</span><br><span class="line">&#123;</span><br><span class="line">    public FishType FishType &#123; get; set; &#125;</span><br><span class="line">    public FishingMan FisingMan &#123; get; set; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>完成后，我们就可以去把在<code>FishingRod</code>声明的委托参数类型改为<code>FishingEventData</code>类型了，即<code>public delegate void FishingHandler(FishingEventData eventData); //声明委托</code>；<br>然后修改<code>FishingMan</code>的<code>Update</code>方法按委托定义的参数类型修改即可，代码我就不放了，大家自行脑补。</p>
-<p>到这一步我们就统一了事件源的定义方式。</p>
-<h2 id="3-2-提取事件处理器"><a href="#3-2-提取事件处理器" class="headerlink" title="3.2.提取事件处理器"></a>3.2.提取事件处理器</h2><p>事件源统一了，那事件处理也得加以限制。比如如果随意命名事件处理方法名，那在进行事件注册的时候还要去按照委托定义的参数类型去匹配，岂不麻烦。</p>
-<p>我们提取一个<code>IEventHandler</code>接口：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 定义事件处理器公共接口，所有的事件处理都要实现该接口</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public interface IEventHandler</span><br><span class="line">&#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>事件处理要与事件源进行绑定，所以我们再来定义一个泛型接口：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 泛型事件处理器接口</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">public interface IEventHandler&lt;TEventData&gt; : IEventHandler where TEventData : IEventData</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 事件处理器实现该方法来处理事件</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    void HandleEvent(TEventData eventData);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>你可能会纳闷，为什么先定义了一个空接口？这里就留给自己思考吧。</p>
-<p>至此我们就完成了事件处理的抽象。我们再继续去改造我们的Demo。我们让<code>FishingMan</code>实现<code>IEventHandler</code>接口，然后修改场景类中将<code>fishingRod.FishingEvent += jeff.Update;</code>改为<code>fishingRod.FishingEvent += jeff.HandleEvent;</code>即可。代码改动很简单，同样在此略去。</p>
-<p>至此你可能觉得我们完成了对Demo的改造。但事实上呢，我们还要弄清一个问题——如果这个<code>FishingMan</code>订阅的有其他的事件，我们该如何处理？<br>聪颖如你，你立马想到了可以<strong>通过事件源来进行区分处理</strong>。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class FishingMan : IEventHandler&lt;IEventData&gt;</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    public void HandleEvent(IEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        if (eventData is FishingEventData)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;do something</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        if(eventData is XxxEventData)</span><br><span class="line">        &#123;</span><br><span class="line">            &#x2F;&#x2F;do something else</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>至此，这个模式实现到这个地步基本已经可以通用了。</p>
-<h1 id="4-实现事件总线"><a href="#4-实现事件总线" class="headerlink" title="4. 实现事件总线"></a>4. 实现事件总线</h1><p>通用的发布订阅模式不是我们的目的，我们的目的是一个集中式的事件处理机制，且各个模块之间相互不产生依赖。那我们如何做到呢？同样我们还是一步一步的进行分析改造。</p>
-<h2 id="4-1-分析问题"><a href="#4-1-分析问题" class="headerlink" title="4.1.分析问题"></a>4.1.分析问题</h2><p>思考一下，每次为了实现这个模式，都要完成以下三步：</p>
-<ol>
-<li>事件发布方定义事件委托</li>
-<li>事件订阅方定义事件处理逻辑</li>
-<li>显示的订阅事件</li>
-</ol>
-<p>虽然只有三步，但这三步已经很繁琐了。而且事件发布方和事件订阅方还存在着依赖（体现在订阅者要显示的进行事件的注册和注销上）。而且当事件过多时，直接在订阅者中实现<code>IEventHandler</code>接口处理多个事件逻辑显然不太合适，违法单一职责原则。这里就暴露了三个问题：</p>
-<ol>
-<li>如何精简步骤？</li>
-<li>如何解除发布方与订阅方的依赖？</li>
-<li>如何避免在订阅者中同时处理多个事件逻辑？</li>
-</ol>
-<p>带着问题思考，我们就会更接近真相。</p>
-<p>想要精简步骤，那我们需要寻找共性。共性就是事件的本质，也就是我们针对事件源和事件处理提取出来的两个接口。</p>
-<p>想要解除依赖，那就要在发布方和订阅方之间添加一个中介。</p>
-<p>想要避免订阅者同时处理过多事件逻辑，那我们就把事件逻辑的处理提取到订阅者外部。</p>
-<p>思路有了，下面我们就来实施吧。</p>
-<h2 id="4-2-解决问题"><a href="#4-2-解决问题" class="headerlink" title="4.2.解决问题"></a>4.2.解决问题</h2><p>本着先易后难的思想，我们下面就来解决以上问题。</p>
-<h3 id="4-2-1-实现IEventHandler"><a href="#4-2-1-实现IEventHandler" class="headerlink" title="4.2.1. 实现IEventHandler"></a>4.2.1. 实现IEventHandler</h3><p>我们先解决上面的第三个问题：如何避免在订阅者中同时处理多个事件逻辑？</p>
-<p>自然是针对不同的事件源<code>IEventData</code>实现不同的<code>IEventHandler</code>。改造后的钓鱼事件处理逻辑如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 钓鱼事件处理</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class FishingEventHandler : IEventHandler&lt;FishingEventData&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public void HandleEvent(FishingEventData eventData)</span><br><span class="line">    &#123;</span><br><span class="line">        eventData.FishingMan.FishCount++;</span><br><span class="line"></span><br><span class="line">        Console.WriteLine(&quot;&#123;0&#125;：钓到一条[&#123;2&#125;]，已经钓到&#123;1&#125;条鱼了！&quot;,</span><br><span class="line">            eventData.FishingMan.Name, eventData.FishingMan.FishCount, eventData.FishType);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这时我们就可以移除在<code>FishingMan</code>中实现的<code>IEventHandler</code>接口了。<br>然后将事件注册改为<code>fishingRod.FishingEvent += new FishingEventHandler().HandleEvent;</code>即可。</p>
-<h3 id="4-2-2-统一注册事件"><a href="#4-2-2-统一注册事件" class="headerlink" title="4.2.2. 统一注册事件"></a>4.2.2. 统一注册事件</h3><p>上一个问题的解决，有助于我们解决第一个问题：如何精简流程？<br>为什么呢，因为我们是根据事件源定义相应的事件处理的。也就是我们之前说的可以根据事件源来区分事件。<br>然后呢？反射，我们可以通过反射来进行事件的统一注册。<br>在<code>FishingRod</code>的构造函数中使用反射，统一注册实现了<code>IEventHandler&lt;FishingEventData&gt;</code>类型的实例方法<code>HandleEvent</code>：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public FishingRod()</span><br><span class="line">&#123;</span><br><span class="line">    Assembly assembly &#x3D; Assembly.GetExecutingAssembly();</span><br><span class="line"></span><br><span class="line">    foreach (var type in assembly.GetTypes())</span><br><span class="line">    &#123;</span><br><span class="line">        if (typeof(IEventHandler).IsAssignableFrom(type))&#x2F;&#x2F;判断当前类型是否实现了IEventHandler接口</span><br><span class="line">        &#123;</span><br><span class="line">            Type handlerInterface &#x3D; type.GetInterface(&quot;IEventHandler&#96;1&quot;);&#x2F;&#x2F;获取该类实现的泛型接口</span><br><span class="line">            Type eventDataType &#x3D; handlerInterface.GetGenericArguments()[0]; &#x2F;&#x2F; 获取泛型接口指定的参数类型</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F;如果参数类型是FishingEventData，则说明事件源匹配</span><br><span class="line">            if (eventDataType.Equals(typeof(FishingEventData)))</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;创建实例</span><br><span class="line">                var handler &#x3D; Activator.CreateInstance(type) as IEventHandler&lt;FishingEventData&gt;;</span><br><span class="line">                &#x2F;&#x2F;注册事件</span><br><span class="line">                FishingEvent +&#x3D; handler.HandleEvent;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这样，我们就可以移出场景类中的显示注册代码<code>fishingRod.FishingEvent += new FishingEventHandler().HandleEvent;</code>。</p>
-<h3 id="4-2-3-解除依赖"><a href="#4-2-3-解除依赖" class="headerlink" title="4.2.3. 解除依赖"></a>4.2.3. 解除依赖</h3><p>如何解除依赖呢？其实答案就在本文的两张图上，仔细对比我们可以很直观的看到，Event Bus就相当于一个介于Publisher和Subscriber中间的桥梁。它隔离了Publlisher和Subscriber之间的直接依赖，接管了所有事件的发布和订阅逻辑，并负责事件的中转。</p>
-<p><strong>Event Bus终于要粉墨登场了！！！</strong><br>分析一下，如果EventBus要接管所有事件的发布和订阅，那它则需要有一个容器来记录事件源和事件处理。那又如何触发呢？有了事件源，我们就自然能找到绑定的事件处理逻辑，通过反射触发。代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 事件总线</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class EventBus</span><br><span class="line">&#123;</span><br><span class="line">    public static EventBus Default &#x3D;&gt; new EventBus();</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 定义线程安全集合</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    private readonly ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt; _eventAndHandlerMapping;</span><br><span class="line"></span><br><span class="line">    public EventBus()</span><br><span class="line">    &#123;</span><br><span class="line">        _eventAndHandlerMapping &#x3D; new ConcurrentDictionary&lt;Type, List&lt;Type&gt;&gt;();</span><br><span class="line">        MapEventToHandler();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F;通过反射，将事件源与事件处理绑定</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    private void MapEventToHandler()</span><br><span class="line">    &#123;</span><br><span class="line">        Assembly assembly &#x3D; Assembly.GetEntryAssembly();</span><br><span class="line">        foreach (var type in assembly.GetTypes())</span><br><span class="line">        &#123;</span><br><span class="line">            if (typeof(IEventHandler).IsAssignableFrom(type))&#x2F;&#x2F;判断当前类型是否实现了IEventHandler接口</span><br><span class="line">            &#123;</span><br><span class="line">                Type handlerInterface &#x3D; type.GetInterface(&quot;IEventHandler&#96;1&quot;);&#x2F;&#x2F;获取该类实现的泛型接口</span><br><span class="line">                if (handlerInterface !&#x3D; null)</span><br><span class="line">                &#123;</span><br><span class="line">                    Type eventDataType &#x3D; handlerInterface.GetGenericArguments()[0]; &#x2F;&#x2F; 获取泛型接口指定的参数类型</span><br><span class="line"></span><br><span class="line">                    if (_eventAndHandlerMapping.ContainsKey(eventDataType))</span><br><span class="line">                    &#123;</span><br><span class="line">                        List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[eventDataType];</span><br><span class="line">                        handlerTypes.Add(type);</span><br><span class="line">                        _eventAndHandlerMapping[eventDataType] &#x3D; handlerTypes;</span><br><span class="line">                    &#125;</span><br><span class="line">                    else</span><br><span class="line">                    &#123;</span><br><span class="line">                        var handlerTypes &#x3D; new List&lt;Type&gt; &#123; type &#125;;</span><br><span class="line">                        _eventAndHandlerMapping[eventDataType] &#x3D; handlerTypes;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 手动绑定事件源与事件处理</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandler&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void Register&lt;TEventData&gt;(Type eventHandler)</span><br><span class="line">    &#123;</span><br><span class="line">        List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line">        if (!handlerTypes.Contains(eventHandler))</span><br><span class="line">        &#123;</span><br><span class="line">            handlerTypes.Add(eventHandler);</span><br><span class="line">            _eventAndHandlerMapping[typeof(TEventData)] &#x3D; handlerTypes;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 手动解除事件源与事件处理的绑定</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventHandler&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void UnRegister&lt;TEventData&gt;(Type eventHandler)</span><br><span class="line">    &#123;</span><br><span class="line">        List&lt;Type&gt; handlerTypes &#x3D; _eventAndHandlerMapping[typeof(TEventData)];</span><br><span class="line">        if (handlerTypes.Contains(eventHandler))</span><br><span class="line">        &#123;</span><br><span class="line">            handlerTypes.Remove(eventHandler);</span><br><span class="line">            _eventAndHandlerMapping[typeof(TEventData)] &#x3D; handlerTypes;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 根据事件源触发绑定的事件处理</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;typeparam name&#x3D;&quot;TEventData&quot;&gt;&lt;&#x2F;typeparam&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;param name&#x3D;&quot;eventData&quot;&gt;&lt;&#x2F;param&gt;</span><br><span class="line">    public void Trigger&lt;TEventData&gt;(TEventData eventData) where TEventData : IEventData</span><br><span class="line">    &#123;</span><br><span class="line">        List&lt;Type&gt; handlers &#x3D; _eventAndHandlerMapping[eventData.GetType()];</span><br><span class="line"></span><br><span class="line">        if (handlers !&#x3D; null &amp;&amp; handlers.Count &gt; 0)</span><br><span class="line">        &#123;</span><br><span class="line">            foreach (var handler in handlers)</span><br><span class="line">            &#123;</span><br><span class="line">                MethodInfo methodInfo &#x3D; handler.GetMethod(&quot;HandleEvent&quot;);</span><br><span class="line">                if (methodInfo !&#x3D; null)</span><br><span class="line">                &#123;</span><br><span class="line">                    object obj &#x3D; Activator.CreateInstance(handler);</span><br><span class="line">                    methodInfo.Invoke(obj, new object[] &#123; eventData &#125;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>事件总线主要定义三个方法，注册、取消注册、事件触发。还有一点就是我们在构造函数中通过反射去进行事件源和事件处理的绑定。<br>代码注释已经很清楚了，这里就不过多解释了。</p>
-<p>下面我们就来修改Demo，修改<code>FishingRod</code>的事件触发：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 下钩</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public void ThrowHook(FishingMan man)</span><br><span class="line">&#123;</span><br><span class="line">    Console.WriteLine(&quot;开始下钩！&quot;);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;用随机数模拟鱼咬钩，若随机数为偶数，则为鱼咬钩</span><br><span class="line">    if (new Random().Next() % 2 &#x3D;&#x3D; 0)</span><br><span class="line">    &#123;</span><br><span class="line">        var a &#x3D; new Random(10).Next();</span><br><span class="line">        var type &#x3D; (FishType)new Random().Next(0, 5);</span><br><span class="line">        Console.WriteLine(&quot;铃铛：叮叮叮，鱼儿咬钩了&quot;);</span><br><span class="line">        if (FishingEvent !&#x3D; null)</span><br><span class="line">        &#123;</span><br><span class="line">            var eventData &#x3D; new FishingEventData() &#123; FishType &#x3D; type, FishingMan &#x3D; man &#125;;</span><br><span class="line">            &#x2F;&#x2F;FishingEvent(eventData);&#x2F;&#x2F;不再需要通过事件委托触发</span><br><span class="line">            EventBus.Default.Trigger&lt;FishingEventData&gt;(eventData);&#x2F;&#x2F;直接通过事件总线触发即可</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>至此，事件总线的雏形已经形成！</p>
-<h1 id="5-事件总线的总结"><a href="#5-事件总线的总结" class="headerlink" title="5.事件总线的总结"></a>5.事件总线的总结</h1><p>通过上面一步一步的分析和实践，发现事件总线也不是什么高深的概念，只要我们自己善于思考，勤于动手，也能实现自己的事件总线。<br>根据我们的实现，大概总结出以下几条：</p>
-<ol>
-<li>事件总线维护一个事件源与事件处理的映射字典；</li>
-<li>通过单例模式，确保事件总线的唯一入口；</li>
-<li>利用反射完成事件源与事件处理的初始化绑定；</li>
-<li>提供统一的事件注册、取消注册和触发接口。</li>
-</ol>
-<p>最后，以上事件总线的实现只是一个雏形，还有很多潜在的问题。有兴趣的不妨思考完善一下，我也会继续更新，尽情期待。<a href="https://github.com/yanshengjie/EventBus" target="_blank" rel="noopener">源码路径：Github-EventBus</a></p>
-<hr>
-<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><blockquote>
-<p><a href="https://github.com/aspnetboilerplate/aspnetboilerplate/tree/dev/src/Abp/Events/Bus" target="_blank" rel="noopener">ABP EventBus</a><br><a href="http://www.cnblogs.com/lori/p/3476703.html" target="_blank" rel="noopener">DDD~领域事件与事件总线</a><br><a href="http://www.cnblogs.com/dehai/p/4887998.html" target="_blank" rel="noopener">DDD事件总线的实现</a></p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET</tag>
-        <tag>发布订阅模式</tag>
-        <tag>EventBus</tag>
       </tags>
   </entry>
   <entry>
@@ -2124,94 +2204,6 @@
       </tags>
   </entry>
   <entry>
-    <title>性能优化知多少</title>
-    <url>/post/how-much-you-know-about-the-performance-optimization/</url>
-    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
-<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近一段时间，系统新版本要发布，在beta客户测试期间，暴露了很多问题，除了一些业务和异常问题外，其他都集中在性能上。有幸接触到这些性能调优的机会，当然要学习总结了。</p>
-<p>性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I/O、内存、网络、算法、大数据量等等。我们可以大致把性能问题分为四个层次：代码层次、数据库层次、算法层次、架构层次。<br>所以下面我会结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。</p>
-<h1 id="2-先说心态"><a href="#2-先说心态" class="headerlink" title="2. 先说心态"></a>2. 先说心态</h1><p>说到性能问题，你可能首先就想到的是麻烦或者头大，因为一般性能问题都比较紧急，轻则影响客户体验，重则宕机导致财务损失，而且性能问题比较隐蔽，不易发现。因此一时间无从下手，而这时我们就很容易从心底开始去排斥它，不愿接这烫手的山芋。</p>
-<p>而恰巧，性能调优是体现程序员水平的一个重要指标。</p>
-<blockquote>
-<p>因为处理bug、崩溃、调优、入侵等突发事件比编程本身更能体现平庸程序员与理想程序员的差距。当面对一个未知的问题时，如何定位复杂条件下的核心问题、如何抽丝剥茧地分析问题的潜在原因、如何排除干扰还原一个最小的可验证场景、如何抓住关键数据验证自己的猜测与实验，都是体现程序员思考力的最好场景。是的，在衡量理想程序员的标准上，思考力比经验更加重要。</p>
-</blockquote>
-<p>所以，若你不甘平庸，请拥抱性能调优的每一个机会。当你拥有一个正确的心态，你所面对的性能问题就已经解决了一半。</p>
-<h1 id="3-再说技巧"><a href="#3-再说技巧" class="headerlink" title="3. 再说技巧"></a>3. 再说技巧</h1><p>拿到一个性能问题，不要忙着先上工具，先了解问题出现的背景，问题的严重程度。然后大致根据自己的经验积累作出预估。比如客户来了个性能问题说系统宕机了，已经造成资金损失了。这种涉及到钱的问题，大家都比较敏感，根据自己的level，决定是否要接这个锅。这不是逃避，而是自知之明。</p>
-<p>了解问题背景之后，下一步就来尝试问题重现。如果在测试环境能够重现，那这种问题就很好跟踪分析。如果问题不能稳定重现或仅能在生产环境重现，那问题就相对比较棘手，这时要立刻收集现场证据，包括但不限于抓dump、收集应用程序以及系统日志、关注CPU内存情况、数据库备份等等，之后不妨再尝试重现，比如恢复客户数据库到测试环境重现。</p>
-<p>不管问题能否重现，下一步，我们就要大致对问题进行分类，是代码层次的业务逻辑问题还是数据库层次的操作耗时问题，又或是系统架构的吞吐量问题。那如何确定呢？而我倾向于先从数据库动手。我的习惯做法是，使用数据库监控工具，先跟踪下Sql耗时情况。如果监控到耗时较长的SQL语句，那基本上就是数据库层次的问题，否则就是代码层次。若为代码层次，再研究完代码后，再细化为算法或架构层次问题。</p>
-<p>确定问题种类后，是时候上工具来精准定位问题点了：</p>
-<ul>
-<li>Sql耗时问题，推荐使用免费的<a href="https://www.sentryone.com/plan-explorer" target="_blank" rel="noopener">Plan Explorer </a>分析执行计划。</li>
-<li>代码问题定位，优先推荐使用VS自带的Performance Analysis，其次是RedGate的性能分析套件<a href="http://www.red-gate.com/products/dotnet-development/dotnet-developer-bundle/" target="_blank" rel="noopener">.NET Developer Bundle</a>；然后还有Jet Brains的<a href="http://www.jetbrains.com/profiler/?fromMenu" target="_blank" rel="noopener">dotTrace – .NET performance profiler</a>，<a href="http://www.jetbrains.com/dotmemory/?fromMenu" target="_blank" rel="noopener">dotMemory– .NET memory profiler</a>；再然后就是反人类的Windbg；等等。</li>
-</ul>
-<p>精准定位问题点后，就是着手优化了。相信到这一步，就是优化策略的选择了，这里就不展开了。</p>
-<p>优化后，最后当然要进行测试了，毕竟优化了多少，我们也要做到心里有谱才行。</p>
-<p>以上啰啰嗦嗦有点多，下面我们直接上案例。</p>
-<h1 id="4-案例分享"><a href="#4-案例分享" class="headerlink" title="4. 案例分享"></a>4. 案例分享</h1><p>下面就分享下我针对代码层面、数据库层面和算法层面的优化案例。</p>
-<h2 id="4-1-SQL优化案例"><a href="#4-1-SQL优化案例" class="headerlink" title="4.1. SQL优化案例"></a>4.1. SQL优化案例</h2><blockquote>
-<p>案例1：客户反馈某结算报表统计十天内的数据耗时10mins左右。</p>
-</blockquote>
-<p>由于前几天刚学会用RedGate的分析工具，拿到这个问题，本地尝试重现后，就直接想使用工具分析。然而，这工具在使用webdev模式起站点时，总是报错，而当时时一根筋，老是想解决这个工具的报错问题。结果，白白搞了半天也没搞定。最后不得已放弃工具，转而选择使用sql server profiler去监控sql语句耗时。一跟踪不要紧，问题就直接暴露了，整个全屏的重复sql语句，如下图。</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
-<p>这下问题就很明显了，八成是代码在循环拼接sql执行语句。根据抓取到sql关键字往代码中去搜索，果然如此。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#region更新三张表数据结合的中间临时表数据，有上游单据的直接调拨单分多次下推时，只计算一次的调拨数量和价税合计</span><br><span class="line">string sSql &#x3D; string.Format(@</span><br><span class="line">&quot;SELECT FENTRYID FROM &#123;0&#125; GROUP BY FENTRYID HAVING COUNT(FENTRYID) &gt; 1&quot;, sJoinDataTempTable);</span><br><span class="line">using(IDataReader reader &#x3D; DBUtils.ExecuteReader(this.Context, sSql)) &#123;</span><br><span class="line">    while (reader.Read()) &#123;</span><br><span class="line">        sbSql.AppendFormat(@&quot;</span><br><span class="line">UPDATE &#123;0&#125; SET FDIRECTQTY &#x3D; 0,FALLAMOUNT &#x3D; 0 </span><br><span class="line">WHERE FSEQ NOT IN (</span><br><span class="line">SELECT TOP 1 FSEQ FROM &#123;0&#125; WHERE FENTRYID &#x3D; &#123;1&#125;) AND FENTRYID &#x3D; (&#123;1&#125;);&quot;</span><br><span class="line">, sJoinDataTempTable, Convert.ToInt32(reader[&quot;FENTRYID&quot;]));</span><br><span class="line">        listSqlObj.Add(new SqlObject(sbSql.ToString(), new List &lt; SqlParam &gt; ()));</span><br><span class="line">        sbSql.Clear();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">#endregion</span><br></pre></td></tr></table></figure>
-
-<p>看到这段代码，咱先不评判这段代码的优劣，因为毕竟代码注释清晰，省了我们理清业务的功夫。这段sql主要是想做去重处理，很显然选用了错误的方案。改后代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">string sqlMerge &#x3D; string.Format(@&quot;</span><br><span class="line">merge into &#123;0&#125; t1</span><br><span class="line">using(</span><br><span class="line">select min(Fseq) fseq,Fentryid from &#123;0&#125; t2 group by fentryid</span><br><span class="line">) t3 on (t1.fentryid &#x3D; t3.fentryid and t1.fseq &lt;&gt; t3.fseq)</span><br><span class="line">when matched then</span><br><span class="line">update set t1.FDIRECTQTY &#x3D; 0, t1.FALLAMOUNT &#x3D; 0</span><br><span class="line">&quot;, sJoinDataTempTable);</span><br><span class="line"></span><br><span class="line">listSqlObj.Add(new SqlObject(sqlMerge, new List &lt; SqlParam &gt; ()));</span><br><span class="line">sbSql.Clear();</span><br></pre></td></tr></table></figure>
-
-<p>改后测试相同数据量，耗时由10mins降到10s左右。</p>
-<h2 id="4-2-代码优化案例"><a href="#4-2-代码优化案例" class="headerlink" title="4.2. 代码优化案例"></a>4.2. 代码优化案例</h2><blockquote>
-<p>案例2：客户反馈销售订单100条分录行，保存进行可发量校验时，耗时7mins左右。</p>
-</blockquote>
-<p>拿到这个问题后，本地重现后，监控sql耗时没有异常，那就着重分析代码了。因为可发量校验的业务逻辑极其复杂，又加上又直接再一个类文件实现该功能，3500+行的代码，加上零星注释，真是让人避之不及。逃避不是办法，还是上工具分析一把。<br>这次我选用的时VS自带的<strong><a href="https://msdn.microsoft.com/en-us/library/ms182372.aspx" target="_blank" rel="noopener">Performance Profiler</a></strong>，开发环境下极其强大的性能调优工具。针对我们当前案例，我们仅需要跟踪指定服务对应的dll即可，使用步骤如下：</p>
-<ol>
-<li>Analyze–&gt;Profiler–&gt;New Performance Session</li>
-<li>打开Performance Explorer</li>
-<li>找到新添加的Performance Session，右键Targets，然后选择Add Target Binary，添加要跟踪的dll文件即可</li>
-<li>将应用跑起来</li>
-<li>选中Performance Session，右键Attach对应进程即可跟踪分析性能了</li>
-<li>在跟踪过程中，可随时暂停跟踪和停止跟踪</li>
-</ol>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
-<p>跟踪结束后本案例跟踪到的采样结果如下图：</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
-<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
-<p>其中第1、4条大致说明程序I/O消耗大，第一代的GC上存在未及时释放的垃圾占比过高。而根据上图的采样结果，我们可以直接看出是由于再代码中频繁操作DataTable引起的性能瓶颈。走读代码发现的确如此，所有的数量统计都是在代码中循环遍历DataTable进行处理的。而最终的优化策略，就相当于一次大的重构，将所有代码中通过遍历DataTable的计算逻辑全部挪到SQL中去做。由于代码过多，就不再放出。</p>
-<blockquote>
-<p>案例3：客户反馈批量引入1000张订单，耗时40mins左右，且容易中断。</p>
-</blockquote>
-<p>同样，我们还是先尝试本地重现。经测试批量引入101张单据，就耗时5mins左右。下一步打开Sql监控工具也未发现耗时语句。但考虑到是批量导入操作，虽然单个耗时不多，但乘以100这个基数，就明显了。下面我们就使用RedGate的<a href="http://www.red-gate.com/products/dotnet-development/ants-performance-profiler/" target="_blank" rel="noopener">Ants Performance Profiler</a>跟踪一下。</p>
-<p>该工具比较直观，可以同时监控代码和SQL执行情况。第一步，New Profiler Session，第二步进行设置，如下图。根据自己的应用程序类别，选择相应的跟踪方式。</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
-<p>针对这个问题，我们跟踪到的调用堆栈和SQL耗时结果如下图：</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
-<p>首先从调用堆栈中的Hit Count，我们可以首先看出它是一个批量过程，因为入口函数仅调用一次；第二个我们可以代码中是循环处理每一个单据，因为Hit Count与我们批量引入的单据数量相符；第三个，突然来了个10201，如果有一定的数字敏感性的话，这次性能问题的原因就被你找到了。这里就不卖关子了，101 x 101 = 10201。<br>是不是明白了什么，存在循环嵌套循环的情况。我们走读代码确定一下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Save.cs</span><br><span class="line">public override void EndOperationTransaction(EndOperationTransactionArgs e) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    foreach(DynamicObject dyItem in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;反写收款单</span><br><span class="line">        WriteBackReceiveBill wb &#x3D; new WriteBackReceiveBill();</span><br><span class="line">        wb.WriteBackForSave(e, this.Context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;WriteBackReceiveBill .cs</span><br><span class="line">public void WriteBackForSave(EndOperationTransactionArgs e, Context contx) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码：</span><br><span class="line">    foreach(DynamicObject item in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;do something </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>好嘛，外层套了一个空循环却什么也没做。修改就很简单了，删除无效外层循环即可。</p>
-<h2 id="4-3-算法优化案例"><a href="#4-3-算法优化案例" class="headerlink" title="4.3. 算法优化案例"></a>4.3. 算法优化案例</h2><blockquote>
-<p>案例4：某全流程跟踪报表超时。</p>
-</blockquote>
-<p>这个报表是用来跟踪所有单据从下单到出库的业务流程数据流转情况。而所有的流程数据都是按照树形结果存储在数据库表中的，类似这样：</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
-<p>图中的流程为：<br>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</p>
-<p>为了构造流程图，之前的处理方法是把流程数据取回来，通过代码构造流程图。这也就是性能差的原因。</p>
-<p>而针对这种情况，就是考验我们平时经验积累了。对于树形结构的表，我们也是可以通过SQL来进行直接查询的，这就要用到了SQL Server的CTE语法来进行递归查询。关于递归查询，可参考我这篇文章：<a href="http://www.jianshu.com/p/ab9d268aa54c" target="_blank" rel="noopener">SQL递归查询知多少</a>。这里就不展开了。</p>
-<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5.总结"></a>5.总结</h1><p>性能调优是一个循序渐进的过程，不可能一蹴而就，重在平时的点滴积累。关于工具的选择和使用，本文并未展开，也希望读者也不要纠结与此。当你真正想解决一个问题的时候，相信工具的使用是难不住你的。</p>
-<p>最后就大致总结下我的调优思路：</p>
-<ol>
-<li>调整心态，积极应对</li>
-<li>了解性能背景， 收集证据， 尝试重现</li>
-<li>问题分类，先监控SQL耗时，大致确定是SQL或是代码层次原因</li>
-<li>使用性能分析工具，确定问题点</li>
-<li>调优测试</li>
-</ol>
-]]></content>
-      <categories>
-        <category>性能优化</category>
-      </categories>
-  </entry>
-  <entry>
     <title>RabbitMQ 知多少</title>
     <url>/post/how-much-you-know-about-the-rabbitmq/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-82c5402158929477.png" alt=""></p>
@@ -2323,6 +2315,94 @@
         <tag>消息队列</tag>
         <tag>RabbitMQ</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>性能优化知多少</title>
+    <url>/post/how-much-you-know-about-the-performance-optimization/</url>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近一段时间，系统新版本要发布，在beta客户测试期间，暴露了很多问题，除了一些业务和异常问题外，其他都集中在性能上。有幸接触到这些性能调优的机会，当然要学习总结了。</p>
+<p>性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I/O、内存、网络、算法、大数据量等等。我们可以大致把性能问题分为四个层次：代码层次、数据库层次、算法层次、架构层次。<br>所以下面我会结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。</p>
+<h1 id="2-先说心态"><a href="#2-先说心态" class="headerlink" title="2. 先说心态"></a>2. 先说心态</h1><p>说到性能问题，你可能首先就想到的是麻烦或者头大，因为一般性能问题都比较紧急，轻则影响客户体验，重则宕机导致财务损失，而且性能问题比较隐蔽，不易发现。因此一时间无从下手，而这时我们就很容易从心底开始去排斥它，不愿接这烫手的山芋。</p>
+<p>而恰巧，性能调优是体现程序员水平的一个重要指标。</p>
+<blockquote>
+<p>因为处理bug、崩溃、调优、入侵等突发事件比编程本身更能体现平庸程序员与理想程序员的差距。当面对一个未知的问题时，如何定位复杂条件下的核心问题、如何抽丝剥茧地分析问题的潜在原因、如何排除干扰还原一个最小的可验证场景、如何抓住关键数据验证自己的猜测与实验，都是体现程序员思考力的最好场景。是的，在衡量理想程序员的标准上，思考力比经验更加重要。</p>
+</blockquote>
+<p>所以，若你不甘平庸，请拥抱性能调优的每一个机会。当你拥有一个正确的心态，你所面对的性能问题就已经解决了一半。</p>
+<h1 id="3-再说技巧"><a href="#3-再说技巧" class="headerlink" title="3. 再说技巧"></a>3. 再说技巧</h1><p>拿到一个性能问题，不要忙着先上工具，先了解问题出现的背景，问题的严重程度。然后大致根据自己的经验积累作出预估。比如客户来了个性能问题说系统宕机了，已经造成资金损失了。这种涉及到钱的问题，大家都比较敏感，根据自己的level，决定是否要接这个锅。这不是逃避，而是自知之明。</p>
+<p>了解问题背景之后，下一步就来尝试问题重现。如果在测试环境能够重现，那这种问题就很好跟踪分析。如果问题不能稳定重现或仅能在生产环境重现，那问题就相对比较棘手，这时要立刻收集现场证据，包括但不限于抓dump、收集应用程序以及系统日志、关注CPU内存情况、数据库备份等等，之后不妨再尝试重现，比如恢复客户数据库到测试环境重现。</p>
+<p>不管问题能否重现，下一步，我们就要大致对问题进行分类，是代码层次的业务逻辑问题还是数据库层次的操作耗时问题，又或是系统架构的吞吐量问题。那如何确定呢？而我倾向于先从数据库动手。我的习惯做法是，使用数据库监控工具，先跟踪下Sql耗时情况。如果监控到耗时较长的SQL语句，那基本上就是数据库层次的问题，否则就是代码层次。若为代码层次，再研究完代码后，再细化为算法或架构层次问题。</p>
+<p>确定问题种类后，是时候上工具来精准定位问题点了：</p>
+<ul>
+<li>Sql耗时问题，推荐使用免费的<a href="https://www.sentryone.com/plan-explorer" target="_blank" rel="noopener">Plan Explorer </a>分析执行计划。</li>
+<li>代码问题定位，优先推荐使用VS自带的Performance Analysis，其次是RedGate的性能分析套件<a href="http://www.red-gate.com/products/dotnet-development/dotnet-developer-bundle/" target="_blank" rel="noopener">.NET Developer Bundle</a>；然后还有Jet Brains的<a href="http://www.jetbrains.com/profiler/?fromMenu" target="_blank" rel="noopener">dotTrace – .NET performance profiler</a>，<a href="http://www.jetbrains.com/dotmemory/?fromMenu" target="_blank" rel="noopener">dotMemory– .NET memory profiler</a>；再然后就是反人类的Windbg；等等。</li>
+</ul>
+<p>精准定位问题点后，就是着手优化了。相信到这一步，就是优化策略的选择了，这里就不展开了。</p>
+<p>优化后，最后当然要进行测试了，毕竟优化了多少，我们也要做到心里有谱才行。</p>
+<p>以上啰啰嗦嗦有点多，下面我们直接上案例。</p>
+<h1 id="4-案例分享"><a href="#4-案例分享" class="headerlink" title="4. 案例分享"></a>4. 案例分享</h1><p>下面就分享下我针对代码层面、数据库层面和算法层面的优化案例。</p>
+<h2 id="4-1-SQL优化案例"><a href="#4-1-SQL优化案例" class="headerlink" title="4.1. SQL优化案例"></a>4.1. SQL优化案例</h2><blockquote>
+<p>案例1：客户反馈某结算报表统计十天内的数据耗时10mins左右。</p>
+</blockquote>
+<p>由于前几天刚学会用RedGate的分析工具，拿到这个问题，本地尝试重现后，就直接想使用工具分析。然而，这工具在使用webdev模式起站点时，总是报错，而当时时一根筋，老是想解决这个工具的报错问题。结果，白白搞了半天也没搞定。最后不得已放弃工具，转而选择使用sql server profiler去监控sql语句耗时。一跟踪不要紧，问题就直接暴露了，整个全屏的重复sql语句，如下图。</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
+<p>这下问题就很明显了，八成是代码在循环拼接sql执行语句。根据抓取到sql关键字往代码中去搜索，果然如此。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#region更新三张表数据结合的中间临时表数据，有上游单据的直接调拨单分多次下推时，只计算一次的调拨数量和价税合计</span><br><span class="line">string sSql &#x3D; string.Format(@</span><br><span class="line">&quot;SELECT FENTRYID FROM &#123;0&#125; GROUP BY FENTRYID HAVING COUNT(FENTRYID) &gt; 1&quot;, sJoinDataTempTable);</span><br><span class="line">using(IDataReader reader &#x3D; DBUtils.ExecuteReader(this.Context, sSql)) &#123;</span><br><span class="line">    while (reader.Read()) &#123;</span><br><span class="line">        sbSql.AppendFormat(@&quot;</span><br><span class="line">UPDATE &#123;0&#125; SET FDIRECTQTY &#x3D; 0,FALLAMOUNT &#x3D; 0 </span><br><span class="line">WHERE FSEQ NOT IN (</span><br><span class="line">SELECT TOP 1 FSEQ FROM &#123;0&#125; WHERE FENTRYID &#x3D; &#123;1&#125;) AND FENTRYID &#x3D; (&#123;1&#125;);&quot;</span><br><span class="line">, sJoinDataTempTable, Convert.ToInt32(reader[&quot;FENTRYID&quot;]));</span><br><span class="line">        listSqlObj.Add(new SqlObject(sbSql.ToString(), new List &lt; SqlParam &gt; ()));</span><br><span class="line">        sbSql.Clear();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">#endregion</span><br></pre></td></tr></table></figure>
+
+<p>看到这段代码，咱先不评判这段代码的优劣，因为毕竟代码注释清晰，省了我们理清业务的功夫。这段sql主要是想做去重处理，很显然选用了错误的方案。改后代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">string sqlMerge &#x3D; string.Format(@&quot;</span><br><span class="line">merge into &#123;0&#125; t1</span><br><span class="line">using(</span><br><span class="line">select min(Fseq) fseq,Fentryid from &#123;0&#125; t2 group by fentryid</span><br><span class="line">) t3 on (t1.fentryid &#x3D; t3.fentryid and t1.fseq &lt;&gt; t3.fseq)</span><br><span class="line">when matched then</span><br><span class="line">update set t1.FDIRECTQTY &#x3D; 0, t1.FALLAMOUNT &#x3D; 0</span><br><span class="line">&quot;, sJoinDataTempTable);</span><br><span class="line"></span><br><span class="line">listSqlObj.Add(new SqlObject(sqlMerge, new List &lt; SqlParam &gt; ()));</span><br><span class="line">sbSql.Clear();</span><br></pre></td></tr></table></figure>
+
+<p>改后测试相同数据量，耗时由10mins降到10s左右。</p>
+<h2 id="4-2-代码优化案例"><a href="#4-2-代码优化案例" class="headerlink" title="4.2. 代码优化案例"></a>4.2. 代码优化案例</h2><blockquote>
+<p>案例2：客户反馈销售订单100条分录行，保存进行可发量校验时，耗时7mins左右。</p>
+</blockquote>
+<p>拿到这个问题后，本地重现后，监控sql耗时没有异常，那就着重分析代码了。因为可发量校验的业务逻辑极其复杂，又加上又直接再一个类文件实现该功能，3500+行的代码，加上零星注释，真是让人避之不及。逃避不是办法，还是上工具分析一把。<br>这次我选用的时VS自带的<strong><a href="https://msdn.microsoft.com/en-us/library/ms182372.aspx" target="_blank" rel="noopener">Performance Profiler</a></strong>，开发环境下极其强大的性能调优工具。针对我们当前案例，我们仅需要跟踪指定服务对应的dll即可，使用步骤如下：</p>
+<ol>
+<li>Analyze–&gt;Profiler–&gt;New Performance Session</li>
+<li>打开Performance Explorer</li>
+<li>找到新添加的Performance Session，右键Targets，然后选择Add Target Binary，添加要跟踪的dll文件即可</li>
+<li>将应用跑起来</li>
+<li>选中Performance Session，右键Attach对应进程即可跟踪分析性能了</li>
+<li>在跟踪过程中，可随时暂停跟踪和停止跟踪</li>
+</ol>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
+<p>跟踪结束后本案例跟踪到的采样结果如下图：</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
+<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
+<p>其中第1、4条大致说明程序I/O消耗大，第一代的GC上存在未及时释放的垃圾占比过高。而根据上图的采样结果，我们可以直接看出是由于再代码中频繁操作DataTable引起的性能瓶颈。走读代码发现的确如此，所有的数量统计都是在代码中循环遍历DataTable进行处理的。而最终的优化策略，就相当于一次大的重构，将所有代码中通过遍历DataTable的计算逻辑全部挪到SQL中去做。由于代码过多，就不再放出。</p>
+<blockquote>
+<p>案例3：客户反馈批量引入1000张订单，耗时40mins左右，且容易中断。</p>
+</blockquote>
+<p>同样，我们还是先尝试本地重现。经测试批量引入101张单据，就耗时5mins左右。下一步打开Sql监控工具也未发现耗时语句。但考虑到是批量导入操作，虽然单个耗时不多，但乘以100这个基数，就明显了。下面我们就使用RedGate的<a href="http://www.red-gate.com/products/dotnet-development/ants-performance-profiler/" target="_blank" rel="noopener">Ants Performance Profiler</a>跟踪一下。</p>
+<p>该工具比较直观，可以同时监控代码和SQL执行情况。第一步，New Profiler Session，第二步进行设置，如下图。根据自己的应用程序类别，选择相应的跟踪方式。</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
+<p>针对这个问题，我们跟踪到的调用堆栈和SQL耗时结果如下图：</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
+<p>首先从调用堆栈中的Hit Count，我们可以首先看出它是一个批量过程，因为入口函数仅调用一次；第二个我们可以代码中是循环处理每一个单据，因为Hit Count与我们批量引入的单据数量相符；第三个，突然来了个10201，如果有一定的数字敏感性的话，这次性能问题的原因就被你找到了。这里就不卖关子了，101 x 101 = 10201。<br>是不是明白了什么，存在循环嵌套循环的情况。我们走读代码确定一下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Save.cs</span><br><span class="line">public override void EndOperationTransaction(EndOperationTransactionArgs e) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    foreach(DynamicObject dyItem in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;反写收款单</span><br><span class="line">        WriteBackReceiveBill wb &#x3D; new WriteBackReceiveBill();</span><br><span class="line">        wb.WriteBackForSave(e, this.Context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;WriteBackReceiveBill .cs</span><br><span class="line">public void WriteBackForSave(EndOperationTransactionArgs e, Context contx) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码：</span><br><span class="line">    foreach(DynamicObject item in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;do something </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>好嘛，外层套了一个空循环却什么也没做。修改就很简单了，删除无效外层循环即可。</p>
+<h2 id="4-3-算法优化案例"><a href="#4-3-算法优化案例" class="headerlink" title="4.3. 算法优化案例"></a>4.3. 算法优化案例</h2><blockquote>
+<p>案例4：某全流程跟踪报表超时。</p>
+</blockquote>
+<p>这个报表是用来跟踪所有单据从下单到出库的业务流程数据流转情况。而所有的流程数据都是按照树形结果存储在数据库表中的，类似这样：</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
+<p>图中的流程为：<br>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</p>
+<p>为了构造流程图，之前的处理方法是把流程数据取回来，通过代码构造流程图。这也就是性能差的原因。</p>
+<p>而针对这种情况，就是考验我们平时经验积累了。对于树形结构的表，我们也是可以通过SQL来进行直接查询的，这就要用到了SQL Server的CTE语法来进行递归查询。关于递归查询，可参考我这篇文章：<a href="http://www.jianshu.com/p/ab9d268aa54c" target="_blank" rel="noopener">SQL递归查询知多少</a>。这里就不展开了。</p>
+<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5.总结"></a>5.总结</h1><p>性能调优是一个循序渐进的过程，不可能一蹴而就，重在平时的点滴积累。关于工具的选择和使用，本文并未展开，也希望读者也不要纠结与此。当你真正想解决一个问题的时候，相信工具的使用是难不住你的。</p>
+<p>最后就大致总结下我的调优思路：</p>
+<ol>
+<li>调整心态，积极应对</li>
+<li>了解性能背景， 收集证据， 尝试重现</li>
+<li>问题分类，先监控SQL耗时，大致确定是SQL或是代码层次原因</li>
+<li>使用性能分析工具，确定问题点</li>
+<li>调优测试</li>
+</ol>
+]]></content>
+      <categories>
+        <category>性能优化</category>
+      </categories>
   </entry>
   <entry>
     <title>反应式编程知多少 | Rx.NET了解下</title>
