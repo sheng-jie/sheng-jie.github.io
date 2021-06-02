@@ -1111,6 +1111,155 @@
       </tags>
   </entry>
   <entry>
+    <title>诊断日志知多少 | DiagnosticSource 在.NET上的应用</title>
+    <url>/post/how-much-you-know-about-diagnostic-in-dotnet/</url>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f9fe53d73a593166.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近为了解决ABP集成CAP时无法通过拦截器启用工作单元的问题，从小伙伴那里学了一招。借助<code>DiagnossticSource</code>，可以最小改动完成需求。关于DiagnosticSource晓东大佬18年在文章 <a href="https://www.cnblogs.com/savorboard/p/diagnostics.html" target="_blank" rel="noopener">在 .NET Core 中使用 Diagnostics (Diagnostic Source) 记录跟踪信息</a>就有介绍，文章开头就说明了Diagnostics 一直是一个被大多数开发者忽视的东西。是的，我也忽略了，这个好东西，有必要学习一下，下面就和大家简单聊一聊<a href="https://github.com/dotnet/runtime/tree/master/src/libraries/System.Diagnostics.DiagnosticSource/src/System/Diagnostics" target="_blank" rel="noopener">System.Diagnostics.DiagnosticSource</a>在.NET上的应用。</p>
+<h1 id="2-System-Diagnostics-DiagnosticSource"><a href="#2-System-Diagnostics-DiagnosticSource" class="headerlink" title="2. System.Diagnostics.DiagnosticSource"></a>2. System.Diagnostics.DiagnosticSource</h1><p><code>Diagnostics</code>位于<code>System</code>命名空间下，由此可见<code>Diagnostics</code>在.NET 运行时中的地位不可小觑。其中<a href="https://github.com/dotnet/runtime/tree/master/src/libraries" target="_blank" rel="noopener">System.Diagnostics</a>命名空间下又包含不同类库，提供了允许与系统进程，事件日志和性能计数器进行交互的类。如下图所示：</p>
+<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f00800a0b8dbfe92.png" alt="Diagnostic Namespace"></p>
+<p>其中System.Diagnostics.DiagnosticSource模块，它允许对代码进行检测，以在生产时记录丰富的数据负载（可以传递不可序列化的数据类型），以便在<strong>进程内</strong>进行消耗。消费者可以在运行时动态发现数据源并订阅感兴趣的数据源。</p>
+<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-7197a426f10d7b66.png" alt=""></p>
+<p>在展开之前，有必要先梳理下涉及的以下核心概念：</p>
+<ul>
+<li>IObservable：可观测对象</li>
+<li>IObserver：观察者</li>
+<li>DiagnosticSource ：诊断来源</li>
+<li>DiagnosticListener：诊断监听器</li>
+<li>Activity：活动</li>
+</ul>
+<h1 id="3-观察者模式（IObservable-amp-IObserver"><a href="#3-观察者模式（IObservable-amp-IObserver" class="headerlink" title="3. 观察者模式（IObservable &amp; IObserver)"></a>3. 观察者模式（IObservable &amp; IObserver)</h1><p><code>IObservable</code> 和<code>IObserver</code>位于<code>System</code>命名空间下，是.NET中对观察者模式的抽象。</p>
+<blockquote>
+<p>观察者设计模式使观察者能够从可观察对象订阅并接收通知。 它适用于需要基于推送通知的任何方案。 此模式定义可观察对象，以及零个、一个或多个观察者。 观察者订阅可观察对象，并且每当预定义的条件、事件或状态发生更改时，该可观察对象会通过调用其方法之一来自动通知所有观察者。 在此方法调用中，该可观察对象还可向观察者提供当前状态信息。 在 .NET Framework 中，通过实现泛型 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobservable-1" target="_blank" rel="noopener">System.IObservable<T></a> 和 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobserver-1" target="_blank" rel="noopener">System.IObserver<T></a> 接口来应用观察者设计模式。 泛型类型参数表示提供通知信息的类型。 </p>
+</blockquote>
+<p>第一次学习观察者模式，应该是大学课本中基于事件烧水的例子，咱们就基于此实现个简单的Demo吧。首先执行<code>dotnet new web -n Dotnet.Diagnostic.Demo</code>创建示例项目。</p>
+<h2 id="3-1-定义可观察对象（实现IObservable接口）"><a href="#3-1-定义可观察对象（实现IObservable接口）" class="headerlink" title="3.1. 定义可观察对象（实现IObservable接口）"></a>3.1. 定义可观察对象（实现IObservable接口）</h2><p>对于烧水的示例，主要关注水温的变化，因此先定义<code>Temperature</code>来表示温度变化：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Temperature</span><br><span class="line">&#123;</span><br><span class="line">    public Temperature(decimal temperature, DateTime date)</span><br><span class="line">    &#123;</span><br><span class="line">        Degree &#x3D; temperature;</span><br><span class="line">        Date &#x3D; date;</span><br><span class="line">    &#125;</span><br><span class="line">    public decimal Degree &#123; get;  &#125;</span><br><span class="line">    public DateTime Date &#123; get;  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>接下来通过实现<code>IObservable&lt;T&gt;</code>接口来定义可观察对象。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IObservable&lt;out T&gt;</span><br><span class="line">&#123;</span><br><span class="line">  IDisposable Subscribe(IObserver&lt;T&gt; observer);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从接口申明来看，只定义了一个<code>Subscribe</code>方法，从观察者模式讲，观察者应该既能订阅又能取消订阅消息。为什么没有定义一个<code>UnSubscribe</code>方法呢？其实这里方法申明已经说明，期望通过返回<code>IDisposable</code>对象的<code>Dispose</code>方法来达到这个目的。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 热水壶</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class Kettle : IObservable&lt;Temperature&gt;</span><br><span class="line">&#123;</span><br><span class="line">    private List&lt;IObserver&lt;Temperature&gt;&gt; observers;</span><br><span class="line">    private decimal temperature &#x3D; 0;</span><br><span class="line"></span><br><span class="line">    public Kettle()</span><br><span class="line">    &#123;</span><br><span class="line">        observers &#x3D; new List&lt;IObserver&lt;Temperature&gt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public decimal Temperature</span><br><span class="line">    &#123;</span><br><span class="line">        get &#x3D;&gt; temperature;</span><br><span class="line">        private set</span><br><span class="line">        &#123;</span><br><span class="line">            temperature &#x3D; value;</span><br><span class="line">            observers.ForEach(observer &#x3D;&gt; observer.OnNext(new Temperature(temperature, DateTime.Now)));</span><br><span class="line">            </span><br><span class="line">            if (temperature &#x3D;&#x3D; 100)</span><br><span class="line">                observers.ForEach(observer &#x3D;&gt; observer.OnCompleted());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    public IDisposable Subscribe(IObserver&lt;Temperature&gt; observer)</span><br><span class="line">    &#123;</span><br><span class="line">        if (!observers.Contains(observer))</span><br><span class="line">        &#123;</span><br><span class="line">            Console.WriteLine(&quot;Subscribed!&quot;);</span><br><span class="line">            observers.Add(observer);</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F;使用UnSubscriber包装，返回IDisposable对象，用于观察者取消订阅</span><br><span class="line">        return new UnSubscriber&lt;Temperature&gt;(observers, observer);</span><br><span class="line">    &#125;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 烧水方法</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public async Task StartBoilWaterAsync()</span><br><span class="line">    &#123;</span><br><span class="line">        var random &#x3D; new Random(DateTime.Now.Millisecond);</span><br><span class="line">        while (Temperature &lt; 100)</span><br><span class="line">        &#123;</span><br><span class="line">            Temperature +&#x3D; 10;</span><br><span class="line">            await Task.Delay(random.Next(5000));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;定义泛型取消订阅对象，用于取消订阅</span><br><span class="line">internal class UnSubscriber&lt;T&gt; : IDisposable</span><br><span class="line">&#123;</span><br><span class="line">    private List&lt;IObserver&lt;T&gt;&gt; _observers;</span><br><span class="line">    private IObserver&lt;T&gt; _observer;</span><br><span class="line">    internal UnSubscriber(List&lt;IObserver&lt;T&gt;&gt; observers, IObserver&lt;T&gt; observer)</span><br><span class="line">    &#123;</span><br><span class="line">        this._observers &#x3D; observers;</span><br><span class="line">        this._observer &#x3D; observer;</span><br><span class="line">    &#125;</span><br><span class="line">    public void Dispose()</span><br><span class="line">    &#123;</span><br><span class="line">        if (_observers.Contains(_observer))</span><br><span class="line">        &#123;</span><br><span class="line">            Console.WriteLine(&quot;Unsubscribed!&quot;);</span><br><span class="line">            _observers.Remove(_observer);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><em>以上代码中List&lt;IObserver<T>&gt;存在线程安全问题，因为简单Demo，就不予优化了。</em></p>
+<h2 id="3-2-定义观察者（实现IObserver接口"><a href="#3-2-定义观察者（实现IObserver接口" class="headerlink" title="3.2. 定义观察者（实现IObserver接口)"></a>3.2. 定义观察者（实现IObserver<T>接口)</h2><p>比如定义一个报警器，实时播报温度。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Alter : IObserver&lt;Temperature&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public void OnCompleted()</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine(&quot;du du du !!!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnError(Exception error)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;Nothing to do</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnNext(Temperature value)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;&#123;value.Date.ToString()&#125;: Current temperature is &#123;value.Degree&#125;.&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>添加测试代码，访问<code>localhost:5000/subscriber</code>控制台输出结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">endpoints.MapGet(&quot;&#x2F;subscriber&quot;, async context &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var kettle &#x3D; new Kettle();&#x2F;&#x2F;初始化热水壶</span><br><span class="line">    var subscribeRef &#x3D; kettle.Subscribe(new Alter());&#x2F;&#x2F;订阅</span><br><span class="line">    </span><br><span class="line">    var boilTask &#x3D; kettle.StartBoilWaterAsync();&#x2F;&#x2F;启动开始烧水任务</span><br><span class="line">    var timoutTask &#x3D; Task.Delay(TimeSpan.FromSeconds(15));&#x2F;&#x2F;定义15s超时任务</span><br><span class="line">    &#x2F;&#x2F;等待，如果超时任务先返回则取消订阅</span><br><span class="line">    var firstReturnTask &#x3D; await Task.WhenAny(boilTask, timoutTask);</span><br><span class="line">    if (firstReturnTask &#x3D;&#x3D; timoutTask)</span><br><span class="line">        subscribeRef.Dispose();</span><br><span class="line">    await context.Response.WriteAsync(&quot;Hello subscriber!&quot;);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line">Subscribed!</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:20 PM: Current temperature is 10.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:20 PM: Current temperature is 20.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:21 PM: Current temperature is 30.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:21 PM: Current temperature is 40.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:24 PM: Current temperature is 50.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:25 PM: Current temperature is 60.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:26 PM: Current temperature is 70.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:30 PM: Current temperature is 80.</span><br><span class="line">Unsubscribed!</span><br></pre></td></tr></table></figure>
+
+<h1 id="4-DiagnosticSource-amp-DiagnosticListener"><a href="#4-DiagnosticSource-amp-DiagnosticListener" class="headerlink" title="4. DiagnosticSource &amp; DiagnosticListener"></a>4. DiagnosticSource &amp; DiagnosticListener</h1><h2 id="4-1-概念讲解"><a href="#4-1-概念讲解" class="headerlink" title="4.1. 概念讲解"></a>4.1. 概念讲解</h2><p><code>DiagnosticSource</code>直译就是诊断源，也就是它是诊断日志的来源入口。DiagnosticSource其是一个<em>抽象类</em>主要定义了以下方法：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Provides a generic way of logging complex payloads</span><br><span class="line">public abstract void Write(string name, object value);</span><br><span class="line">&#x2F;&#x2F;Verifies if the notification event is enabled.</span><br><span class="line">public abstract bool IsEnabled(string name);</span><br></pre></td></tr></table></figure>
+<p><code>DiagnosticListener</code>直译就是诊断监听器，继承自<code>DiagnosticSource</code>，同时实现了<code>IObservable&lt;KeyValuePair&lt;string, object&gt;&gt;</code>接口，因此其本质是一个可观察对象。小结以下：</p>
+<ol>
+<li><code>DiagnosticSource</code> 作为诊断日志来源，提供接口，用于写入诊断日志。 </li>
+<li>诊断日志的可观察数据类型为<code>KeyValuePair&lt;string, object&gt;</code>。</li>
+<li><code>DiagnosticListener</code> 继承自<code>DiagnosticSource</code>，作为可观察对象，可由其他观察者订阅，以获取诊断日志。</li>
+</ol>
+<p><code>DiagnosticListener</code> 其构造函数接收一个<code>name</code>参数。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private static DiagnosticSource httpLogger &#x3D; new DiagnosticListener(&quot;System.Net.Http&quot;);</span><br></pre></td></tr></table></figure>
+<p>可以通过下面这种方式记录诊断日志：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">if (httpLogger.IsEnabled(&quot;RequestStart&quot;))</span><br><span class="line">    httpLogger.Write(&quot;RequestStart&quot;, new &#123; Url&#x3D;&quot;http:&#x2F;&#x2F;clr&quot;, Request&#x3D;aRequest &#125;);</span><br></pre></td></tr></table></figure>
+<p>然后需要实现<code>IObserver&lt;KeyValuePair&lt;string, object&gt;&gt;</code>接口，以便消费诊断数据。定义<code>DiagnosticObserver</code>，进行诊断日志消费：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class DiagnosticObserver : IObserver&lt;KeyValuePair&lt;string, object&gt;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public void OnCompleted()</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;Noting to do</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnError(Exception error)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;&#123;error.Message&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnNext(KeyValuePair&lt;string, object&gt; pair)</span><br><span class="line">    &#123; </span><br><span class="line">        &#x2F;&#x2F; 这里消费诊断数据</span><br><span class="line">        Console.WriteLine($&quot;&#123;pair.Key&#125;-&#123;pair.Value&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ASP.NET Core 项目中默认就依赖了<code>System.Diagnostics.DiagnosticSource</code>Nuget包，同时在构建通用Web主机时，就注入了名为<code>Microsoft.AspNetCore</code>的<code>DiagnosticListener</code>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;GenericWebHostBuilder.cs</span><br><span class="line">DiagnosticListener instance &#x3D; new DiagnosticListener(&quot;Microsoft.AspNetCore&quot;);</span><br><span class="line">services.TryAddSingleton&lt;DiagnosticListener&gt;(instance);</span><br><span class="line">services.TryAddSingleton&lt;DiagnosticSource&gt;((DiagnosticSource) instance);</span><br></pre></td></tr></table></figure>
+<p>因此我们可以直接通过注入<code>DiagnosticListener</code>进行诊断日志的订阅：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void Configure(IApplicationBuilder app, IWebHostEnvironment env, DiagnosticListener diagnosticListener)</span><br><span class="line">&#123;</span><br><span class="line">    diagnosticListener.Subscribe(new DiagnosticObserver());&#x2F;&#x2F;订阅诊断日志</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><em>当然也可以直接使用<code>DiagnosticListener.AllListeners.Subscribe(IObserver&lt;DiagnosticListener&gt; observer);</code>进行订阅，不过区别是，接收的参数类型为<code>IObserver&lt;DiagnosticListener&gt;</code>。</em></p>
+<p>运行项目输出：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Microsoft.AspNetCore.Hosting.HttpRequestIn.Start-Microsoft.AspNetCore.Http.DefaultHttpContext</span><br><span class="line">Microsoft.AspNetCore.Hosting.BeginRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300014352 &#125;</span><br><span class="line">Microsoft.AspNetCore.Routing.EndpointMatched-Microsoft.AspNetCore.Http.DefaultHttpContext</span><br><span class="line">Microsoft.AspNetCore.Hosting.EndRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300319214 &#125;</span><br><span class="line">Microsoft.AspNetCore.Hosting.HttpRequestIn.Stop-Microsoft.AspNetCore.Http.DefaultHttpContext</span><br></pre></td></tr></table></figure>
+<p>从中可以看出，ASP.NET Core Empty Web Project在一次正常的Http请求过程中分别在请求进入、请求处理、路由匹配都埋了点，除此之外还有请求异常、Action处理都有埋点。因此，根据需要，可以实现比如请求拦截、耗时统计等系列操作。</p>
+<h2 id="4-2-耗时统计"><a href="#4-2-耗时统计" class="headerlink" title="4.2. 耗时统计"></a>4.2. 耗时统计</h2><p>基于以上知识，下面尝试完成一个简单的耗时统计。从上面的内容可知，ASP.NET Core在BeginRequest和EndRequest返回的诊断数据类型如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Microsoft.AspNetCore.Hosting.BeginRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300014352 &#125;</span><br><span class="line">Microsoft.AspNetCore.Hosting.EndRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300319214 &#125;</span><br></pre></td></tr></table></figure>
+<p>因此只要拿到两个timestamp就可以直接计算耗时，修改<code>DiagnosticObserver</code>的<code>OnNext</code>方法如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private ConcurrentDictionary&lt;string, long&gt; startTimes &#x3D; new ConcurrentDictionary&lt;string, long&gt;();</span><br><span class="line">public void OnNext(KeyValuePair&lt;string, object&gt; pair)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;Console.WriteLine($&quot;&#123;pair.Key&#125;-&#123;pair.Value&#125;&quot;);</span><br><span class="line">    &#x2F;&#x2F;获取httpContext</span><br><span class="line">    var context &#x3D; pair.Value.GetType().GetTypeInfo().GetDeclaredProperty(&quot;httpContext&quot;)</span><br><span class="line">        ?.GetValue(pair.Value) as DefaultHttpContext;</span><br><span class="line">    &#x2F;&#x2F;获取timestamp</span><br><span class="line">    var timestamp &#x3D; pair.Value.GetType().GetTypeInfo().GetDeclaredProperty(&quot;timestamp&quot;)</span><br><span class="line">        ?.GetValue(pair.Value) as long?;</span><br><span class="line">    switch (pair.Key)</span><br><span class="line">    &#123;</span><br><span class="line">        case &quot;Microsoft.AspNetCore.Hosting.BeginRequest&quot;:</span><br><span class="line">            Console.WriteLine($&quot;Request &#123;context.TraceIdentifier&#125; Begin:&#123;context.Request.GetUri()&#125;&quot;);</span><br><span class="line">            startTimes.TryAdd(context.TraceIdentifier, timestamp.Value);&#x2F;&#x2F;记录请求开始时间</span><br><span class="line">            break;</span><br><span class="line">        case &quot;Microsoft.AspNetCore.Hosting.EndRequest&quot;:</span><br><span class="line">            startTimes.TryGetValue(context.TraceIdentifier, out long startTime);</span><br><span class="line">            var elapsedMs &#x3D; (timestamp - startTime) &#x2F; TimeSpan.TicksPerMillisecond;&#x2F;&#x2F;计算耗时</span><br><span class="line">            Console.WriteLine(</span><br><span class="line">                $&quot;Request &#123;context.TraceIdentifier&#125; End: Status Code is &#123;context.Response.StatusCode&#125;,Elapsed &#123;elapsedMs&#125;ms&quot;);</span><br><span class="line">            startTimes.TryRemove(context.TraceIdentifier, out _);</span><br><span class="line">            break;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出如下，大功告成：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Request 0HM37UNERKGF0:00000001 Begin:https:&#x2F;&#x2F;localhost:44330</span><br><span class="line">Request 0HM37UNERKGF0:00000001 End: Status Code is 200,Elapsed 38ms</span><br></pre></td></tr></table></figure>
+
+<p>上面有通过反射去获取诊断数据属性的代码（<code>var timestamp = pair.Value.GetType().GetTypeInfo().GetDeclaredProperty(&quot;timestamp&quot;)
+        ?.GetValue(pair.Value) as long?;</code>），非常不优雅。但我们可以安装<strong><code>Microsoft.Extensions.DiagnosticAdapter</code></strong>包来简化诊断数据的消费。安装后，添加<code>HttpContextDiagnosticObserver</code>，通过添加<code>DiagnosticName</code>指定监听的诊断名称，即可进行诊断数据消费。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public sealed class HttpContextDiagnosticObserver</span><br><span class="line">&#123;</span><br><span class="line">    private ConcurrentDictionary&lt;string, long&gt; startTimes &#x3D; new ConcurrentDictionary&lt;string, long&gt;();</span><br><span class="line">    </span><br><span class="line">    [DiagnosticName(&quot;Microsoft.AspNetCore.Hosting.BeginRequest&quot;)]</span><br><span class="line">    public void BeginRequest(HttpContext httpContext,long timestamp)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;Request &#123;httpContext.TraceIdentifier&#125; Begin:&#123;httpContext.Request.GetUri()&#125;&quot;);</span><br><span class="line">        startTimes.TryAdd(httpContext.TraceIdentifier, timestamp);&#x2F;&#x2F;记录请求开始时间</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    [DiagnosticName(&quot;Microsoft.AspNetCore.Hosting.EndRequest&quot;)]</span><br><span class="line">    public void EndRequest(HttpContext httpContext,long timestamp)</span><br><span class="line">    &#123;</span><br><span class="line">        startTimes.TryGetValue(httpContext.TraceIdentifier, out long startTime);</span><br><span class="line">        var elapsedMs &#x3D; (timestamp - startTime) &#x2F; TimeSpan.TicksPerMillisecond;&#x2F;&#x2F;计算耗时</span><br><span class="line">        Console.WriteLine(</span><br><span class="line">            $&quot;Request &#123;httpContext.TraceIdentifier&#125; End: Status Code is &#123;httpContext.Response.StatusCode&#125;,Elapsed &#123;elapsedMs&#125;ms&quot;);</span><br><span class="line">        startTimes.TryRemove(httpContext.TraceIdentifier, out _);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后使用<code>SubscribeWithAdapter</code>进行订阅即可。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void Configure(IApplicationBuilder app, IWebHostEnvironment env, DiagnosticListener diagnosticListener)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; diagnosticListener.Subscribe(new DiagnosticObserver());</span><br><span class="line">    diagnosticListener.SubscribeWithAdapter(new HttpContextDiagnosticObserver());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>到这里可能也有小伙伴说，我用<code>ActionFilter</code>也可以实现，没错，但这两种方式是完全不同的，<code>DiagnosticSource</code>是完全异步的。</p>
+<h2 id="4-3-应用场景思考"><a href="#4-3-应用场景思考" class="headerlink" title="4.3. 应用场景思考"></a>4.3. 应用场景思考</h2><p>根据DiagnosticSource的特性，可以运用于以下场景 ：</p>
+<ol>
+<li>AOP：因为Diagnostics命名事件一般是成对出现的，因此可以做些拦截操作。比如在Abp集成<a href="https://github.com/dotnetcore/CAP" target="_blank" rel="noopener">Cap</a>时，若想默认启用Uow，就可以消费<code>DotNetCore.CAP.WriteSubscriberInvokeBefore</code>命名事件，创建Uow，再在命名事件<code>DotNetCore.CAP.WriteSubscriberInvokeAfter</code>中提交事务，并Dispose。</li>
+<li>APM：<a href="https://github.com/SkyAPM/SkyAPM-dotnet" target="_blank" rel="noopener">SkyAPM-dotnet</a>的<a href="https://github.com/SkyAPM/SkyAPM-dotnet/blob/master/src/SkyApm.Diagnostics.AspNetCore/HostingDiagnosticProcessor.cs" target="_blank" rel="noopener">实现</a>就是通过消费诊断日志，进行链路跟踪</li>
+<li>EventBus：充分利用其发布订阅模式，可将其用于进程内事件的发布与消费。</li>
+</ol>
+<h1 id="5-Activity（活动）"><a href="#5-Activity（活动）" class="headerlink" title="5. Activity（活动）"></a>5. Activity（活动）</h1><h2 id="5-1-Activity-概述"><a href="#5-1-Activity-概述" class="headerlink" title="5.1. Activity 概述"></a>5.1. Activity 概述</h2><p>那Activity又是何方神圣，用于解决什么问题呢？关于Activity官方只有一句简要介绍：Represents an operation with context to be used for logging。（表示包含上下文的操作，用于日志记录。）</p>
+<p>Activity用来存储和访问诊断上下文，并由日志系统进行消费。当应用程序开始处理操作时，例如HTTP请求或队列中的任务，它会在处理请求时创建Activity以在系统中跟踪该Activity。Activity中存储的上下文可以是HTTP请求路径，方法，用户代理或关联ID：所有重要信息都应与每个跟踪一起记录。当应用程序调用外部依赖关系以完成操作时，它可能需要传递一些上下文（例如，关联ID）以及依赖关系调用，以便能够关联来自多个服务的日志。</p>
+<p>先来看下Activity主要以下核心属性：</p>
+<ol>
+<li><p>Tags（标签）<br><code>IEnumerable&lt;KeyValuePair&lt;string, string&gt;&gt; Tags { get; }</code> - 表示与活动一起记录的信息。标签的好例子是实例/机器名称，传入请求HTTP方法，路径，用户/用户代理等。标签<strong>不传递</strong>给子活动。<br>典型的标签用法包括添加一些自定义标签，并通过它们进行枚举以填充日志事件的有效负载。可通过<code>Activity AddTag(string key, string value)</code>添加Tag，但不支持通过Key检索标签。</p>
+</li>
+<li><p>Baggage（行李）<br><code>IEnumerable&lt;KeyValuePair&lt;string, string&gt;&gt; Baggage { get; }</code> - 表示要与活动一起记录<strong>并传递给其子项</strong>的信息。行李的例子包括相关ID，采样和特征标记。<br>Baggage被序列化并与外部依赖项请求一起传递。<br>典型的Baggage用法包括添加一些Baggage属性，并通过它们进行枚举以填充日志事件的有效负载。<br>可通过<code>Activity AddBaggage(string key, string value)</code>添加Baggage。并通过<code>string GetBaggageItem(string key)</code>获取指定Key的Baggage。</p>
+</li>
+<li><p>OperationName（操作名称）<br><code>string OperationName { get; }</code> - 活动名称，必须在构造函数中指定。</p>
+</li>
+<li><p>StartTimeUtc<br><code>DateTime StartTimeUtc { get; private set; }</code>  - UTC格式的启动时间，如果不指定，则在启动时默认指定为<code>DateTime.UtcNow</code>。可通过<code>Activity SetStartTime(DateTime startTimeUtc)</code>指定。</p>
+</li>
+<li><p>Duration<br><code>TimeSpan Duration { get; private set; }</code> - 如果活动已停止，则代表活动持续时间，否则为0。</p>
+</li>
+<li><p>Id<br><code>string Id { get; private set; }</code> - 表示特定的活动标识符。过滤特定ID可确保您仅获得与操作中特定请求相关的日志记录。该Id在活动开始时生成。Id传递给外部依赖项，并被视为新的外部活动的[ParentId]。</p>
+</li>
+<li><p>ParentId<br><code>string ParentId { get; private set; }</code> - 如果活动是根据请求反序列化的，则该活动可能具有进程中的[Parent]或外部Parent。 ParentId和Id代表日志中的父子关系，并允许您关联传出和传入请求。</p>
+</li>
+<li><p>RootId<br><code>string RootId  { get; private set; }</code> - 代表根Id</p>
+</li>
+<li><p>Current<br><code>static Activity Current { get; }</code> - 返回在异步调用之间流动的当前Activity。</p>
+</li>
+<li><p>Parent<br><code>Activity Parent { get; private set; }</code> - 如果活动是在同一过程中从另一个活动创建的，则可以使用<code>Partent</code>获得该活动。但是，如果“活动”是根活动或父项来自流程外部，则此字段可能为null。</p>
+</li>
+<li><p>Start()<br><code>Activity Start()</code> - 启动活动：设置活动的Activity.Current和Parent，生成唯一的ID并设置StartTimeUtc（如果尚未设置）。</p>
+</li>
+<li><p>Stop()<br><code>void Stop()</code> - 停止活动：设置活动的Activity.Current，并使用<code>Activity SetEndTime(DateTime endTimeUtc)</code>或DateTime.UtcNow中提供的时间戳计算Duration。</p>
+</li>
+</ol>
+<p>另外<code>DiagnosticSource</code>中也定义了两个相关方法：</p>
+<ol>
+<li>StartActivity<br><code>Activity StartActivity(Activity activity, object args)</code> - 启动给定的Activity，并将<code>DiagnosticSource</code>事件消息写入<code>OperationName.Start</code>格式的命名事件中。</li>
+<li>StopActivity<br><code>void StopActivity(Activity activity, object args)</code> - 停止给定的Activity，并将<code>DiagnosticSource</code>事件消息写入<code>{OperationName}.Stop</code>格式的命名事件中。</li>
+</ol>
+<h2 id="5-2-Activity在ASP-NET-Core中的应用"><a href="#5-2-Activity在ASP-NET-Core中的应用" class="headerlink" title="5.2. Activity在ASP.NET Core中的应用"></a>5.2. Activity在ASP.NET Core中的应用</h2><p>要想弄懂Activity，我们还是得向源码学习，看一下<a href="https://github.com/dotnet/aspnetcore/blob/master/src/Hosting/Hosting/src/Internal/HostingApplicationDiagnostics.cs" target="_blank" rel="noopener">HostingApplicationDiagnostics</a>的实现。首先来看下<code>BeginRequst</code>中的<code>StartActivity</code>方法。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private Activity StartActivity(HttpContext httpContext, out bool hasDiagnosticListener)</span><br><span class="line">&#123;</span><br><span class="line">  Activity activity &#x3D; new Activity(&quot;Microsoft.AspNetCore.Hosting.HttpRequestIn&quot;);</span><br><span class="line">  hasDiagnosticListener &#x3D; false;</span><br><span class="line">  IHeaderDictionary headers &#x3D; httpContext.Request.Headers;</span><br><span class="line">  StringValues stringValues1;</span><br><span class="line">  if (!headers.TryGetValue(HeaderNames.TraceParent, out stringValues1))</span><br><span class="line">    headers.TryGetValue(HeaderNames.RequestId, out stringValues1);</span><br><span class="line">  if (!StringValues.IsNullOrEmpty(stringValues1))</span><br><span class="line">  &#123;</span><br><span class="line">    activity.SetParentId((string) stringValues1);</span><br><span class="line">    StringValues stringValues2;</span><br><span class="line">    if (headers.TryGetValue(HeaderNames.TraceState, out stringValues2))</span><br><span class="line">      activity.TraceStateString &#x3D; (string) stringValues2;</span><br><span class="line">    string[] commaSeparatedValues &#x3D; headers.GetCommaSeparatedValues(HeaderNames.CorrelationContext);</span><br><span class="line">    if (commaSeparatedValues.Length !&#x3D; 0)</span><br><span class="line">    &#123;</span><br><span class="line">      foreach (string str in commaSeparatedValues)</span><br><span class="line">      &#123;</span><br><span class="line">        NameValueHeaderValue parsedValue;</span><br><span class="line">        if (NameValueHeaderValue.TryParse((StringSegment) str, out parsedValue))</span><br><span class="line">          activity.AddBaggage(parsedValue.Name.ToString(), parsedValue.Value.ToString());</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  this._diagnosticListener.OnActivityImport(activity, (object) httpContext);</span><br><span class="line">  if (this._diagnosticListener.IsEnabled(&quot;Microsoft.AspNetCore.Hosting.HttpRequestIn.Start&quot;))</span><br><span class="line">  &#123;</span><br><span class="line">    hasDiagnosticListener &#x3D; true;</span><br><span class="line">    this.StartActivity(activity, httpContext);</span><br><span class="line">  &#125;</span><br><span class="line">  else</span><br><span class="line">    activity.Start();</span><br><span class="line">  return activity;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从中可以看出，在ASP.NET Core 开始处理请求之前：</p>
+<ol>
+<li>首先，创建了名为<code>Microsoft.AspNetCore.Hosting.HttpRequestIn</code>的Activity，该Activity首先尝试从HTTP请求头中获取TraceParent/euqstId作为当前Activity的ParentId，这个很显然，是用来链路跟踪的。</li>
+<li>其次，尝试从<code>CorrelationContext</code>中获取关联上下文信息，然后将其添加到创建的Activity的Baggage中，进行关联上下文的继续传递。</li>
+<li>然后，启动Activity，然后向Name为<code>Microsoft.AspNetCore.Hosting.HttpRequestIn.Start</code>中写入诊断日志。</li>
+</ol>
+<p>这里大家可能有个疑问，这个关联上下文信息<code>CorrelationContext</code>又是何时添加到Http请求头中的呢？在<code>System.Net.Http</code>中的<a href="https://github.com/dotnet/runtime/blob/master/src/libraries/System.Net.Http/src/System/Net/Http/DiagnosticsHandler.cs" target="_blank" rel="noopener">DiagnosticsHandler</a>中添加的。<br>因此我们应该明白了，整个关联上下文的传递机制。</p>
+<p>紧接着再来看一看<code>RequestEnd</code>中的<code>StopActivity</code>方法。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private void StopActivity(Activity activity, HttpContext httpContext)</span><br><span class="line">&#123;</span><br><span class="line">  if (activity.Duration &#x3D;&#x3D; TimeSpan.Zero)</span><br><span class="line">    activity.SetEndTime(DateTime.UtcNow);</span><br><span class="line">  this._diagnosticListener.Write(&quot;Microsoft.AspNetCore.Hosting.HttpRequestIn.Stop&quot;, (object) httpContext);</span><br><span class="line">  activity.Stop();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从中可以看出主要是先<code>SetEndTime</code>，再写入<code>Microsoft.AspNetCore.Hosting.HttpRequestIn.Stop</code>命名事件；最后调用<code>Stop</code>方法停止当前Activity。</p>
+<p>简单总结一下，借助Activity中附加的Baggage信息可以实现请求链路上上下文数据的共享。</p>
+<h2 id="5-3-应用场景思考"><a href="#5-3-应用场景思考" class="headerlink" title="5.3. 应用场景思考"></a>5.3. 应用场景思考</h2><p>从上面的命名事件中可以看出，其封送的数据类型是特定的，因此可以借助Activity的Tags或Baggage添加自定义的数据进行共享。</p>
+<p>按照上面我们的耗时统计，只能统计到整个http请求的耗时，但对于我们定位问题来说还是有困难，比如，某个api即有调用redis，又操作了消息队列，同时又访问了数据库，那到底是那一段超时了呢？显然不好直接定位，借助Activity，我们就可以很好的实现细粒度的链路跟踪。通过Activity携带的信息，可以将一系列的操作关联起来，记录日志，再借助APM进行可视化快速定位跟踪。</p>
+<h1 id="6-参考资料"><a href="#6-参考资料" class="headerlink" title="6. 参考资料"></a>6. 参考资料</h1><ol>
+<li><a href="https://www.cnblogs.com/savorboard/p/diagnostics.html" target="_blank" rel="noopener">在 .NET Core 中使用 Diagnostics (Diagnostic Source) 记录跟踪信息</a></li>
+<li><a href="https://andrewlock.net/logging-using-diagnosticsource-in-asp-net-core/" target="_blank" rel="noopener">Logging using DiagnosticSource in ASP.NET Core</a></li>
+<li><a href="https://www.cnblogs.com/wucy/p/13532534.html" target="_blank" rel="noopener">.Net Core中的诊断日志DiagnosticSource讲解</a></li>
+<li><a href="https://docs.microsoft.com/en-us/dotnet/standard/events/observer-design-pattern" target="_blank" rel="noopener">Observer Design Pattern</a></li>
+<li><a href="https://github.com/dotnet/runtime/blob/master/src/libraries/System.Diagnostics.DiagnosticSource/src/DiagnosticSourceUsersGuide.md" target="_blank" rel="noopener">DiagnosticSource User Guide</a></li>
+<li><a href="https://github.com/dotnet/runtime/blob/master/src/libraries/System.Diagnostics.DiagnosticSource/src/ActivityUserGuide.md" target="_blank" rel="noopener">Activity User Guide</a></li>
+<li><a href="[https://www.youtube.com/watch?v=g3SZxsskZE0](https://www.youtube.com/watch?v=g3SZxsskZE0)">DiagnosticSourcery 101 - Mark Rendle</a></li>
+<li><a href="https://devblogs.microsoft.com/aspnet/improvements-in-net-core-3-0-for-troubleshooting-and-monitoring-distributed-apps/" target="_blank" rel="noopener">Improvements in .NET Core 3.0 for troubleshooting and monitoring distributed apps
+</a></li>
+</ol>
+]]></content>
+      <categories>
+        <category>知多少</category>
+      </categories>
+      <tags>
+        <tag>.NET</tag>
+        <tag>诊断日志</tag>
+        <tag>发布订阅模式</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Istio 知多少 | 下一代微服务守护者</title>
     <url>/post/how-much-you-know-about-istio/</url>
     <content><![CDATA[<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>在写完<a href="https://www.jianshu.com/p/e27f0f1dd8ab" target="_blank" rel="noopener">eShopOnContainers 知多少[12]：Envoy gateways</a>后，就一直想进一步探索Service Mesh，最近刚在极客时间上学完《Service Mesh入门》，又大致浏览了一遍官方文档，对Istio也算有了基本的认识。下面就根据自己的理解对Istio进行简单的梳理，算是对知识的总结吧。</p>
@@ -1306,8 +1455,8 @@
       </categories>
       <tags>
         <tag>.NET</tag>
-        <tag>中介者模式</tag>
         <tag>发布订阅模式</tag>
+        <tag>中介者模式</tag>
       </tags>
   </entry>
   <entry>
@@ -1432,155 +1581,6 @@
         <tag>.NET</tag>
         <tag>发布订阅模式</tag>
         <tag>EventBus</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>诊断日志知多少 | DiagnosticSource 在.NET上的应用</title>
-    <url>/post/how-much-you-know-about-diagnostic-in-dotnet/</url>
-    <content><![CDATA[<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f9fe53d73a593166.png" alt=""></p>
-<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近为了解决ABP集成CAP时无法通过拦截器启用工作单元的问题，从小伙伴那里学了一招。借助<code>DiagnossticSource</code>，可以最小改动完成需求。关于DiagnosticSource晓东大佬18年在文章 <a href="https://www.cnblogs.com/savorboard/p/diagnostics.html" target="_blank" rel="noopener">在 .NET Core 中使用 Diagnostics (Diagnostic Source) 记录跟踪信息</a>就有介绍，文章开头就说明了Diagnostics 一直是一个被大多数开发者忽视的东西。是的，我也忽略了，这个好东西，有必要学习一下，下面就和大家简单聊一聊<a href="https://github.com/dotnet/runtime/tree/master/src/libraries/System.Diagnostics.DiagnosticSource/src/System/Diagnostics" target="_blank" rel="noopener">System.Diagnostics.DiagnosticSource</a>在.NET上的应用。</p>
-<h1 id="2-System-Diagnostics-DiagnosticSource"><a href="#2-System-Diagnostics-DiagnosticSource" class="headerlink" title="2. System.Diagnostics.DiagnosticSource"></a>2. System.Diagnostics.DiagnosticSource</h1><p><code>Diagnostics</code>位于<code>System</code>命名空间下，由此可见<code>Diagnostics</code>在.NET 运行时中的地位不可小觑。其中<a href="https://github.com/dotnet/runtime/tree/master/src/libraries" target="_blank" rel="noopener">System.Diagnostics</a>命名空间下又包含不同类库，提供了允许与系统进程，事件日志和性能计数器进行交互的类。如下图所示：</p>
-<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-f00800a0b8dbfe92.png" alt="Diagnostic Namespace"></p>
-<p>其中System.Diagnostics.DiagnosticSource模块，它允许对代码进行检测，以在生产时记录丰富的数据负载（可以传递不可序列化的数据类型），以便在<strong>进程内</strong>进行消耗。消费者可以在运行时动态发现数据源并订阅感兴趣的数据源。</p>
-<p><img src="/images/how-much-you-know-about-diagnostic-in-dotnet/2799767-7197a426f10d7b66.png" alt=""></p>
-<p>在展开之前，有必要先梳理下涉及的以下核心概念：</p>
-<ul>
-<li>IObservable：可观测对象</li>
-<li>IObserver：观察者</li>
-<li>DiagnosticSource ：诊断来源</li>
-<li>DiagnosticListener：诊断监听器</li>
-<li>Activity：活动</li>
-</ul>
-<h1 id="3-观察者模式（IObservable-amp-IObserver"><a href="#3-观察者模式（IObservable-amp-IObserver" class="headerlink" title="3. 观察者模式（IObservable &amp; IObserver)"></a>3. 观察者模式（IObservable &amp; IObserver)</h1><p><code>IObservable</code> 和<code>IObserver</code>位于<code>System</code>命名空间下，是.NET中对观察者模式的抽象。</p>
-<blockquote>
-<p>观察者设计模式使观察者能够从可观察对象订阅并接收通知。 它适用于需要基于推送通知的任何方案。 此模式定义可观察对象，以及零个、一个或多个观察者。 观察者订阅可观察对象，并且每当预定义的条件、事件或状态发生更改时，该可观察对象会通过调用其方法之一来自动通知所有观察者。 在此方法调用中，该可观察对象还可向观察者提供当前状态信息。 在 .NET Framework 中，通过实现泛型 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobservable-1" target="_blank" rel="noopener">System.IObservable<T></a> 和 <a href="https://docs.microsoft.com/zh-cn/dotnet/api/system.iobserver-1" target="_blank" rel="noopener">System.IObserver<T></a> 接口来应用观察者设计模式。 泛型类型参数表示提供通知信息的类型。 </p>
-</blockquote>
-<p>第一次学习观察者模式，应该是大学课本中基于事件烧水的例子，咱们就基于此实现个简单的Demo吧。首先执行<code>dotnet new web -n Dotnet.Diagnostic.Demo</code>创建示例项目。</p>
-<h2 id="3-1-定义可观察对象（实现IObservable接口）"><a href="#3-1-定义可观察对象（实现IObservable接口）" class="headerlink" title="3.1. 定义可观察对象（实现IObservable接口）"></a>3.1. 定义可观察对象（实现IObservable接口）</h2><p>对于烧水的示例，主要关注水温的变化，因此先定义<code>Temperature</code>来表示温度变化：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Temperature</span><br><span class="line">&#123;</span><br><span class="line">    public Temperature(decimal temperature, DateTime date)</span><br><span class="line">    &#123;</span><br><span class="line">        Degree &#x3D; temperature;</span><br><span class="line">        Date &#x3D; date;</span><br><span class="line">    &#125;</span><br><span class="line">    public decimal Degree &#123; get;  &#125;</span><br><span class="line">    public DateTime Date &#123; get;  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>接下来通过实现<code>IObservable&lt;T&gt;</code>接口来定义可观察对象。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public interface IObservable&lt;out T&gt;</span><br><span class="line">&#123;</span><br><span class="line">  IDisposable Subscribe(IObserver&lt;T&gt; observer);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>从接口申明来看，只定义了一个<code>Subscribe</code>方法，从观察者模式讲，观察者应该既能订阅又能取消订阅消息。为什么没有定义一个<code>UnSubscribe</code>方法呢？其实这里方法申明已经说明，期望通过返回<code>IDisposable</code>对象的<code>Dispose</code>方法来达到这个目的。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 热水壶</span><br><span class="line">&#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">public class Kettle : IObservable&lt;Temperature&gt;</span><br><span class="line">&#123;</span><br><span class="line">    private List&lt;IObserver&lt;Temperature&gt;&gt; observers;</span><br><span class="line">    private decimal temperature &#x3D; 0;</span><br><span class="line"></span><br><span class="line">    public Kettle()</span><br><span class="line">    &#123;</span><br><span class="line">        observers &#x3D; new List&lt;IObserver&lt;Temperature&gt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public decimal Temperature</span><br><span class="line">    &#123;</span><br><span class="line">        get &#x3D;&gt; temperature;</span><br><span class="line">        private set</span><br><span class="line">        &#123;</span><br><span class="line">            temperature &#x3D; value;</span><br><span class="line">            observers.ForEach(observer &#x3D;&gt; observer.OnNext(new Temperature(temperature, DateTime.Now)));</span><br><span class="line">            </span><br><span class="line">            if (temperature &#x3D;&#x3D; 100)</span><br><span class="line">                observers.ForEach(observer &#x3D;&gt; observer.OnCompleted());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    public IDisposable Subscribe(IObserver&lt;Temperature&gt; observer)</span><br><span class="line">    &#123;</span><br><span class="line">        if (!observers.Contains(observer))</span><br><span class="line">        &#123;</span><br><span class="line">            Console.WriteLine(&quot;Subscribed!&quot;);</span><br><span class="line">            observers.Add(observer);</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F;使用UnSubscriber包装，返回IDisposable对象，用于观察者取消订阅</span><br><span class="line">        return new UnSubscriber&lt;Temperature&gt;(observers, observer);</span><br><span class="line">    &#125;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;summary&gt;</span><br><span class="line">    &#x2F;&#x2F;&#x2F; 烧水方法</span><br><span class="line">    &#x2F;&#x2F;&#x2F; &lt;&#x2F;summary&gt;</span><br><span class="line">    public async Task StartBoilWaterAsync()</span><br><span class="line">    &#123;</span><br><span class="line">        var random &#x3D; new Random(DateTime.Now.Millisecond);</span><br><span class="line">        while (Temperature &lt; 100)</span><br><span class="line">        &#123;</span><br><span class="line">            Temperature +&#x3D; 10;</span><br><span class="line">            await Task.Delay(random.Next(5000));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;定义泛型取消订阅对象，用于取消订阅</span><br><span class="line">internal class UnSubscriber&lt;T&gt; : IDisposable</span><br><span class="line">&#123;</span><br><span class="line">    private List&lt;IObserver&lt;T&gt;&gt; _observers;</span><br><span class="line">    private IObserver&lt;T&gt; _observer;</span><br><span class="line">    internal UnSubscriber(List&lt;IObserver&lt;T&gt;&gt; observers, IObserver&lt;T&gt; observer)</span><br><span class="line">    &#123;</span><br><span class="line">        this._observers &#x3D; observers;</span><br><span class="line">        this._observer &#x3D; observer;</span><br><span class="line">    &#125;</span><br><span class="line">    public void Dispose()</span><br><span class="line">    &#123;</span><br><span class="line">        if (_observers.Contains(_observer))</span><br><span class="line">        &#123;</span><br><span class="line">            Console.WriteLine(&quot;Unsubscribed!&quot;);</span><br><span class="line">            _observers.Remove(_observer);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><em>以上代码中List&lt;IObserver<T>&gt;存在线程安全问题，因为简单Demo，就不予优化了。</em></p>
-<h2 id="3-2-定义观察者（实现IObserver接口"><a href="#3-2-定义观察者（实现IObserver接口" class="headerlink" title="3.2. 定义观察者（实现IObserver接口)"></a>3.2. 定义观察者（实现IObserver<T>接口)</h2><p>比如定义一个报警器，实时播报温度。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class Alter : IObserver&lt;Temperature&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public void OnCompleted()</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine(&quot;du du du !!!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnError(Exception error)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;Nothing to do</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnNext(Temperature value)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;&#123;value.Date.ToString()&#125;: Current temperature is &#123;value.Degree&#125;.&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>添加测试代码，访问<code>localhost:5000/subscriber</code>控制台输出结果如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">endpoints.MapGet(&quot;&#x2F;subscriber&quot;, async context &#x3D;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    var kettle &#x3D; new Kettle();&#x2F;&#x2F;初始化热水壶</span><br><span class="line">    var subscribeRef &#x3D; kettle.Subscribe(new Alter());&#x2F;&#x2F;订阅</span><br><span class="line">    </span><br><span class="line">    var boilTask &#x3D; kettle.StartBoilWaterAsync();&#x2F;&#x2F;启动开始烧水任务</span><br><span class="line">    var timoutTask &#x3D; Task.Delay(TimeSpan.FromSeconds(15));&#x2F;&#x2F;定义15s超时任务</span><br><span class="line">    &#x2F;&#x2F;等待，如果超时任务先返回则取消订阅</span><br><span class="line">    var firstReturnTask &#x3D; await Task.WhenAny(boilTask, timoutTask);</span><br><span class="line">    if (firstReturnTask &#x3D;&#x3D; timoutTask)</span><br><span class="line">        subscribeRef.Dispose();</span><br><span class="line">    await context.Response.WriteAsync(&quot;Hello subscriber!&quot;);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line">Subscribed!</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:20 PM: Current temperature is 10.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:20 PM: Current temperature is 20.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:21 PM: Current temperature is 30.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:21 PM: Current temperature is 40.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:24 PM: Current temperature is 50.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:25 PM: Current temperature is 60.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:26 PM: Current temperature is 70.</span><br><span class="line">10&#x2F;2&#x2F;2020 4:53:30 PM: Current temperature is 80.</span><br><span class="line">Unsubscribed!</span><br></pre></td></tr></table></figure>
-
-<h1 id="4-DiagnosticSource-amp-DiagnosticListener"><a href="#4-DiagnosticSource-amp-DiagnosticListener" class="headerlink" title="4. DiagnosticSource &amp; DiagnosticListener"></a>4. DiagnosticSource &amp; DiagnosticListener</h1><h2 id="4-1-概念讲解"><a href="#4-1-概念讲解" class="headerlink" title="4.1. 概念讲解"></a>4.1. 概念讲解</h2><p><code>DiagnosticSource</code>直译就是诊断源，也就是它是诊断日志的来源入口。DiagnosticSource其是一个<em>抽象类</em>主要定义了以下方法：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Provides a generic way of logging complex payloads</span><br><span class="line">public abstract void Write(string name, object value);</span><br><span class="line">&#x2F;&#x2F;Verifies if the notification event is enabled.</span><br><span class="line">public abstract bool IsEnabled(string name);</span><br></pre></td></tr></table></figure>
-<p><code>DiagnosticListener</code>直译就是诊断监听器，继承自<code>DiagnosticSource</code>，同时实现了<code>IObservable&lt;KeyValuePair&lt;string, object&gt;&gt;</code>接口，因此其本质是一个可观察对象。小结以下：</p>
-<ol>
-<li><code>DiagnosticSource</code> 作为诊断日志来源，提供接口，用于写入诊断日志。 </li>
-<li>诊断日志的可观察数据类型为<code>KeyValuePair&lt;string, object&gt;</code>。</li>
-<li><code>DiagnosticListener</code> 继承自<code>DiagnosticSource</code>，作为可观察对象，可由其他观察者订阅，以获取诊断日志。</li>
-</ol>
-<p><code>DiagnosticListener</code> 其构造函数接收一个<code>name</code>参数。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private static DiagnosticSource httpLogger &#x3D; new DiagnosticListener(&quot;System.Net.Http&quot;);</span><br></pre></td></tr></table></figure>
-<p>可以通过下面这种方式记录诊断日志：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">if (httpLogger.IsEnabled(&quot;RequestStart&quot;))</span><br><span class="line">    httpLogger.Write(&quot;RequestStart&quot;, new &#123; Url&#x3D;&quot;http:&#x2F;&#x2F;clr&quot;, Request&#x3D;aRequest &#125;);</span><br></pre></td></tr></table></figure>
-<p>然后需要实现<code>IObserver&lt;KeyValuePair&lt;string, object&gt;&gt;</code>接口，以便消费诊断数据。定义<code>DiagnosticObserver</code>，进行诊断日志消费：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public class DiagnosticObserver : IObserver&lt;KeyValuePair&lt;string, object&gt;&gt;</span><br><span class="line">&#123;</span><br><span class="line">    public void OnCompleted()</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;Noting to do</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnError(Exception error)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;&#123;error.Message&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    public void OnNext(KeyValuePair&lt;string, object&gt; pair)</span><br><span class="line">    &#123; </span><br><span class="line">        &#x2F;&#x2F; 这里消费诊断数据</span><br><span class="line">        Console.WriteLine($&quot;&#123;pair.Key&#125;-&#123;pair.Value&#125;&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>ASP.NET Core 项目中默认就依赖了<code>System.Diagnostics.DiagnosticSource</code>Nuget包，同时在构建通用Web主机时，就注入了名为<code>Microsoft.AspNetCore</code>的<code>DiagnosticListener</code>。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;GenericWebHostBuilder.cs</span><br><span class="line">DiagnosticListener instance &#x3D; new DiagnosticListener(&quot;Microsoft.AspNetCore&quot;);</span><br><span class="line">services.TryAddSingleton&lt;DiagnosticListener&gt;(instance);</span><br><span class="line">services.TryAddSingleton&lt;DiagnosticSource&gt;((DiagnosticSource) instance);</span><br></pre></td></tr></table></figure>
-<p>因此我们可以直接通过注入<code>DiagnosticListener</code>进行诊断日志的订阅：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void Configure(IApplicationBuilder app, IWebHostEnvironment env, DiagnosticListener diagnosticListener)</span><br><span class="line">&#123;</span><br><span class="line">    diagnosticListener.Subscribe(new DiagnosticObserver());&#x2F;&#x2F;订阅诊断日志</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><em>当然也可以直接使用<code>DiagnosticListener.AllListeners.Subscribe(IObserver&lt;DiagnosticListener&gt; observer);</code>进行订阅，不过区别是，接收的参数类型为<code>IObserver&lt;DiagnosticListener&gt;</code>。</em></p>
-<p>运行项目输出：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Microsoft.AspNetCore.Hosting.HttpRequestIn.Start-Microsoft.AspNetCore.Http.DefaultHttpContext</span><br><span class="line">Microsoft.AspNetCore.Hosting.BeginRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300014352 &#125;</span><br><span class="line">Microsoft.AspNetCore.Routing.EndpointMatched-Microsoft.AspNetCore.Http.DefaultHttpContext</span><br><span class="line">Microsoft.AspNetCore.Hosting.EndRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300319214 &#125;</span><br><span class="line">Microsoft.AspNetCore.Hosting.HttpRequestIn.Stop-Microsoft.AspNetCore.Http.DefaultHttpContext</span><br></pre></td></tr></table></figure>
-<p>从中可以看出，ASP.NET Core Empty Web Project在一次正常的Http请求过程中分别在请求进入、请求处理、路由匹配都埋了点，除此之外还有请求异常、Action处理都有埋点。因此，根据需要，可以实现比如请求拦截、耗时统计等系列操作。</p>
-<h2 id="4-2-耗时统计"><a href="#4-2-耗时统计" class="headerlink" title="4.2. 耗时统计"></a>4.2. 耗时统计</h2><p>基于以上知识，下面尝试完成一个简单的耗时统计。从上面的内容可知，ASP.NET Core在BeginRequest和EndRequest返回的诊断数据类型如下所示：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Microsoft.AspNetCore.Hosting.BeginRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300014352 &#125;</span><br><span class="line">Microsoft.AspNetCore.Hosting.EndRequest-&#123; httpContext &#x3D; Microsoft.AspNetCore.Http.DefaultHttpContext, timestamp &#x3D; 7526300319214 &#125;</span><br></pre></td></tr></table></figure>
-<p>因此只要拿到两个timestamp就可以直接计算耗时，修改<code>DiagnosticObserver</code>的<code>OnNext</code>方法如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private ConcurrentDictionary&lt;string, long&gt; startTimes &#x3D; new ConcurrentDictionary&lt;string, long&gt;();</span><br><span class="line">public void OnNext(KeyValuePair&lt;string, object&gt; pair)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;Console.WriteLine($&quot;&#123;pair.Key&#125;-&#123;pair.Value&#125;&quot;);</span><br><span class="line">    &#x2F;&#x2F;获取httpContext</span><br><span class="line">    var context &#x3D; pair.Value.GetType().GetTypeInfo().GetDeclaredProperty(&quot;httpContext&quot;)</span><br><span class="line">        ?.GetValue(pair.Value) as DefaultHttpContext;</span><br><span class="line">    &#x2F;&#x2F;获取timestamp</span><br><span class="line">    var timestamp &#x3D; pair.Value.GetType().GetTypeInfo().GetDeclaredProperty(&quot;timestamp&quot;)</span><br><span class="line">        ?.GetValue(pair.Value) as long?;</span><br><span class="line">    switch (pair.Key)</span><br><span class="line">    &#123;</span><br><span class="line">        case &quot;Microsoft.AspNetCore.Hosting.BeginRequest&quot;:</span><br><span class="line">            Console.WriteLine($&quot;Request &#123;context.TraceIdentifier&#125; Begin:&#123;context.Request.GetUri()&#125;&quot;);</span><br><span class="line">            startTimes.TryAdd(context.TraceIdentifier, timestamp.Value);&#x2F;&#x2F;记录请求开始时间</span><br><span class="line">            break;</span><br><span class="line">        case &quot;Microsoft.AspNetCore.Hosting.EndRequest&quot;:</span><br><span class="line">            startTimes.TryGetValue(context.TraceIdentifier, out long startTime);</span><br><span class="line">            var elapsedMs &#x3D; (timestamp - startTime) &#x2F; TimeSpan.TicksPerMillisecond;&#x2F;&#x2F;计算耗时</span><br><span class="line">            Console.WriteLine(</span><br><span class="line">                $&quot;Request &#123;context.TraceIdentifier&#125; End: Status Code is &#123;context.Response.StatusCode&#125;,Elapsed &#123;elapsedMs&#125;ms&quot;);</span><br><span class="line">            startTimes.TryRemove(context.TraceIdentifier, out _);</span><br><span class="line">            break;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>输出如下，大功告成：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Request 0HM37UNERKGF0:00000001 Begin:https:&#x2F;&#x2F;localhost:44330</span><br><span class="line">Request 0HM37UNERKGF0:00000001 End: Status Code is 200,Elapsed 38ms</span><br></pre></td></tr></table></figure>
-
-<p>上面有通过反射去获取诊断数据属性的代码（<code>var timestamp = pair.Value.GetType().GetTypeInfo().GetDeclaredProperty(&quot;timestamp&quot;)
-        ?.GetValue(pair.Value) as long?;</code>），非常不优雅。但我们可以安装<strong><code>Microsoft.Extensions.DiagnosticAdapter</code></strong>包来简化诊断数据的消费。安装后，添加<code>HttpContextDiagnosticObserver</code>，通过添加<code>DiagnosticName</code>指定监听的诊断名称，即可进行诊断数据消费。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public sealed class HttpContextDiagnosticObserver</span><br><span class="line">&#123;</span><br><span class="line">    private ConcurrentDictionary&lt;string, long&gt; startTimes &#x3D; new ConcurrentDictionary&lt;string, long&gt;();</span><br><span class="line">    </span><br><span class="line">    [DiagnosticName(&quot;Microsoft.AspNetCore.Hosting.BeginRequest&quot;)]</span><br><span class="line">    public void BeginRequest(HttpContext httpContext,long timestamp)</span><br><span class="line">    &#123;</span><br><span class="line">        Console.WriteLine($&quot;Request &#123;httpContext.TraceIdentifier&#125; Begin:&#123;httpContext.Request.GetUri()&#125;&quot;);</span><br><span class="line">        startTimes.TryAdd(httpContext.TraceIdentifier, timestamp);&#x2F;&#x2F;记录请求开始时间</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    [DiagnosticName(&quot;Microsoft.AspNetCore.Hosting.EndRequest&quot;)]</span><br><span class="line">    public void EndRequest(HttpContext httpContext,long timestamp)</span><br><span class="line">    &#123;</span><br><span class="line">        startTimes.TryGetValue(httpContext.TraceIdentifier, out long startTime);</span><br><span class="line">        var elapsedMs &#x3D; (timestamp - startTime) &#x2F; TimeSpan.TicksPerMillisecond;&#x2F;&#x2F;计算耗时</span><br><span class="line">        Console.WriteLine(</span><br><span class="line">            $&quot;Request &#123;httpContext.TraceIdentifier&#125; End: Status Code is &#123;httpContext.Response.StatusCode&#125;,Elapsed &#123;elapsedMs&#125;ms&quot;);</span><br><span class="line">        startTimes.TryRemove(httpContext.TraceIdentifier, out _);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>然后使用<code>SubscribeWithAdapter</code>进行订阅即可。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">public void Configure(IApplicationBuilder app, IWebHostEnvironment env, DiagnosticListener diagnosticListener)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F; diagnosticListener.Subscribe(new DiagnosticObserver());</span><br><span class="line">    diagnosticListener.SubscribeWithAdapter(new HttpContextDiagnosticObserver());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>到这里可能也有小伙伴说，我用<code>ActionFilter</code>也可以实现，没错，但这两种方式是完全不同的，<code>DiagnosticSource</code>是完全异步的。</p>
-<h2 id="4-3-应用场景思考"><a href="#4-3-应用场景思考" class="headerlink" title="4.3. 应用场景思考"></a>4.3. 应用场景思考</h2><p>根据DiagnosticSource的特性，可以运用于以下场景 ：</p>
-<ol>
-<li>AOP：因为Diagnostics命名事件一般是成对出现的，因此可以做些拦截操作。比如在Abp集成<a href="https://github.com/dotnetcore/CAP" target="_blank" rel="noopener">Cap</a>时，若想默认启用Uow，就可以消费<code>DotNetCore.CAP.WriteSubscriberInvokeBefore</code>命名事件，创建Uow，再在命名事件<code>DotNetCore.CAP.WriteSubscriberInvokeAfter</code>中提交事务，并Dispose。</li>
-<li>APM：<a href="https://github.com/SkyAPM/SkyAPM-dotnet" target="_blank" rel="noopener">SkyAPM-dotnet</a>的<a href="https://github.com/SkyAPM/SkyAPM-dotnet/blob/master/src/SkyApm.Diagnostics.AspNetCore/HostingDiagnosticProcessor.cs" target="_blank" rel="noopener">实现</a>就是通过消费诊断日志，进行链路跟踪</li>
-<li>EventBus：充分利用其发布订阅模式，可将其用于进程内事件的发布与消费。</li>
-</ol>
-<h1 id="5-Activity（活动）"><a href="#5-Activity（活动）" class="headerlink" title="5. Activity（活动）"></a>5. Activity（活动）</h1><h2 id="5-1-Activity-概述"><a href="#5-1-Activity-概述" class="headerlink" title="5.1. Activity 概述"></a>5.1. Activity 概述</h2><p>那Activity又是何方神圣，用于解决什么问题呢？关于Activity官方只有一句简要介绍：Represents an operation with context to be used for logging。（表示包含上下文的操作，用于日志记录。）</p>
-<p>Activity用来存储和访问诊断上下文，并由日志系统进行消费。当应用程序开始处理操作时，例如HTTP请求或队列中的任务，它会在处理请求时创建Activity以在系统中跟踪该Activity。Activity中存储的上下文可以是HTTP请求路径，方法，用户代理或关联ID：所有重要信息都应与每个跟踪一起记录。当应用程序调用外部依赖关系以完成操作时，它可能需要传递一些上下文（例如，关联ID）以及依赖关系调用，以便能够关联来自多个服务的日志。</p>
-<p>先来看下Activity主要以下核心属性：</p>
-<ol>
-<li><p>Tags（标签）<br><code>IEnumerable&lt;KeyValuePair&lt;string, string&gt;&gt; Tags { get; }</code> - 表示与活动一起记录的信息。标签的好例子是实例/机器名称，传入请求HTTP方法，路径，用户/用户代理等。标签<strong>不传递</strong>给子活动。<br>典型的标签用法包括添加一些自定义标签，并通过它们进行枚举以填充日志事件的有效负载。可通过<code>Activity AddTag(string key, string value)</code>添加Tag，但不支持通过Key检索标签。</p>
-</li>
-<li><p>Baggage（行李）<br><code>IEnumerable&lt;KeyValuePair&lt;string, string&gt;&gt; Baggage { get; }</code> - 表示要与活动一起记录<strong>并传递给其子项</strong>的信息。行李的例子包括相关ID，采样和特征标记。<br>Baggage被序列化并与外部依赖项请求一起传递。<br>典型的Baggage用法包括添加一些Baggage属性，并通过它们进行枚举以填充日志事件的有效负载。<br>可通过<code>Activity AddBaggage(string key, string value)</code>添加Baggage。并通过<code>string GetBaggageItem(string key)</code>获取指定Key的Baggage。</p>
-</li>
-<li><p>OperationName（操作名称）<br><code>string OperationName { get; }</code> - 活动名称，必须在构造函数中指定。</p>
-</li>
-<li><p>StartTimeUtc<br><code>DateTime StartTimeUtc { get; private set; }</code>  - UTC格式的启动时间，如果不指定，则在启动时默认指定为<code>DateTime.UtcNow</code>。可通过<code>Activity SetStartTime(DateTime startTimeUtc)</code>指定。</p>
-</li>
-<li><p>Duration<br><code>TimeSpan Duration { get; private set; }</code> - 如果活动已停止，则代表活动持续时间，否则为0。</p>
-</li>
-<li><p>Id<br><code>string Id { get; private set; }</code> - 表示特定的活动标识符。过滤特定ID可确保您仅获得与操作中特定请求相关的日志记录。该Id在活动开始时生成。Id传递给外部依赖项，并被视为新的外部活动的[ParentId]。</p>
-</li>
-<li><p>ParentId<br><code>string ParentId { get; private set; }</code> - 如果活动是根据请求反序列化的，则该活动可能具有进程中的[Parent]或外部Parent。 ParentId和Id代表日志中的父子关系，并允许您关联传出和传入请求。</p>
-</li>
-<li><p>RootId<br><code>string RootId  { get; private set; }</code> - 代表根Id</p>
-</li>
-<li><p>Current<br><code>static Activity Current { get; }</code> - 返回在异步调用之间流动的当前Activity。</p>
-</li>
-<li><p>Parent<br><code>Activity Parent { get; private set; }</code> - 如果活动是在同一过程中从另一个活动创建的，则可以使用<code>Partent</code>获得该活动。但是，如果“活动”是根活动或父项来自流程外部，则此字段可能为null。</p>
-</li>
-<li><p>Start()<br><code>Activity Start()</code> - 启动活动：设置活动的Activity.Current和Parent，生成唯一的ID并设置StartTimeUtc（如果尚未设置）。</p>
-</li>
-<li><p>Stop()<br><code>void Stop()</code> - 停止活动：设置活动的Activity.Current，并使用<code>Activity SetEndTime(DateTime endTimeUtc)</code>或DateTime.UtcNow中提供的时间戳计算Duration。</p>
-</li>
-</ol>
-<p>另外<code>DiagnosticSource</code>中也定义了两个相关方法：</p>
-<ol>
-<li>StartActivity<br><code>Activity StartActivity(Activity activity, object args)</code> - 启动给定的Activity，并将<code>DiagnosticSource</code>事件消息写入<code>OperationName.Start</code>格式的命名事件中。</li>
-<li>StopActivity<br><code>void StopActivity(Activity activity, object args)</code> - 停止给定的Activity，并将<code>DiagnosticSource</code>事件消息写入<code>{OperationName}.Stop</code>格式的命名事件中。</li>
-</ol>
-<h2 id="5-2-Activity在ASP-NET-Core中的应用"><a href="#5-2-Activity在ASP-NET-Core中的应用" class="headerlink" title="5.2. Activity在ASP.NET Core中的应用"></a>5.2. Activity在ASP.NET Core中的应用</h2><p>要想弄懂Activity，我们还是得向源码学习，看一下<a href="https://github.com/dotnet/aspnetcore/blob/master/src/Hosting/Hosting/src/Internal/HostingApplicationDiagnostics.cs" target="_blank" rel="noopener">HostingApplicationDiagnostics</a>的实现。首先来看下<code>BeginRequst</code>中的<code>StartActivity</code>方法。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private Activity StartActivity(HttpContext httpContext, out bool hasDiagnosticListener)</span><br><span class="line">&#123;</span><br><span class="line">  Activity activity &#x3D; new Activity(&quot;Microsoft.AspNetCore.Hosting.HttpRequestIn&quot;);</span><br><span class="line">  hasDiagnosticListener &#x3D; false;</span><br><span class="line">  IHeaderDictionary headers &#x3D; httpContext.Request.Headers;</span><br><span class="line">  StringValues stringValues1;</span><br><span class="line">  if (!headers.TryGetValue(HeaderNames.TraceParent, out stringValues1))</span><br><span class="line">    headers.TryGetValue(HeaderNames.RequestId, out stringValues1);</span><br><span class="line">  if (!StringValues.IsNullOrEmpty(stringValues1))</span><br><span class="line">  &#123;</span><br><span class="line">    activity.SetParentId((string) stringValues1);</span><br><span class="line">    StringValues stringValues2;</span><br><span class="line">    if (headers.TryGetValue(HeaderNames.TraceState, out stringValues2))</span><br><span class="line">      activity.TraceStateString &#x3D; (string) stringValues2;</span><br><span class="line">    string[] commaSeparatedValues &#x3D; headers.GetCommaSeparatedValues(HeaderNames.CorrelationContext);</span><br><span class="line">    if (commaSeparatedValues.Length !&#x3D; 0)</span><br><span class="line">    &#123;</span><br><span class="line">      foreach (string str in commaSeparatedValues)</span><br><span class="line">      &#123;</span><br><span class="line">        NameValueHeaderValue parsedValue;</span><br><span class="line">        if (NameValueHeaderValue.TryParse((StringSegment) str, out parsedValue))</span><br><span class="line">          activity.AddBaggage(parsedValue.Name.ToString(), parsedValue.Value.ToString());</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  this._diagnosticListener.OnActivityImport(activity, (object) httpContext);</span><br><span class="line">  if (this._diagnosticListener.IsEnabled(&quot;Microsoft.AspNetCore.Hosting.HttpRequestIn.Start&quot;))</span><br><span class="line">  &#123;</span><br><span class="line">    hasDiagnosticListener &#x3D; true;</span><br><span class="line">    this.StartActivity(activity, httpContext);</span><br><span class="line">  &#125;</span><br><span class="line">  else</span><br><span class="line">    activity.Start();</span><br><span class="line">  return activity;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从中可以看出，在ASP.NET Core 开始处理请求之前：</p>
-<ol>
-<li>首先，创建了名为<code>Microsoft.AspNetCore.Hosting.HttpRequestIn</code>的Activity，该Activity首先尝试从HTTP请求头中获取TraceParent/euqstId作为当前Activity的ParentId，这个很显然，是用来链路跟踪的。</li>
-<li>其次，尝试从<code>CorrelationContext</code>中获取关联上下文信息，然后将其添加到创建的Activity的Baggage中，进行关联上下文的继续传递。</li>
-<li>然后，启动Activity，然后向Name为<code>Microsoft.AspNetCore.Hosting.HttpRequestIn.Start</code>中写入诊断日志。</li>
-</ol>
-<p>这里大家可能有个疑问，这个关联上下文信息<code>CorrelationContext</code>又是何时添加到Http请求头中的呢？在<code>System.Net.Http</code>中的<a href="https://github.com/dotnet/runtime/blob/master/src/libraries/System.Net.Http/src/System/Net/Http/DiagnosticsHandler.cs" target="_blank" rel="noopener">DiagnosticsHandler</a>中添加的。<br>因此我们应该明白了，整个关联上下文的传递机制。</p>
-<p>紧接着再来看一看<code>RequestEnd</code>中的<code>StopActivity</code>方法。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">private void StopActivity(Activity activity, HttpContext httpContext)</span><br><span class="line">&#123;</span><br><span class="line">  if (activity.Duration &#x3D;&#x3D; TimeSpan.Zero)</span><br><span class="line">    activity.SetEndTime(DateTime.UtcNow);</span><br><span class="line">  this._diagnosticListener.Write(&quot;Microsoft.AspNetCore.Hosting.HttpRequestIn.Stop&quot;, (object) httpContext);</span><br><span class="line">  activity.Stop();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>从中可以看出主要是先<code>SetEndTime</code>，再写入<code>Microsoft.AspNetCore.Hosting.HttpRequestIn.Stop</code>命名事件；最后调用<code>Stop</code>方法停止当前Activity。</p>
-<p>简单总结一下，借助Activity中附加的Baggage信息可以实现请求链路上上下文数据的共享。</p>
-<h2 id="5-3-应用场景思考"><a href="#5-3-应用场景思考" class="headerlink" title="5.3. 应用场景思考"></a>5.3. 应用场景思考</h2><p>从上面的命名事件中可以看出，其封送的数据类型是特定的，因此可以借助Activity的Tags或Baggage添加自定义的数据进行共享。</p>
-<p>按照上面我们的耗时统计，只能统计到整个http请求的耗时，但对于我们定位问题来说还是有困难，比如，某个api即有调用redis，又操作了消息队列，同时又访问了数据库，那到底是那一段超时了呢？显然不好直接定位，借助Activity，我们就可以很好的实现细粒度的链路跟踪。通过Activity携带的信息，可以将一系列的操作关联起来，记录日志，再借助APM进行可视化快速定位跟踪。</p>
-<h1 id="6-参考资料"><a href="#6-参考资料" class="headerlink" title="6. 参考资料"></a>6. 参考资料</h1><ol>
-<li><a href="https://www.cnblogs.com/savorboard/p/diagnostics.html" target="_blank" rel="noopener">在 .NET Core 中使用 Diagnostics (Diagnostic Source) 记录跟踪信息</a></li>
-<li><a href="https://andrewlock.net/logging-using-diagnosticsource-in-asp-net-core/" target="_blank" rel="noopener">Logging using DiagnosticSource in ASP.NET Core</a></li>
-<li><a href="https://www.cnblogs.com/wucy/p/13532534.html" target="_blank" rel="noopener">.Net Core中的诊断日志DiagnosticSource讲解</a></li>
-<li><a href="https://docs.microsoft.com/en-us/dotnet/standard/events/observer-design-pattern" target="_blank" rel="noopener">Observer Design Pattern</a></li>
-<li><a href="https://github.com/dotnet/runtime/blob/master/src/libraries/System.Diagnostics.DiagnosticSource/src/DiagnosticSourceUsersGuide.md" target="_blank" rel="noopener">DiagnosticSource User Guide</a></li>
-<li><a href="https://github.com/dotnet/runtime/blob/master/src/libraries/System.Diagnostics.DiagnosticSource/src/ActivityUserGuide.md" target="_blank" rel="noopener">Activity User Guide</a></li>
-<li><a href="[https://www.youtube.com/watch?v=g3SZxsskZE0](https://www.youtube.com/watch?v=g3SZxsskZE0)">DiagnosticSourcery 101 - Mark Rendle</a></li>
-<li><a href="https://devblogs.microsoft.com/aspnet/improvements-in-net-core-3-0-for-troubleshooting-and-monitoring-distributed-apps/" target="_blank" rel="noopener">Improvements in .NET Core 3.0 for troubleshooting and monitoring distributed apps
-</a></li>
-</ol>
-]]></content>
-      <categories>
-        <category>知多少</category>
-      </categories>
-      <tags>
-        <tag>.NET</tag>
-        <tag>发布订阅模式</tag>
-        <tag>诊断日志</tag>
       </tags>
   </entry>
   <entry>
@@ -2204,6 +2204,94 @@
       </tags>
   </entry>
   <entry>
+    <title>性能优化知多少</title>
+    <url>/post/how-much-you-know-about-the-performance-optimization/</url>
+    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
+<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近一段时间，系统新版本要发布，在beta客户测试期间，暴露了很多问题，除了一些业务和异常问题外，其他都集中在性能上。有幸接触到这些性能调优的机会，当然要学习总结了。</p>
+<p>性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I/O、内存、网络、算法、大数据量等等。我们可以大致把性能问题分为四个层次：代码层次、数据库层次、算法层次、架构层次。<br>所以下面我会结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。</p>
+<h1 id="2-先说心态"><a href="#2-先说心态" class="headerlink" title="2. 先说心态"></a>2. 先说心态</h1><p>说到性能问题，你可能首先就想到的是麻烦或者头大，因为一般性能问题都比较紧急，轻则影响客户体验，重则宕机导致财务损失，而且性能问题比较隐蔽，不易发现。因此一时间无从下手，而这时我们就很容易从心底开始去排斥它，不愿接这烫手的山芋。</p>
+<p>而恰巧，性能调优是体现程序员水平的一个重要指标。</p>
+<blockquote>
+<p>因为处理bug、崩溃、调优、入侵等突发事件比编程本身更能体现平庸程序员与理想程序员的差距。当面对一个未知的问题时，如何定位复杂条件下的核心问题、如何抽丝剥茧地分析问题的潜在原因、如何排除干扰还原一个最小的可验证场景、如何抓住关键数据验证自己的猜测与实验，都是体现程序员思考力的最好场景。是的，在衡量理想程序员的标准上，思考力比经验更加重要。</p>
+</blockquote>
+<p>所以，若你不甘平庸，请拥抱性能调优的每一个机会。当你拥有一个正确的心态，你所面对的性能问题就已经解决了一半。</p>
+<h1 id="3-再说技巧"><a href="#3-再说技巧" class="headerlink" title="3. 再说技巧"></a>3. 再说技巧</h1><p>拿到一个性能问题，不要忙着先上工具，先了解问题出现的背景，问题的严重程度。然后大致根据自己的经验积累作出预估。比如客户来了个性能问题说系统宕机了，已经造成资金损失了。这种涉及到钱的问题，大家都比较敏感，根据自己的level，决定是否要接这个锅。这不是逃避，而是自知之明。</p>
+<p>了解问题背景之后，下一步就来尝试问题重现。如果在测试环境能够重现，那这种问题就很好跟踪分析。如果问题不能稳定重现或仅能在生产环境重现，那问题就相对比较棘手，这时要立刻收集现场证据，包括但不限于抓dump、收集应用程序以及系统日志、关注CPU内存情况、数据库备份等等，之后不妨再尝试重现，比如恢复客户数据库到测试环境重现。</p>
+<p>不管问题能否重现，下一步，我们就要大致对问题进行分类，是代码层次的业务逻辑问题还是数据库层次的操作耗时问题，又或是系统架构的吞吐量问题。那如何确定呢？而我倾向于先从数据库动手。我的习惯做法是，使用数据库监控工具，先跟踪下Sql耗时情况。如果监控到耗时较长的SQL语句，那基本上就是数据库层次的问题，否则就是代码层次。若为代码层次，再研究完代码后，再细化为算法或架构层次问题。</p>
+<p>确定问题种类后，是时候上工具来精准定位问题点了：</p>
+<ul>
+<li>Sql耗时问题，推荐使用免费的<a href="https://www.sentryone.com/plan-explorer" target="_blank" rel="noopener">Plan Explorer </a>分析执行计划。</li>
+<li>代码问题定位，优先推荐使用VS自带的Performance Analysis，其次是RedGate的性能分析套件<a href="http://www.red-gate.com/products/dotnet-development/dotnet-developer-bundle/" target="_blank" rel="noopener">.NET Developer Bundle</a>；然后还有Jet Brains的<a href="http://www.jetbrains.com/profiler/?fromMenu" target="_blank" rel="noopener">dotTrace – .NET performance profiler</a>，<a href="http://www.jetbrains.com/dotmemory/?fromMenu" target="_blank" rel="noopener">dotMemory– .NET memory profiler</a>；再然后就是反人类的Windbg；等等。</li>
+</ul>
+<p>精准定位问题点后，就是着手优化了。相信到这一步，就是优化策略的选择了，这里就不展开了。</p>
+<p>优化后，最后当然要进行测试了，毕竟优化了多少，我们也要做到心里有谱才行。</p>
+<p>以上啰啰嗦嗦有点多，下面我们直接上案例。</p>
+<h1 id="4-案例分享"><a href="#4-案例分享" class="headerlink" title="4. 案例分享"></a>4. 案例分享</h1><p>下面就分享下我针对代码层面、数据库层面和算法层面的优化案例。</p>
+<h2 id="4-1-SQL优化案例"><a href="#4-1-SQL优化案例" class="headerlink" title="4.1. SQL优化案例"></a>4.1. SQL优化案例</h2><blockquote>
+<p>案例1：客户反馈某结算报表统计十天内的数据耗时10mins左右。</p>
+</blockquote>
+<p>由于前几天刚学会用RedGate的分析工具，拿到这个问题，本地尝试重现后，就直接想使用工具分析。然而，这工具在使用webdev模式起站点时，总是报错，而当时时一根筋，老是想解决这个工具的报错问题。结果，白白搞了半天也没搞定。最后不得已放弃工具，转而选择使用sql server profiler去监控sql语句耗时。一跟踪不要紧，问题就直接暴露了，整个全屏的重复sql语句，如下图。</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
+<p>这下问题就很明显了，八成是代码在循环拼接sql执行语句。根据抓取到sql关键字往代码中去搜索，果然如此。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#region更新三张表数据结合的中间临时表数据，有上游单据的直接调拨单分多次下推时，只计算一次的调拨数量和价税合计</span><br><span class="line">string sSql &#x3D; string.Format(@</span><br><span class="line">&quot;SELECT FENTRYID FROM &#123;0&#125; GROUP BY FENTRYID HAVING COUNT(FENTRYID) &gt; 1&quot;, sJoinDataTempTable);</span><br><span class="line">using(IDataReader reader &#x3D; DBUtils.ExecuteReader(this.Context, sSql)) &#123;</span><br><span class="line">    while (reader.Read()) &#123;</span><br><span class="line">        sbSql.AppendFormat(@&quot;</span><br><span class="line">UPDATE &#123;0&#125; SET FDIRECTQTY &#x3D; 0,FALLAMOUNT &#x3D; 0 </span><br><span class="line">WHERE FSEQ NOT IN (</span><br><span class="line">SELECT TOP 1 FSEQ FROM &#123;0&#125; WHERE FENTRYID &#x3D; &#123;1&#125;) AND FENTRYID &#x3D; (&#123;1&#125;);&quot;</span><br><span class="line">, sJoinDataTempTable, Convert.ToInt32(reader[&quot;FENTRYID&quot;]));</span><br><span class="line">        listSqlObj.Add(new SqlObject(sbSql.ToString(), new List &lt; SqlParam &gt; ()));</span><br><span class="line">        sbSql.Clear();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">#endregion</span><br></pre></td></tr></table></figure>
+
+<p>看到这段代码，咱先不评判这段代码的优劣，因为毕竟代码注释清晰，省了我们理清业务的功夫。这段sql主要是想做去重处理，很显然选用了错误的方案。改后代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">string sqlMerge &#x3D; string.Format(@&quot;</span><br><span class="line">merge into &#123;0&#125; t1</span><br><span class="line">using(</span><br><span class="line">select min(Fseq) fseq,Fentryid from &#123;0&#125; t2 group by fentryid</span><br><span class="line">) t3 on (t1.fentryid &#x3D; t3.fentryid and t1.fseq &lt;&gt; t3.fseq)</span><br><span class="line">when matched then</span><br><span class="line">update set t1.FDIRECTQTY &#x3D; 0, t1.FALLAMOUNT &#x3D; 0</span><br><span class="line">&quot;, sJoinDataTempTable);</span><br><span class="line"></span><br><span class="line">listSqlObj.Add(new SqlObject(sqlMerge, new List &lt; SqlParam &gt; ()));</span><br><span class="line">sbSql.Clear();</span><br></pre></td></tr></table></figure>
+
+<p>改后测试相同数据量，耗时由10mins降到10s左右。</p>
+<h2 id="4-2-代码优化案例"><a href="#4-2-代码优化案例" class="headerlink" title="4.2. 代码优化案例"></a>4.2. 代码优化案例</h2><blockquote>
+<p>案例2：客户反馈销售订单100条分录行，保存进行可发量校验时，耗时7mins左右。</p>
+</blockquote>
+<p>拿到这个问题后，本地重现后，监控sql耗时没有异常，那就着重分析代码了。因为可发量校验的业务逻辑极其复杂，又加上又直接再一个类文件实现该功能，3500+行的代码，加上零星注释，真是让人避之不及。逃避不是办法，还是上工具分析一把。<br>这次我选用的时VS自带的<strong><a href="https://msdn.microsoft.com/en-us/library/ms182372.aspx" target="_blank" rel="noopener">Performance Profiler</a></strong>，开发环境下极其强大的性能调优工具。针对我们当前案例，我们仅需要跟踪指定服务对应的dll即可，使用步骤如下：</p>
+<ol>
+<li>Analyze–&gt;Profiler–&gt;New Performance Session</li>
+<li>打开Performance Explorer</li>
+<li>找到新添加的Performance Session，右键Targets，然后选择Add Target Binary，添加要跟踪的dll文件即可</li>
+<li>将应用跑起来</li>
+<li>选中Performance Session，右键Attach对应进程即可跟踪分析性能了</li>
+<li>在跟踪过程中，可随时暂停跟踪和停止跟踪</li>
+</ol>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
+<p>跟踪结束后本案例跟踪到的采样结果如下图：</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
+<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
+<p>其中第1、4条大致说明程序I/O消耗大，第一代的GC上存在未及时释放的垃圾占比过高。而根据上图的采样结果，我们可以直接看出是由于再代码中频繁操作DataTable引起的性能瓶颈。走读代码发现的确如此，所有的数量统计都是在代码中循环遍历DataTable进行处理的。而最终的优化策略，就相当于一次大的重构，将所有代码中通过遍历DataTable的计算逻辑全部挪到SQL中去做。由于代码过多，就不再放出。</p>
+<blockquote>
+<p>案例3：客户反馈批量引入1000张订单，耗时40mins左右，且容易中断。</p>
+</blockquote>
+<p>同样，我们还是先尝试本地重现。经测试批量引入101张单据，就耗时5mins左右。下一步打开Sql监控工具也未发现耗时语句。但考虑到是批量导入操作，虽然单个耗时不多，但乘以100这个基数，就明显了。下面我们就使用RedGate的<a href="http://www.red-gate.com/products/dotnet-development/ants-performance-profiler/" target="_blank" rel="noopener">Ants Performance Profiler</a>跟踪一下。</p>
+<p>该工具比较直观，可以同时监控代码和SQL执行情况。第一步，New Profiler Session，第二步进行设置，如下图。根据自己的应用程序类别，选择相应的跟踪方式。</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
+<p>针对这个问题，我们跟踪到的调用堆栈和SQL耗时结果如下图：</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
+<p>首先从调用堆栈中的Hit Count，我们可以首先看出它是一个批量过程，因为入口函数仅调用一次；第二个我们可以代码中是循环处理每一个单据，因为Hit Count与我们批量引入的单据数量相符；第三个，突然来了个10201，如果有一定的数字敏感性的话，这次性能问题的原因就被你找到了。这里就不卖关子了，101 x 101 = 10201。<br>是不是明白了什么，存在循环嵌套循环的情况。我们走读代码确定一下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Save.cs</span><br><span class="line">public override void EndOperationTransaction(EndOperationTransactionArgs e) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    foreach(DynamicObject dyItem in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;反写收款单</span><br><span class="line">        WriteBackReceiveBill wb &#x3D; new WriteBackReceiveBill();</span><br><span class="line">        wb.WriteBackForSave(e, this.Context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;WriteBackReceiveBill .cs</span><br><span class="line">public void WriteBackForSave(EndOperationTransactionArgs e, Context contx) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码：</span><br><span class="line">    foreach(DynamicObject item in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;do something </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>好嘛，外层套了一个空循环却什么也没做。修改就很简单了，删除无效外层循环即可。</p>
+<h2 id="4-3-算法优化案例"><a href="#4-3-算法优化案例" class="headerlink" title="4.3. 算法优化案例"></a>4.3. 算法优化案例</h2><blockquote>
+<p>案例4：某全流程跟踪报表超时。</p>
+</blockquote>
+<p>这个报表是用来跟踪所有单据从下单到出库的业务流程数据流转情况。而所有的流程数据都是按照树形结果存储在数据库表中的，类似这样：</p>
+<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
+<p>图中的流程为：<br>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</p>
+<p>为了构造流程图，之前的处理方法是把流程数据取回来，通过代码构造流程图。这也就是性能差的原因。</p>
+<p>而针对这种情况，就是考验我们平时经验积累了。对于树形结构的表，我们也是可以通过SQL来进行直接查询的，这就要用到了SQL Server的CTE语法来进行递归查询。关于递归查询，可参考我这篇文章：<a href="http://www.jianshu.com/p/ab9d268aa54c" target="_blank" rel="noopener">SQL递归查询知多少</a>。这里就不展开了。</p>
+<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5.总结"></a>5.总结</h1><p>性能调优是一个循序渐进的过程，不可能一蹴而就，重在平时的点滴积累。关于工具的选择和使用，本文并未展开，也希望读者也不要纠结与此。当你真正想解决一个问题的时候，相信工具的使用是难不住你的。</p>
+<p>最后就大致总结下我的调优思路：</p>
+<ol>
+<li>调整心态，积极应对</li>
+<li>了解性能背景， 收集证据， 尝试重现</li>
+<li>问题分类，先监控SQL耗时，大致确定是SQL或是代码层次原因</li>
+<li>使用性能分析工具，确定问题点</li>
+<li>调优测试</li>
+</ol>
+]]></content>
+      <categories>
+        <category>性能优化</category>
+      </categories>
+  </entry>
+  <entry>
     <title>RabbitMQ 知多少</title>
     <url>/post/how-much-you-know-about-the-rabbitmq/</url>
     <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-rabbitmq/2799767-82c5402158929477.png" alt=""></p>
@@ -2315,94 +2403,6 @@
         <tag>消息队列</tag>
         <tag>RabbitMQ</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>性能优化知多少</title>
-    <url>/post/how-much-you-know-about-the-performance-optimization/</url>
-    <content><![CDATA[<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9372ac4442777015.png" alt=""></p>
-<h1 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h1><p>最近一段时间，系统新版本要发布，在beta客户测试期间，暴露了很多问题，除了一些业务和异常问题外，其他都集中在性能上。有幸接触到这些性能调优的机会，当然要学习总结了。</p>
-<p>性能优化是一个老生常谈的问题了，典型的性能问题如页面响应慢、接口超时，服务器负载高、并发数低，数据库频繁死锁等。而造成性能问题又有很多种，比如磁盘I/O、内存、网络、算法、大数据量等等。我们可以大致把性能问题分为四个层次：代码层次、数据库层次、算法层次、架构层次。<br>所以下面我会结合实际性能优化案例，和大家分享下性能调优的工具、方法和技巧。</p>
-<h1 id="2-先说心态"><a href="#2-先说心态" class="headerlink" title="2. 先说心态"></a>2. 先说心态</h1><p>说到性能问题，你可能首先就想到的是麻烦或者头大，因为一般性能问题都比较紧急，轻则影响客户体验，重则宕机导致财务损失，而且性能问题比较隐蔽，不易发现。因此一时间无从下手，而这时我们就很容易从心底开始去排斥它，不愿接这烫手的山芋。</p>
-<p>而恰巧，性能调优是体现程序员水平的一个重要指标。</p>
-<blockquote>
-<p>因为处理bug、崩溃、调优、入侵等突发事件比编程本身更能体现平庸程序员与理想程序员的差距。当面对一个未知的问题时，如何定位复杂条件下的核心问题、如何抽丝剥茧地分析问题的潜在原因、如何排除干扰还原一个最小的可验证场景、如何抓住关键数据验证自己的猜测与实验，都是体现程序员思考力的最好场景。是的，在衡量理想程序员的标准上，思考力比经验更加重要。</p>
-</blockquote>
-<p>所以，若你不甘平庸，请拥抱性能调优的每一个机会。当你拥有一个正确的心态，你所面对的性能问题就已经解决了一半。</p>
-<h1 id="3-再说技巧"><a href="#3-再说技巧" class="headerlink" title="3. 再说技巧"></a>3. 再说技巧</h1><p>拿到一个性能问题，不要忙着先上工具，先了解问题出现的背景，问题的严重程度。然后大致根据自己的经验积累作出预估。比如客户来了个性能问题说系统宕机了，已经造成资金损失了。这种涉及到钱的问题，大家都比较敏感，根据自己的level，决定是否要接这个锅。这不是逃避，而是自知之明。</p>
-<p>了解问题背景之后，下一步就来尝试问题重现。如果在测试环境能够重现，那这种问题就很好跟踪分析。如果问题不能稳定重现或仅能在生产环境重现，那问题就相对比较棘手，这时要立刻收集现场证据，包括但不限于抓dump、收集应用程序以及系统日志、关注CPU内存情况、数据库备份等等，之后不妨再尝试重现，比如恢复客户数据库到测试环境重现。</p>
-<p>不管问题能否重现，下一步，我们就要大致对问题进行分类，是代码层次的业务逻辑问题还是数据库层次的操作耗时问题，又或是系统架构的吞吐量问题。那如何确定呢？而我倾向于先从数据库动手。我的习惯做法是，使用数据库监控工具，先跟踪下Sql耗时情况。如果监控到耗时较长的SQL语句，那基本上就是数据库层次的问题，否则就是代码层次。若为代码层次，再研究完代码后，再细化为算法或架构层次问题。</p>
-<p>确定问题种类后，是时候上工具来精准定位问题点了：</p>
-<ul>
-<li>Sql耗时问题，推荐使用免费的<a href="https://www.sentryone.com/plan-explorer" target="_blank" rel="noopener">Plan Explorer </a>分析执行计划。</li>
-<li>代码问题定位，优先推荐使用VS自带的Performance Analysis，其次是RedGate的性能分析套件<a href="http://www.red-gate.com/products/dotnet-development/dotnet-developer-bundle/" target="_blank" rel="noopener">.NET Developer Bundle</a>；然后还有Jet Brains的<a href="http://www.jetbrains.com/profiler/?fromMenu" target="_blank" rel="noopener">dotTrace – .NET performance profiler</a>，<a href="http://www.jetbrains.com/dotmemory/?fromMenu" target="_blank" rel="noopener">dotMemory– .NET memory profiler</a>；再然后就是反人类的Windbg；等等。</li>
-</ul>
-<p>精准定位问题点后，就是着手优化了。相信到这一步，就是优化策略的选择了，这里就不展开了。</p>
-<p>优化后，最后当然要进行测试了，毕竟优化了多少，我们也要做到心里有谱才行。</p>
-<p>以上啰啰嗦嗦有点多，下面我们直接上案例。</p>
-<h1 id="4-案例分享"><a href="#4-案例分享" class="headerlink" title="4. 案例分享"></a>4. 案例分享</h1><p>下面就分享下我针对代码层面、数据库层面和算法层面的优化案例。</p>
-<h2 id="4-1-SQL优化案例"><a href="#4-1-SQL优化案例" class="headerlink" title="4.1. SQL优化案例"></a>4.1. SQL优化案例</h2><blockquote>
-<p>案例1：客户反馈某结算报表统计十天内的数据耗时10mins左右。</p>
-</blockquote>
-<p>由于前几天刚学会用RedGate的分析工具，拿到这个问题，本地尝试重现后，就直接想使用工具分析。然而，这工具在使用webdev模式起站点时，总是报错，而当时时一根筋，老是想解决这个工具的报错问题。结果，白白搞了半天也没搞定。最后不得已放弃工具，转而选择使用sql server profiler去监控sql语句耗时。一跟踪不要紧，问题就直接暴露了，整个全屏的重复sql语句，如下图。</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-f2779b1cef7ffb3f.png" alt="Sql Profiler监控结果"></p>
-<p>这下问题就很明显了，八成是代码在循环拼接sql执行语句。根据抓取到sql关键字往代码中去搜索，果然如此。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#region更新三张表数据结合的中间临时表数据，有上游单据的直接调拨单分多次下推时，只计算一次的调拨数量和价税合计</span><br><span class="line">string sSql &#x3D; string.Format(@</span><br><span class="line">&quot;SELECT FENTRYID FROM &#123;0&#125; GROUP BY FENTRYID HAVING COUNT(FENTRYID) &gt; 1&quot;, sJoinDataTempTable);</span><br><span class="line">using(IDataReader reader &#x3D; DBUtils.ExecuteReader(this.Context, sSql)) &#123;</span><br><span class="line">    while (reader.Read()) &#123;</span><br><span class="line">        sbSql.AppendFormat(@&quot;</span><br><span class="line">UPDATE &#123;0&#125; SET FDIRECTQTY &#x3D; 0,FALLAMOUNT &#x3D; 0 </span><br><span class="line">WHERE FSEQ NOT IN (</span><br><span class="line">SELECT TOP 1 FSEQ FROM &#123;0&#125; WHERE FENTRYID &#x3D; &#123;1&#125;) AND FENTRYID &#x3D; (&#123;1&#125;);&quot;</span><br><span class="line">, sJoinDataTempTable, Convert.ToInt32(reader[&quot;FENTRYID&quot;]));</span><br><span class="line">        listSqlObj.Add(new SqlObject(sbSql.ToString(), new List &lt; SqlParam &gt; ()));</span><br><span class="line">        sbSql.Clear();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">#endregion</span><br></pre></td></tr></table></figure>
-
-<p>看到这段代码，咱先不评判这段代码的优劣，因为毕竟代码注释清晰，省了我们理清业务的功夫。这段sql主要是想做去重处理，很显然选用了错误的方案。改后代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">string sqlMerge &#x3D; string.Format(@&quot;</span><br><span class="line">merge into &#123;0&#125; t1</span><br><span class="line">using(</span><br><span class="line">select min(Fseq) fseq,Fentryid from &#123;0&#125; t2 group by fentryid</span><br><span class="line">) t3 on (t1.fentryid &#x3D; t3.fentryid and t1.fseq &lt;&gt; t3.fseq)</span><br><span class="line">when matched then</span><br><span class="line">update set t1.FDIRECTQTY &#x3D; 0, t1.FALLAMOUNT &#x3D; 0</span><br><span class="line">&quot;, sJoinDataTempTable);</span><br><span class="line"></span><br><span class="line">listSqlObj.Add(new SqlObject(sqlMerge, new List &lt; SqlParam &gt; ()));</span><br><span class="line">sbSql.Clear();</span><br></pre></td></tr></table></figure>
-
-<p>改后测试相同数据量，耗时由10mins降到10s左右。</p>
-<h2 id="4-2-代码优化案例"><a href="#4-2-代码优化案例" class="headerlink" title="4.2. 代码优化案例"></a>4.2. 代码优化案例</h2><blockquote>
-<p>案例2：客户反馈销售订单100条分录行，保存进行可发量校验时，耗时7mins左右。</p>
-</blockquote>
-<p>拿到这个问题后，本地重现后，监控sql耗时没有异常，那就着重分析代码了。因为可发量校验的业务逻辑极其复杂，又加上又直接再一个类文件实现该功能，3500+行的代码，加上零星注释，真是让人避之不及。逃避不是办法，还是上工具分析一把。<br>这次我选用的时VS自带的<strong><a href="https://msdn.microsoft.com/en-us/library/ms182372.aspx" target="_blank" rel="noopener">Performance Profiler</a></strong>，开发环境下极其强大的性能调优工具。针对我们当前案例，我们仅需要跟踪指定服务对应的dll即可，使用步骤如下：</p>
-<ol>
-<li>Analyze–&gt;Profiler–&gt;New Performance Session</li>
-<li>打开Performance Explorer</li>
-<li>找到新添加的Performance Session，右键Targets，然后选择Add Target Binary，添加要跟踪的dll文件即可</li>
-<li>将应用跑起来</li>
-<li>选中Performance Session，右键Attach对应进程即可跟踪分析性能了</li>
-<li>在跟踪过程中，可随时暂停跟踪和停止跟踪</li>
-</ol>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-581bab6651172c90.png" alt="图示步骤"></p>
-<p>跟踪结束后本案例跟踪到的采样结果如下图：</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-9bd074f58fbe605e.png" alt="VS Performance Profiler分析报告"></p>
-<p>同时Performance Profiler也给出了问题的建议，如下图：<br><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-5e091191b829b7da.png" alt="VS Performance Profiler分析提示"></p>
-<p>其中第1、4条大致说明程序I/O消耗大，第一代的GC上存在未及时释放的垃圾占比过高。而根据上图的采样结果，我们可以直接看出是由于再代码中频繁操作DataTable引起的性能瓶颈。走读代码发现的确如此，所有的数量统计都是在代码中循环遍历DataTable进行处理的。而最终的优化策略，就相当于一次大的重构，将所有代码中通过遍历DataTable的计算逻辑全部挪到SQL中去做。由于代码过多，就不再放出。</p>
-<blockquote>
-<p>案例3：客户反馈批量引入1000张订单，耗时40mins左右，且容易中断。</p>
-</blockquote>
-<p>同样，我们还是先尝试本地重现。经测试批量引入101张单据，就耗时5mins左右。下一步打开Sql监控工具也未发现耗时语句。但考虑到是批量导入操作，虽然单个耗时不多，但乘以100这个基数，就明显了。下面我们就使用RedGate的<a href="http://www.red-gate.com/products/dotnet-development/ants-performance-profiler/" target="_blank" rel="noopener">Ants Performance Profiler</a>跟踪一下。</p>
-<p>该工具比较直观，可以同时监控代码和SQL执行情况。第一步，New Profiler Session，第二步进行设置，如下图。根据自己的应用程序类别，选择相应的跟踪方式。</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-6401487a7995b6dc.png" alt="跟踪设置"></p>
-<p>针对这个问题，我们跟踪到的调用堆栈和SQL耗时结果如下图：</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-aa1da6373d8fdfc3.png" alt="调用堆栈监控结果"></p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-93679e720a28eeb3.png" alt="SQL监控结果"></p>
-<p>首先从调用堆栈中的Hit Count，我们可以首先看出它是一个批量过程，因为入口函数仅调用一次；第二个我们可以代码中是循环处理每一个单据，因为Hit Count与我们批量引入的单据数量相符；第三个，突然来了个10201，如果有一定的数字敏感性的话，这次性能问题的原因就被你找到了。这里就不卖关子了，101 x 101 = 10201。<br>是不是明白了什么，存在循环嵌套循环的情况。我们走读代码确定一下：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;Save.cs</span><br><span class="line">public override void EndOperationTransaction(EndOperationTransactionArgs e) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码</span><br><span class="line">    foreach(DynamicObject dyItem in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;反写收款单</span><br><span class="line">        WriteBackReceiveBill wb &#x3D; new WriteBackReceiveBill();</span><br><span class="line">        wb.WriteBackForSave(e, this.Context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;WriteBackReceiveBill .cs</span><br><span class="line">public void WriteBackForSave(EndOperationTransactionArgs e, Context contx) &#123;</span><br><span class="line">    &#x2F;&#x2F;省略其他代码：</span><br><span class="line">    foreach(DynamicObject item in e.DataEntitys) &#123;</span><br><span class="line">        &#x2F;&#x2F;do something </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>好嘛，外层套了一个空循环却什么也没做。修改就很简单了，删除无效外层循环即可。</p>
-<h2 id="4-3-算法优化案例"><a href="#4-3-算法优化案例" class="headerlink" title="4.3. 算法优化案例"></a>4.3. 算法优化案例</h2><blockquote>
-<p>案例4：某全流程跟踪报表超时。</p>
-</blockquote>
-<p>这个报表是用来跟踪所有单据从下单到出库的业务流程数据流转情况。而所有的流程数据都是按照树形结果存储在数据库表中的，类似这样：</p>
-<p><img src="/images/how-much-you-know-about-the-performance-optimization/2799767-b0c94713af838e01.png" alt="流程树表"></p>
-<p>图中的流程为：<br>销售合同–&gt;销售订单–&gt;发货通知单–&gt;销售出库单</p>
-<p>为了构造流程图，之前的处理方法是把流程数据取回来，通过代码构造流程图。这也就是性能差的原因。</p>
-<p>而针对这种情况，就是考验我们平时经验积累了。对于树形结构的表，我们也是可以通过SQL来进行直接查询的，这就要用到了SQL Server的CTE语法来进行递归查询。关于递归查询，可参考我这篇文章：<a href="http://www.jianshu.com/p/ab9d268aa54c" target="_blank" rel="noopener">SQL递归查询知多少</a>。这里就不展开了。</p>
-<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5.总结"></a>5.总结</h1><p>性能调优是一个循序渐进的过程，不可能一蹴而就，重在平时的点滴积累。关于工具的选择和使用，本文并未展开，也希望读者也不要纠结与此。当你真正想解决一个问题的时候，相信工具的使用是难不住你的。</p>
-<p>最后就大致总结下我的调优思路：</p>
-<ol>
-<li>调整心态，积极应对</li>
-<li>了解性能背景， 收集证据， 尝试重现</li>
-<li>问题分类，先监控SQL耗时，大致确定是SQL或是代码层次原因</li>
-<li>使用性能分析工具，确定问题点</li>
-<li>调优测试</li>
-</ol>
-]]></content>
-      <categories>
-        <category>性能优化</category>
-      </categories>
   </entry>
   <entry>
     <title>反应式编程知多少 | Rx.NET了解下</title>
